@@ -326,6 +326,56 @@ export function ConversationList({
           >
             Cerradas
           </button>
+          <Popover open={tagFilterOpen} onOpenChange={setTagFilterOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={cn('chip', tagFilter && 'on')}
+                title={tagFilter
+                  ? `Filtrando: ${availableTags.find(t => t.id === tagFilter)?.name || 'etiqueta'}`
+                  : 'Filtrar por etiqueta'}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              >
+                <Tag style={{ width: 12, height: 12 }} aria-hidden />
+                {tagFilter
+                  ? (availableTags.find(t => t.id === tagFilter)?.name || 'Etiqueta')
+                  : 'Etiqueta'}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-[200px] p-2"
+              align="start"
+              portalContainer={themeContainerRef.current ?? undefined}
+            >
+              <div className="space-y-1">
+                {tagFilter && (
+                  <button
+                    onClick={() => { setTagFilter(null); setTagFilterOpen(false) }}
+                    className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent text-muted-foreground"
+                  >
+                    Quitar filtro
+                  </button>
+                )}
+                {availableTags.length === 0 ? (
+                  <p className="text-sm text-muted-foreground px-2 py-1.5">Sin etiquetas</p>
+                ) : (
+                  availableTags.map(tag => (
+                    <button
+                      key={tag.id}
+                      onClick={() => { setTagFilter(tag.id); setTagFilterOpen(false) }}
+                      className={cn(
+                        "w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent flex items-center gap-2",
+                        tagFilter === tag.id && "bg-accent font-medium"
+                      )}
+                    >
+                      <span className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                      {tag.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Conversation list */}

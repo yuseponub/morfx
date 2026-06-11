@@ -56,8 +56,9 @@ timers. Lo nuevo vive en `sub-loop/`, `knowledge*/`, `unknown-cases/`,
 
 ### `src/lib/agents/somnio-v4/`
 
-> **Line counts al 2026-06-10** (post-Plan 01 baseline; cambiarán en W2 cuando el
-> orquestador del turno se extraiga a `core/`). Verificá con `wc -l` si dudás.
+> **Line counts al 2026-06-10** (post-consolidación Wave 2: el orquestador del turno
+> ya se extrajo a `core/` — el runner pasó de 1295→572 y el engine de 768→330 como
+> wrappers). Verificá con `wc -l` si dudás.
 
 | Archivo | Responsabilidad |
 |---|---|
@@ -78,9 +79,37 @@ timers. Lo nuevo vive en `sub-loop/`, `knowledge*/`, `unknown-cases/`,
 | `config.ts` (93) | `somnioV4Config`, `SOMNIO_V4_AGENT_ID`, `SOMNIO_WORKSPACE_ID`. |
 | `constants.ts` (226) | Intents (22), fields críticos, ACTION_TEMPLATE_MAP, timers, prefijo `_v4:`. |
 | `types.ts` (403) | `AgentState`, `V4AgentInput/Output`, `TipoAccion`, `Invocation`. |
-| `engine-v4.ts` (768) | **Engine del sandbox.** `SomnioV4Engine.processMessage` + restart loop + CKPT sintéticos + stream `onMessage`. |
+| `engine-v4.ts` (330) | **Wrapper del sandbox.** `SomnioV4Engine.processMessage` construye los `TurnCoreAdapters` de memoria vía `createSandboxAdapters` + llama `runTurn` (core) + mapea `TurnResult` → `V4EngineOutput`. NO contiene mecanismo (restart loop / CKPT / drains viven en `core/`). |
+| `sandbox-adapters.ts` (259) | `createSandboxAdapters` — los `TurnCoreAdapters` de memoria: `send` sintético (loop CKPT-7.N + pacing + `onMessage` stream NDJSON), `getSeedState` de memoria, `beforeAgentInvoke` (timing simulado), `onResultReady` (write `sandbox-result`). NO implementa los métodos prod-only → esas ramas del core se saltan (§7). |
 | `index.ts` (29) | Self-registra `somnioV4Config` en `agentRegistry` al importar. |
-| `INTERRUPTION-PARITY.md` | Contrato de paridad del sistema de interrupción (§11). |
+| `INTERRUPTION-PARITY.md` | Diferencias de adapters prod↔sandbox (la paridad de mecanismo es por construcción — el mecanismo es código único en `core/`, §1.1). |
+
+### 1.1 `src/lib/agents/somnio-v4/core/` — orquestación de turno unificada
+
+> **Extraído en el standalone `somnio-v4-consolidation` (2026-06, Wave 2).** El
+> mecanismo de turno (restart loop + Path A/B + checkpoints + drains + heartbeat +
+> finally-release) vivía duplicado a mano en el runner de producción y el engine del
+> sandbox. Ahora es **código único** que ambos lados consumen como wrappers — la
+> paridad prod↔sandbox es **por construcción** (el bug-class del 2026-05-28, fix
+> doble de `dropOwnEntry`/`carryState`, es estructuralmente imposible). Detalle de las
+> diferencias de adapters en `INTERRUPTION-PARITY.md`.
+
+| Archivo | Responsabilidad | Líneas (`wc -l`) |
+|---|---|---|
+| `turn-orchestrator.ts` | **El mecanismo único de turno v4.** `runTurn(input, adapters)` — restart loop `while (shouldRestart)` + Path A/B + heartbeat lifecycle + finally release del lock. Extraído del runner de prod (fuente de verdad, D-04). Prod y sandbox corren ESTE mismo `runTurn`, parametrizado solo por `TurnCoreAdapters`. | 666 |
+| `types.ts` | Contratos del core: `TurnCoreAdapters` (`send`/`getSeedState` obligatorios + 11 capabilities opcionales en patrón optional-method), `TurnResult` (discriminado neutral `completed`/`zombie_exit`/`error`), `CoreSeedState`, `SendBlock`, `CommittedTurn`. El core NO importa WhatsApp ni NDJSON (D-05). | 298 |
+| `drain.ts` | `drainPendingAndCombine()` — consolida los 9 drain-sites copy-paste (drena pending + combina + emite `msg_aborted_path_*` + `pending_list_combined`). Sitio único de drain. | 100 |
+| `checkpoint-gate.ts` | `runCheckpointGate()` — helper único del check de lock/interrupt por checkpoint (envuelve `checkpoint()` de `interruption-system-v2`: skip-gate + lostLock throw + emit). Lo usan CKPT-0/6a/6b (core) + el agente (CKPT-1/2) + el sub-loop (CKPT-3/4/5). | 168 |
+| `restart-context.ts` | `RestartContext` struct (acumuladores cross-iteración: `effectiveMessage`, `totalTokens`, `carryState`, `accumulatedSentContents`) + `createRestartContext` + `dropOwnEntry` (excluye la entrada propia del holder por `entry_uuid`). | 103 |
+
+**Cómo se consume (wrappers):**
+- **Producción** (`engine/v4-production-runner.ts`, 572 líneas — era 1295): implementa
+  los `TurnCoreAdapters` de producción (fetch sesión, `commitTurn`, pending-templates,
+  no-repetición, crash-recovery) + envuelve `runTurn` con el retry de
+  `VersionConflictError` + mapea `TurnResult` → `EngineOutput`.
+- **Sandbox** (`engine-v4.ts` + `sandbox-adapters.ts`): implementa los
+  `TurnCoreAdapters` de memoria + mapea `TurnResult` → `V4EngineOutput`. No implementa
+  los métodos prod-only → esas ramas del core se saltan = paridad actual exacta.
 
 ### `src/lib/agents/somnio-v4/sub-loop/`
 
@@ -121,7 +150,7 @@ timers. Lo nuevo vive en `sub-loop/`, `knowledge*/`, `unknown-cases/`,
 
 | Archivo | Rol |
 |---|---|
-| `engine/v4-production-runner.ts` (~59KB) | **Runner de producción.** `V4ProductionRunner.processMessage`: restart loop + CKPT-0/6a/6b + envío + release del lock. |
+| `engine/v4-production-runner.ts` (572) | **Wrapper de producción del core.** `V4ProductionRunner.processMessage` implementa los `TurnCoreAdapters` de prod + envuelve `runTurn` (retry `VersionConflictError`) + mapea `TurnResult` → `EngineOutput`. El restart loop / CKPT-0/6a/6b / drains / release viven en `core/` (no en el runner). |
 | `engine-adapters/production/v4-messaging-adapter.ts` (185) | `V4MessagingAdapter extends ProductionMessagingAdapter`. CKPT-7.N + `onFirstSendCompleted` + `LostLockError`. |
 | `engine-adapters/production/messaging.ts` | Adapter base. `send()` envía templates; **dropea si no hay templates** (`:159-161`). |
 | `inngest/functions/agent-production.ts` | `whatsappAgentProcessor` — consume el evento, llama al runner. |
@@ -147,9 +176,10 @@ WhatsApp inbound (360dialog / Onurix)
  └─ HOLDER → inngest.send('agent/whatsapp.message_received', { …+6 lock fields })
        │
        ▼ agent-production.ts: whatsappAgentProcessor (concurrency 1 por conversationId)
-       └─ V4ProductionRunner.processMessage(EngineInput)               [v4-production-runner.ts]
+       └─ V4ProductionRunner.processMessage(EngineInput)               [v4-production-runner.ts: wrapper]
+            │  └─ inyecta TurnCoreAdapters de prod + llama runTurn       [core/turn-orchestrator.ts]
             │
-            ▼ while (shouldRestart):                                    ← restart loop (§11)
+            ▼ while (shouldRestart):                                    ← restart loop EN EL CORE (§1.1, §11)
             │   CKPT-0  ── post-acquire
             │   processMessage(V4AgentInput)  ───────────────────────►  somnio-v4-agent.ts
             │   │   1. deserializeState
@@ -537,8 +567,10 @@ observabilidad `retake:decision` (`sales-track.ts:55`).
 
 ## 7. Producción vs Sandbox
 
-Mismo **mecanismo**, distinto **código** (no comparten el runner; sí comparten
-`somnio-v4/` y `interruption-system-v2/`).
+Mismo **mecanismo** — y desde la consolidación Wave 2, **el mismo código de
+mecanismo**: prod y sandbox son wrappers que consumen el MISMO `core/turn-orchestrator.ts`
+(`runTurn`), `somnio-v4/` y `interruption-system-v2/`. Solo difieren los **adapters**
+(envío/persistencia/timing). La paridad es **por construcción** (§1.1).
 
 | Etapa | Producción | Sandbox |
 |---|---|---|
@@ -655,11 +687,15 @@ de enviar) y **Path B** (reprocesar limpio tras enviar ≥1). Mecanismo idéntic
 prod y sandbox; solo difieren envío/persistencia/timing. Solo aplica a v4 (Regla 6 —
 v3/godentist/recompra/pw intactos).
 
-Distribución de checkpoints en v4:
-- CKPT-0 / CKPT-6a / CKPT-6b — `v4-production-runner.ts`.
-- CKPT-1 / CKPT-2 — `somnio-v4-agent.ts:129/327`.
-- CKPT-3 / CKPT-4 / CKPT-5 — `sub-loop/index.ts:291/396/454`.
-- CKPT-7.N — `v4-messaging-adapter.ts:78` (prod) / `engine-v4.ts:405` (sandbox).
+Distribución de checkpoints en v4 (todas pasan por `core/checkpoint-gate.ts`
+`runCheckpointGate`):
+- CKPT-0 / CKPT-6a / CKPT-6b — `core/turn-orchestrator.ts` (mecanismo único; antes en el runner).
+- CKPT-1 / CKPT-2 — `somnio-v4-agent.ts`.
+- CKPT-3 / CKPT-4 / CKPT-5 — `sub-loop/index.ts`.
+- CKPT-7.N — `v4-messaging-adapter.ts` (prod, `shouldAbortBeforeTemplate`) / `sandbox-adapters.ts` (sandbox, loop sintético en el `send`).
+
+El restart loop, Path A/B y el release del lock viven en `core/turn-orchestrator.ts`
+(§1.1) — prod y sandbox son wrappers que lo consumen. Paridad por construcción.
 
 Scope completo del módulo en `CLAUDE.md` §"Module Scope: interruption-system-v2".
 

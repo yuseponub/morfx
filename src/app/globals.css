@@ -1605,3 +1605,26 @@ html:has(.theme-editorial) body {
   color:oklch(from var(--tc) 0.86 c h);
   border-color:oklch(from var(--tc) 0.48 calc(c * 0.7) h);
 }
+
+/* ===== VIVIFICACIÓN v3 — boost de intensidad (2026-06-10, QA usuario) =====
+ * "aún más vivos los colores de los stages y los botones, más contraste".
+ * --vk 1→1.35 sube el croma de los 7 hues (stages: dot/línea/contador/
+ * iconos de cards/sidebar heredan). Receta de tags: más relleno (c*0.55),
+ * texto más oscuro y saturado (L .38, c*1.25), borde más presente.
+ * Contador de columna pasa de mix 60% a color pleno del stage. */
+.theme-editorial-v3{--vk:1.35}
+
+.theme-editorial-v3 .mx-tag--rubric,
+.theme-editorial-v3 .mx-tag--gold,
+.theme-editorial-v3 .mx-tag--success,
+.theme-editorial-v3 .mx-tag--verdigris,
+.theme-editorial-v3 .mx-tag--indigo,
+.theme-editorial-v3 .mx-tag--violet,
+.theme-editorial-v3 .mx-tag--rose,
+.theme-editorial-v3 .mx-tag--ink{
+  background:oklch(from var(--tc) 0.93 calc(c * 0.55) h);
+  color:oklch(from var(--tc) 0.38 calc(c * 1.25) h);
+  border-color:oklch(from var(--tc) 0.78 calc(c * 0.75) h);
+}
+
+.theme-editorial-v3 .kcol-head .c{color:var(--stage-c);font-weight:600}

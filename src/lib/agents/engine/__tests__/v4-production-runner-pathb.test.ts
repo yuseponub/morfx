@@ -73,9 +73,12 @@ vi.mock('@/lib/agents/interruption-system-v2/lock', async () => {
   return { ...actual, startHeartbeat: () => () => {} }
 })
 
-// Mock the v4 agent module — the runner does `await import('../somnio-v4')`.
+// Mock the v4 agent — el CORE (turn-orchestrator) importa estáticamente
+// `processMessage` desde `@/lib/agents/somnio-v4/somnio-v4-agent` (A13/D-09). El runner viejo
+// hacía `await import('../somnio-v4')` (el index); tras el rewire a wrapper del core el specifier
+// es el archivo directo del agente. CAMBIO DE SETUP SANCIONADO (A13/Pitfall 8) — los asserts no se tocan.
 const agentMockFn = vi.fn<[V4AgentInput], Promise<V4AgentOutput>>()
-vi.mock('@/lib/agents/somnio-v4', () => ({
+vi.mock('@/lib/agents/somnio-v4/somnio-v4-agent', () => ({
   processMessage: (input: V4AgentInput) => agentMockFn(input),
 }))
 

@@ -64,8 +64,12 @@ vi.mock('@/lib/audit/logger', () => ({
 
 // Mock the somnio-v4 agent processMessage — canned outputs per iteration.
 // Vitest 1.x typed-args form: vi.fn<TArgs[], TReturn>().
+// El CORE (turn-orchestrator) importa estáticamente desde `@/lib/agents/somnio-v4/somnio-v4-agent`
+// (A13/D-09 — mismo specifier que el mock v3 de abajo). El runner viejo hacía `await import('../somnio-v4')`
+// (el index); tras el rewire a wrapper del core el specifier es el archivo directo. CAMBIO DE SETUP
+// SANCIONADO (A13/Pitfall 8) — los asserts no se tocan.
 const agentMockFn = vi.fn<[V4AgentInput], Promise<V4AgentOutput>>()
-vi.mock('@/lib/agents/somnio-v4', () => ({
+vi.mock('@/lib/agents/somnio-v4/somnio-v4-agent', () => ({
   processMessage: (input: V4AgentInput) => agentMockFn(input),
 }))
 

@@ -16,7 +16,10 @@
 
 import { generateText, Output } from 'ai'
 import { google } from '@ai-sdk/google'
+import { anthropic } from '@ai-sdk/anthropic'
 import { z } from 'zod'
+import { callWithGeminiFallback } from '../somnio-v4/llm-fallback'
+import { safeAccessOutput } from '../somnio-v4/sub-loop/safe-output'
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -134,44 +137,58 @@ export async function classifyImage(
       ? `${CLASSIFICATION_PROMPT}\n\nTexto del cliente junto a la imagen: "${caption}"`
       : CLASSIFICATION_PROMPT
 
-    const rawResult = await generateText({
-      model: google('gemini-2.5-flash'),
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              image: base64Data,
-              mediaType: mimeType,
+    // MISMO content para ambos providers — AI SDK normaliza el image part por provider (A1).
+    const visionContent = [
+      { type: 'image' as const, image: base64Data, mediaType: mimeType },
+      { type: 'text' as const, text: promptText },
+    ]
+
+    // Fallback Gemini → Haiku 4.5 con visión (D-02/D-03) — el fail-safe handoff
+    // queda como ÚLTIMO recurso si AMBOS providers fallan (D-07, abajo en el catch).
+    const rawResult = await callWithGeminiFallback({
+      callSite: 'vision',
+      gemini: (signal) =>
+        generateText({
+          model: google('gemini-2.5-flash'),
+          maxRetries: 0, // D-05 — el orquestador hace N=1 + fallback
+          abortSignal: signal, // D-06 — AbortSignal.timeout del orquestador
+          messages: [{ role: 'user', content: visionContent }],
+          output: Output.object({ schema: ClassificationSchema }),
+          // Pitfall 6 — without this, Gemini silently blocks health-related terms
+          // → NoOutputGeneratedError with finishReason='SAFETY'.
+          // Verbatim from generation-call.ts:69-78.
+          providerOptions: {
+            google: {
+              safetySettings: [
+                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+              ],
             },
-            {
-              type: 'text',
-              text: promptText,
-            },
-          ],
-        },
-      ],
-      output: Output.object({ schema: ClassificationSchema }),
-      // Pitfall 6 — without this, Gemini silently blocks health-related terms
-      // → NoOutputGeneratedError with finishReason='SAFETY'.
-      // Verbatim from generation-call.ts:69-78.
-      providerOptions: {
-        google: {
-          safetySettings: [
-            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-          ],
-        },
-      },
+          },
+        }),
+      anthropic: () =>
+        generateText({
+          model: anthropic('claude-haiku-4-5'), // D-02/D-03 — Haiku 4.5 con visión (techo absoluto)
+          messages: [{ role: 'user', content: visionContent }],
+          output: Output.object({ schema: ClassificationSchema }),
+          // Pitfall #7 — el branch Anthropic NO lleva safetySettings de Google (son google-only).
+        }),
     })
 
-    // Extract the structured output
-    const output = rawResult.experimental_output as z.infer<typeof ClassificationSchema> | null | undefined
+    // Pitfall #11: usar safeAccessOutput (lee result.output con fallback a parse de result.text)
+    // en vez del acceso legacy a la salida experimental — unifica el shape entre ambos providers
+    // (el campo legacy puede no existir igual con Anthropic).
+    let output: z.infer<typeof ClassificationSchema>
+    try {
+      output = safeAccessOutput(rawResult, ClassificationSchema)
+    } catch {
+      console.warn('[image-classifier] Unexpected output shape — using fail-safe')
+      return FAIL_SAFE
+    }
     if (!output || typeof output.categoria !== 'string') {
-      console.warn('[image-classifier] Unexpected output shape from Gemini Vision — using fail-safe')
+      console.warn('[image-classifier] Unexpected output shape from vision — using fail-safe')
       return FAIL_SAFE
     }
 
@@ -183,7 +200,9 @@ export async function classifyImage(
 
     return { categoria, descripcion, decision }
   } catch (err) {
-    // D-07: any failure (fetch error, model error, parse error) → fail-safe handoff
+    // D-07: ÚLTIMO recurso — cualquier fallo (fetch, AMBOS providers caídos, parse) → handoff.
+    // El fallback Anthropic ya se intentó dentro de callWithGeminiFallback; si también falló,
+    // el helper emitió fallback_failed y propagó → aterriza aquí (D-03: handoff solo si AMBOS caen).
     console.warn('[image-classifier] Classification failed — using fail-safe handoff:', err)
     return FAIL_SAFE
   }

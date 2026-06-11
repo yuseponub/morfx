@@ -351,13 +351,20 @@ export function ConversationList({
     // Find in previous conversations to compare
     const prev = prevConversationsRef.current.find(c => c.id === selectedId)
 
-    // If key fields changed, notify parent
-    if (prev && (
+    // F-7 (D-21): notify the parent so its DERIVED selectedConversation reads
+    // the authoritative loaded-list copy in two cases:
+    //   - ARRIVAL: the selected id was deep-linked / fetch-by-id'd and just
+    //     landed in a page load (`!prev` but `updated` exists) → re-derive to
+    //     the list object so the fetched fallback is superseded + cleared.
+    //   - FIELD CHANGE: realtime mutated the open row's display fields.
+    const arrived = !prev
+    const fieldsChanged = !!prev && (
       prev.last_customer_message_at !== updated.last_customer_message_at ||
       prev.last_message_at !== updated.last_message_at ||
       prev.is_read !== updated.is_read ||
       JSON.stringify(prev.tags) !== JSON.stringify(updated.tags)
-    )) {
+    )
+    if (arrived || fieldsChanged) {
       onSelectedUpdated(updated)
     }
 
@@ -366,10 +373,14 @@ export function ConversationList({
 
   // Handle new conversation created
   const handleConversationCreated = async (conversationId: string) => {
-    // Refresh the list to include the new conversation
+    // Refresh the list to include the new conversation (newest → lands on page 1)
     await refresh()
-    // Select the new conversation
-    onSelect(conversationId)
+    // F-7 (D-21): select via the id AND pass the now-loaded list object so the
+    // parent's derived selectedConversation is never left null. If for any
+    // reason the row isn't on page 1 yet, the parent's fetch-by-id fallback +
+    // the arrival push still cover it (derivation never null for a real id).
+    const created = getConversationById(conversationId)
+    onSelect(conversationId, created)
   }
 
   // Keyboard shortcuts: '[' previous / ']' next conversation (D-23, UI-SPEC §10.1).

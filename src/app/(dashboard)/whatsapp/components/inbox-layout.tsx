@@ -13,6 +13,10 @@ import { InboxV2Provider } from './inbox-v2-context'
 import { InboxV3Provider } from './inbox-v3-context'
 import { ThemeToggle } from '@/components/layout/theme-toggle'
 import { markAsRead, getConversation } from '@/app/actions/conversations'
+import {
+  deriveSelectedConversation,
+  shouldFetchById,
+} from './selection-derivation'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 import type { ClientActivationConfig } from '@/lib/domain/client-activation'
 
@@ -88,13 +92,31 @@ export function InboxLayout({
   v2 = false,
   v3 = false,
 }: InboxLayoutProps) {
-  // Initialize with pre-selected conversation if provided
-  const initialConversation = initialSelectedId
-    ? initialConversations.find(c => c.id === initialSelectedId) || null
-    : null
-
+  // F-7 (D-21): `selectedConversationId` is the SINGLE source of truth for the
+  // open conversation. `selectedConversation` (the object) is always DERIVED —
+  // never a parallel `useState` that could drift from the id (the class behind
+  // header/content divergence + the old null-object bug). Two sources feed the
+  // derivation:
+  //   - `listSelectedConversation`: the loaded-list object for the selected id,
+  //     pushed up from `ConversationList` (where the `useConversations` hook +
+  //     its `getConversationById` live, post-Plan-05/06) on select and on every
+  //     realtime field change. Authoritative copy — always wins.
+  //   - `fetchedConversation`: a fetch-by-id fallback for an id not in any
+  //     loaded page (e.g. an outbound-only conversation deep-linked via `?c=`).
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(initialSelectedId || null)
-  const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(initialConversation)
+  const initialListSelected = initialSelectedId
+    ? initialConversations.find(c => c.id === initialSelectedId)
+    : undefined
+  const [listSelectedConversation, setListSelectedConversation] =
+    useState<ConversationWithDetails | undefined>(initialListSelected)
+  const [fetchedConversation, setFetchedConversation] =
+    useState<ConversationWithDetails | null>(null)
+  // DERIVED object — list copy wins over the fetch-by-id fallback (one source
+  // for header + content, by construction). Never independently `set`.
+  const selectedConversation = deriveSelectedConversation(
+    listSelectedConversation,
+    fetchedConversation,
+  )
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [rightPanel, setRightPanel] = useState<RightPanel>('contact')
   const [refreshOrdersFn, setRefreshOrdersFn] = useState<() => Promise<void>>(() => noopRefreshOrders)
@@ -103,15 +125,20 @@ export function InboxLayout({
   // Editorial-v3 topbar action: trigger ConversationList's new-conversation modal.
   const [openNewConversationFn, setOpenNewConversationFn] = useState<() => void>(() => () => {})
 
-  // Callback to sync selected conversation from list updates (realtime)
+  // Callback to sync the selected conversation's LIST object from the child
+  // (ConversationList) — fired on select and whenever realtime mutates the
+  // selected row's display fields. Stores the authoritative list copy that the
+  // derivation prefers; the fetch-by-id effect clears the stale fallback.
   const handleConversationUpdatedFromList = useCallback((conversation: ConversationWithDetails) => {
-    setSelectedConversation(conversation)
+    setListSelectedConversation(conversation)
   }, [])
 
-  // Handle conversation selection - receives conversation from list
+  // Handle conversation selection — flows through the id only (single source of
+  // truth). The child passes the list object on explicit select; we store it as
+  // the list copy so the chat opens instantly without a fetch round-trip.
   const handleSelectConversation = useCallback(async (id: string | null, conversation?: ConversationWithDetails) => {
     setSelectedConversationId(id)
-    setSelectedConversation(conversation || null)
+    setListSelectedConversation(conversation ?? undefined)
     // Sync URL so the link is shareable
     window.history.replaceState(null, '', id ? `/whatsapp?c=${id}` : '/whatsapp')
     if (id) {
@@ -120,25 +147,41 @@ export function InboxLayout({
     }
   }, [])
 
-  // If we have an initialSelectedId but it's not in the pre-loaded list
-  // (e.g., outbound-only conversation where customer hasn't replied),
-  // fetch it directly from DB so the chat view can display it.
+  // Fetch-by-id fallback (D-21): when the selected id is NOT covered by the
+  // loaded list (e.g. an outbound-only conversation deep-linked via `?c=` that
+  // never replied, so it's outside page 1), fetch it so the chat can render it.
+  // Deps include `listSelectedConversation` (NOT []) so this re-derives when the
+  // selection changes OR when the id later arrives in a page load (at which
+  // point the list copy supersedes the fetched one and we clear the fallback).
+  // The `cancelled` guard avoids a stale set on rapid switching.
   useEffect(() => {
-    if (selectedConversationId && !selectedConversation) {
-      getConversation(selectedConversationId).then((conv) => {
-        if (conv) setSelectedConversation(conv)
-      })
+    if (!shouldFetchById(selectedConversationId, listSelectedConversation)) {
+      setFetchedConversation(null)
+      return
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    let cancelled = false
+    getConversation(selectedConversationId as string).then((conv) => {
+      if (!cancelled) setFetchedConversation(conv)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedConversationId, listSelectedConversation])
 
-  // Refresh selected conversation data (called after contact/order creation)
+  // Refresh selected conversation data (called after contact/order creation).
+  // Re-derives by refreshing whichever source currently backs the selection:
+  // the list copy if present (so the chat header stays the authoritative source),
+  // else the fetch-by-id fallback.
   const refreshSelectedConversation = useCallback(async () => {
     if (!selectedConversationId) return
     const updated = await getConversation(selectedConversationId)
-    if (updated) {
-      setSelectedConversation(updated)
+    if (!updated) return
+    if (listSelectedConversation) {
+      setListSelectedConversation(updated)
+    } else {
+      setFetchedConversation(updated)
     }
-  }, [selectedConversationId])
+  }, [selectedConversationId, listSelectedConversation])
 
   // Handle refreshOrders function from ConversationList
   const handleRefreshOrdersReady = useCallback((fn: () => Promise<void>) => {

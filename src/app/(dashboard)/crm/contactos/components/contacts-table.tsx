@@ -458,6 +458,85 @@ export function ContactsTable({
             >
               Mayoristas
             </button>
+
+            {/* Dynamic tag filter (C-2): multi-select popover over ANY
+                workspace tag, wired to the same ?tags= URL state as the
+                legacy TagFilter. The 4 quick chips above stay as shortcuts. */}
+            <Popover open={tagFilterOpen} onOpenChange={setTagFilterOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn('chip', currentTagIds.length > 0 && 'on')}
+                  title="Filtrar por etiqueta"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <TagIcon width={12} height={12} aria-hidden />
+                  {currentTagIds.length > 0
+                    ? `${currentTagIds.length} etiqueta${currentTagIds.length > 1 ? 's' : ''}`
+                    : 'Etiqueta'}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-[220px] p-2"
+                align="start"
+                portalContainer={themeContainerRef.current ?? undefined}
+              >
+                <div className="space-y-1">
+                  {currentTagIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleTagSelectionChange([])}
+                      className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent text-muted-foreground"
+                    >
+                      Quitar filtro
+                    </button>
+                  )}
+                  {tags.length === 0 ? (
+                    <p className="text-sm text-muted-foreground px-2 py-1.5">
+                      Sin etiquetas
+                    </p>
+                  ) : (
+                    tags.map((tag) => {
+                      const selected = currentTagIds.includes(tag.id)
+                      return (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => {
+                            const next = selected
+                              ? currentTagIds.filter((id) => id !== tag.id)
+                              : [...currentTagIds, tag.id]
+                            handleTagSelectionChange(next)
+                          }}
+                          className={cn(
+                            'w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent flex items-center gap-2',
+                            selected && 'bg-accent font-medium'
+                          )}
+                        >
+                          <span
+                            className="h-3 w-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: tag.color }}
+                          />
+                          {tag.name}
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Manage tags (C-3): cables the trigger for the already-mounted
+                <TagManager>. */}
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setTagManagerOpen(true)}
+              style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+            >
+              <SettingsIcon width={14} height={14} aria-hidden />
+              Gestionar etiquetas
+            </button>
           </div>
 
           {/* Bulk actions toolbar — same handlers as legacy */}

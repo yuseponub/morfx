@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
+import { safeRedirectPath } from '@/lib/auth/safe-redirect'
 
 const loginSchema = z.object({
   email: z.string().min(1, 'El correo es requerido').email('Correo inválido'),
@@ -18,7 +19,8 @@ type LoginFormData = z.infer<typeof loginSchema>
 export function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirect = searchParams.get('redirect')
+  // C-2: solo se propaga/navega a paths internos — un redirect externo se descarta aquí
+  const redirect = safeRedirectPath(searchParams.get('redirect'), '') || null
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -50,7 +52,7 @@ export function LoginForm() {
       return
     }
 
-    router.push(redirect || '/crm')
+    router.push(safeRedirectPath(redirect))
     router.refresh()
   }
 

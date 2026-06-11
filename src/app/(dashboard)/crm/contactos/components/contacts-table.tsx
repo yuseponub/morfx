@@ -3,10 +3,31 @@
 import * as React from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { SearchIcon, Upload, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
+import {
+  SearchIcon,
+  Upload,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  MoreHorizontal as MoreHorizontalIcon,
+  Tag as TagIcon,
+  Settings as SettingsIcon,
+} from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { DataTable, useSelectedRowIds } from '@/components/ui/data-table'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
 import {
   createColumns,
   renderEditorialTags,
@@ -65,7 +86,22 @@ export function ContactsTable({
   const [editingContact, setEditingContact] = React.useState<ContactWithTags | null>(null)
   const [tagManagerOpen, setTagManagerOpen] = React.useState(false)
   const [importDialogOpen, setImportDialogOpen] = React.useState(false)
+  const [tagFilterOpen, setTagFilterOpen] = React.useState(false)
   const debounceRef = React.useRef<NodeJS.Timeout | null>(null)
+
+  // Locate the `.theme-editorial-v3` wrapper so Radix DropdownMenu/Popover can
+  // re-root inside the editorial token scope (same pattern as the inbox v3 —
+  // conversation-list.tsx). The dashboard <main> carries `.theme-editorial-v3`
+  // (layout.tsx); there is no data-module on CRM, so we match by class. When v3
+  // is false the ref stays null → Radix falls back to the default body portal
+  // (legacy path byte-identical, Regla 6).
+  const themeContainerRef = React.useRef<HTMLElement | null>(null)
+  React.useEffect(() => {
+    if (!v3) return
+    themeContainerRef.current = document.querySelector(
+      '.theme-editorial-v3'
+    ) as HTMLElement | null
+  }, [v3])
 
   // Build URL with updated params
   const buildUrl = React.useCallback((updates: Record<string, string | undefined>) => {
@@ -118,29 +154,45 @@ export function ContactsTable({
     router.push(buildUrl({ page: newPage > 1 ? String(newPage) : undefined }))
   }, [router, buildUrl])
 
-  // Memoize columns
+  // Row-action handlers — single source of truth shared by the legacy
+  // DataTable columns (via createColumns) AND the v3 row dropdown. No logic
+  // duplication between branches (avoids drift).
+  const handleEditContact = React.useCallback((contact: ContactWithTags) => {
+    setEditingContact(contact)
+    setDialogOpen(true)
+  }, [])
+
+  const handleDeleteContact = React.useCallback(
+    async (contact: ContactWithTags) => {
+      if (!confirm(`Eliminar contacto "${contact.name}"?`)) return
+      const result = await deleteContact(contact.id)
+      if ('error' in result) {
+        toast.error(result.error)
+      } else {
+        toast.success('Contacto eliminado')
+        router.refresh()
+      }
+    },
+    [router]
+  )
+
+  const handleViewDetail = React.useCallback(
+    (contact: ContactWithTags) => {
+      router.push(`/crm/contactos/${contact.id}`)
+    },
+    [router]
+  )
+
+  // Memoize columns — consume the shared row-action callbacks above so the
+  // legacy DataTable keeps identical behavior.
   const columns = React.useMemo(
     () =>
       createColumns({
-        onEdit: (contact) => {
-          setEditingContact(contact)
-          setDialogOpen(true)
-        },
-        onDelete: async (contact) => {
-          if (!confirm(`Eliminar contacto "${contact.name}"?`)) return
-          const result = await deleteContact(contact.id)
-          if ('error' in result) {
-            toast.error(result.error)
-          } else {
-            toast.success('Contacto eliminado')
-            router.refresh()
-          }
-        },
-        onViewDetail: (contact) => {
-          router.push(`/crm/contactos/${contact.id}`)
-        },
+        onEdit: handleEditContact,
+        onDelete: handleDeleteContact,
+        onViewDetail: handleViewDetail,
       }),
-    [router]
+    [handleEditContact, handleDeleteContact, handleViewDetail]
   )
 
   // Bulk actions
@@ -439,13 +491,14 @@ export function ContactsTable({
                 <th>Ciudad</th>
                 <th>Tags</th>
                 <th>Última actividad</th>
+                <th style={{ width: 40 }} aria-hidden />
               </tr>
             </thead>
             <tbody>
               {contacts.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     style={{
                       textAlign: 'center',
                       padding: '32px 12px',
@@ -481,6 +534,42 @@ export function ContactsTable({
                     <td>{renderEditorialTags(contact.tags)}</td>
                     <td className="date">
                       {formatEditorialDate(contact.updated_at)}
+                    </td>
+                    <td style={{ width: 40, textAlign: 'right' }}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className="btn"
+                            aria-label="Acciones"
+                            style={{ padding: '2px 6px' }}
+                          >
+                            <MoreHorizontalIcon width={14} height={14} aria-hidden />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          portalContainer={themeContainerRef.current ?? undefined}
+                        >
+                          <DropdownMenuItem
+                            onSelect={() => handleViewDetail(contact)}
+                          >
+                            Ver detalles
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => handleEditContact(contact)}
+                          >
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onSelect={() => handleDeleteContact(contact)}
+                            style={{ color: 'var(--viv-red, var(--ink-1))' }}
+                          >
+                            Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 ))

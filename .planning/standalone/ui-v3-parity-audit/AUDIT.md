@@ -103,4 +103,47 @@ Módulos sin reskin v3 (siguen con UI legacy + header viejo, accesibles desde si
 
 **Los 7 críticos están cerrados.** Pendiente QA visual del usuario con el flag ON en un workspace de prueba.
 
+---
+
+# SEGUNDA PASADA — AUDITORÍA COMPLETA DE NAVEGACIÓN Y FLAGS (2026-06-11 PM)
+
+**Disparador:** el usuario reportó que el builder IA de templates (`/configuracion/whatsapp/templates/builder`) era inaccesible en v3. La primera pasada solo comparó ramas de markup en las 3 superficies rediseñadas — no el **grafo de navegación**. Segunda pasada: 4 agentes (click-graph completo, diff /settings vs /configuracion, 10 módulos sin rediseñar bajo shell v3, branches del flag v2).
+
+## Hallazgo estructural
+
+La página `/settings` (hub de 13 cards, enlazada por el sidebar legacy) es el "índice escondido" de la UI vieja: contenía links hardcodeados que el árbol `/configuracion` (el que enlaza el sidebar v3) nunca replicó. Toda ruta cuyo único inbound link viviera ahí quedó huérfana en v3.
+
+## Rutas huérfanas encontradas y cerradas (3/3)
+
+| Ruta | Único acceso previo | Fix | Commit |
+|---|---|---|---|
+| `/configuracion/whatsapp/templates/builder` (builder IA) | card en `/settings` | botón "Crear con IA" en templates + card en hub WhatsApp | `30b773df` |
+| `/settings/workspace/roles` | card en `/settings` | item "Roles y permisos" en `/configuracion` (Workspace) | `9c5da1fa` |
+| `/crm/productos` | card en `/settings` | tab "Productos" en CRM tabs | `9c5da1fa` |
+
+## Resto del click-graph: OK
+
+Las ~40 rutas restantes del dashboard son alcanzables en v3 (sidebar 14 items → hubs → subpáginas). `/settings` queda accesible solo vía user-menu (aceptable; considerar deprecación a futuro). Dead code detectado: `/agentes/somnio-v4/unknown-cases` (0 inbound links — revisar si es WIP).
+
+## Módulos sin rediseñar bajo shell v3: SIN regresiones
+
+Los 10 módulos (tareas, confirmaciones, sms, automatizaciones, agentes, comandos, analytics, métricas, sandbox) tienen **0 ramas de flags** — renderizan idéntico con v3 ON/OFF. El `<Header>` legacy nunca se montó en el dashboard (solo marketing), así que no se pierde chrome. Portales (Dialog/Sheet) seguros: los tokens shadcn (`--background` etc.) se remapean dentro de `.theme-editorial-v3` y los portales a body heredan sin romper. Badges tasks/automations idénticos.
+
+## GlobalSearch (M-8, precisado)
+
+El botón de búsqueda global solo se renderiza en el sidebar legacy y v2; el sidebar v3 lo omite. **Ctrl/Cmd+K sigue funcionando globalmente** (`use-global-search.ts` binding en window) — pérdida de descubribilidad, no de funcionalidad. Decisión de diseño pendiente: chip/icono de búsqueda en sidebar v3 o topbars.
+
+## Flag `ui_dashboard_v2` (capa v2 previa): deuda documentada
+
+- `ContactsViewV2` (rama v2 de Contactos, piloto retrofit) es **esencialmente read-only**: search/paginación/CSV/bulk/row-actions son stubs visuales. Solo afecta workspaces con `ui_dashboard_v2=true` + `ui_editorial_v3=false` (el flag v2 fue rolled-back tras QA 2026-04-24 — verificar que ningún workspace prod lo tenga ON). Recomendación: deprecar la rama v2 de contactos en favor de v3 en vez de completarla.
+- `/configuracion` rama v2: mismos 9 items que legacy (sin pérdida; solo hover effects).
+- Inventario de flags UI en `workspaces.settings`: `ui_inbox_v2`, `ui_dashboard_v2`, `ui_editorial_v3`, `conversation_metrics`, `hidden_modules`.
+
+## Limpieza sugerida (backlog)
+
+- Quitar cards "Contactos"/"Productos" de `/settings` (son módulos de datos, no settings).
+- Tab "Pipelines" en CRM tabs sigue comingSoon (`#` + toast) aunque `/crm/configuracion/pipelines` existe — cablear o quitar.
+- Decidir destino de `/settings` hub (redirect a `/configuracion`?).
+- `/agentes/somnio-v4/unknown-cases`: confirmar WIP o borrar.
+
 Cada wave es ejecutable como quick task o standalone corto; todos los cambios son aditivos a la rama v3 (Regla 6: legacy/v2 intactos). El flag `ui_editorial_v3` sigue OFF por defecto, así que se puede iterar sin riesgo en producción.

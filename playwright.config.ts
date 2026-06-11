@@ -26,7 +26,9 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:3020',
+    // /login responde 200 estable; la raíz '/' puede dar 404 en dev (next-intl
+    // marketing rewrite) y Playwright exige <400 para reusar el server existente.
+    url: 'http://localhost:3020/login',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

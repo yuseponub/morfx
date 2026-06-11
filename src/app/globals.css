@@ -1562,3 +1562,46 @@ html:has(.theme-editorial) body {
 .theme-editorial-v3 .kcol-head .kmenu:focus-visible,
 .theme-editorial-v3 .kcol-head .kmenu[data-state="open"]{opacity:1}
 .theme-editorial-v3 .kcol-head .kmenu:hover{background:var(--paper-3);color:var(--ink-1)}
+
+/* ===== VIVIFICACIÓN v3 — calibración contra mock (2026-06-10 noche) =====
+ * BUGFIX stages: al mover s-* del head a .kcol, la regla previa
+ * `.kcol-head{--stage-c:var(--ink-4)}` siguió declarando --stage-c SOBRE el
+ * head — una declaración propia gana al valor heredado de .kcol.s-* y los
+ * headers quedaron grises. `inherit` restaura la cadena columna → head.
+ *
+ * RECETA TAGS calibrada por muestreo de píxeles del mock (Pagado #ffe8c2 ≈
+ * oklch(.94 .058 80), Lead #dbe9ff ≈ oklch(.93 .038 258), Mayorista #d3efd1):
+ * los fondos del mock tienen L≈0.93-0.94 con ~3x el croma que da el mix al
+ * 16%. color-mix no puede desacoplar L y C, así que fondo/borde/texto se
+ * construyen con SINTAXIS DE COLOR RELATIVO (oklch(from …)) fijando L y
+ * escalando c. Navegadores sin soporte (pre-2023) descartan estas
+ * declaraciones por inválidas y conservan la receta color-mix anterior.
+ */
+.theme-editorial-v3 .kcol-head{--stage-c:inherit}
+
+.theme-editorial-v3 .mx-tag--rubric,
+.theme-editorial-v3 .mx-tag--gold,
+.theme-editorial-v3 .mx-tag--success,
+.theme-editorial-v3 .mx-tag--verdigris,
+.theme-editorial-v3 .mx-tag--indigo,
+.theme-editorial-v3 .mx-tag--violet,
+.theme-editorial-v3 .mx-tag--rose,
+.theme-editorial-v3 .mx-tag--ink{
+  background:oklch(from var(--tc) 0.94 calc(c * 0.45) h);
+  color:oklch(from var(--tc) 0.42 calc(c * 1.1) h);
+  border-color:oklch(from var(--tc) 0.82 calc(c * 0.6) h);
+}
+
+/* Dark: pill oscuro con tinta clara (L invertidas; mismos hues) */
+.dark .theme-editorial-v3 .mx-tag--rubric,
+.dark .theme-editorial-v3 .mx-tag--gold,
+.dark .theme-editorial-v3 .mx-tag--success,
+.dark .theme-editorial-v3 .mx-tag--verdigris,
+.dark .theme-editorial-v3 .mx-tag--indigo,
+.dark .theme-editorial-v3 .mx-tag--violet,
+.dark .theme-editorial-v3 .mx-tag--rose,
+.dark .theme-editorial-v3 .mx-tag--ink{
+  background:oklch(from var(--tc) 0.32 calc(c * 0.5) h);
+  color:oklch(from var(--tc) 0.86 c h);
+  border-color:oklch(from var(--tc) 0.48 calc(c * 0.7) h);
+}

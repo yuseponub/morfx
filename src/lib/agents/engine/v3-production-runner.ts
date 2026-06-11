@@ -159,6 +159,11 @@ export class V3ProductionRunner {
         // Sibling de godentist para FB Messenger / Instagram Direct.
         const { processMessage } = await import('../godentist-fb-ig')
         output = await processMessage(v3Input as any) as unknown as V3AgentOutput
+      } else if (this.config.agentModule === 'varixcenter') {
+        // Standalone: agent-varixcenter (D-01)
+        // Agente nuevo para valoraciones flebologicas — coexiste con godentist (Regla 6).
+        const { processMessage } = await import('../varixcenter')
+        output = await processMessage(v3Input as any) as unknown as V3AgentOutput
       } else if (this.config.agentModule === 'somnio-recompra') {
         const { processMessage } = await import('../somnio-recompra/somnio-recompra-agent')
         output = await processMessage(v3Input as any) as unknown as V3AgentOutput
@@ -585,9 +590,12 @@ export class V3ProductionRunner {
    *   switches to datosCapturados comparison — `inputDatosCapturados` is a fresh
    *   spread copy (line 83) and `output.datosCapturados` is a fresh object from
    *   serializeState, so there is no shared-reference hazard.
-   * - Critical fields hardcoded in runner to keep it agnostic from godentist
-   *   internals (see godentist/constants.ts:126 CRITICAL_FIELDS — must stay in sync)
-   * - Scope: ALL workspaces using agentModule === 'godentist'
+   * - Critical fields seleccionados por agentModule para mantener el runner agnostico
+   *   de los internals de cada agente. godentist/godentist-fb-ig usan
+   *   ['nombre','telefono','sede_preferida']; varixcenter usa
+   *   ['nombre','telefono','cedula'] (D-05) — cada uno debe seguir en sync con su
+   *   constants.ts::CRITICAL_FIELDS.
+   * - Scope: workspaces usando agentModule === 'godentist' | 'godentist-fb-ig' | 'varixcenter'
    * - Idempotency: if contact already had all 3 fields before the turn,
    *   `hadCritical=true` short-circuits. Double-protected by assignTag handling
    *   23505 (already assigned) as success.
@@ -600,17 +608,28 @@ export class V3ProductionRunner {
     previousDatos: Record<string, string>,
   ): Promise<void> {
     // Standalone: agent-godentist-fb-ig (D-03, Pitfall 6) — extendido para incluir el sibling
-    // Sin esta extension, los leads FB/IG capturados por godentist-fb-ig NO recibiran tag VAL
-    // y las metricas de valoraciones FB/IG mostraran 0 falsamente.
-    if (this.config.agentModule !== 'godentist' && this.config.agentModule !== 'godentist-fb-ig') return
+    // Standalone: agent-varixcenter (D-01, D-05) — extendido para incluir varixcenter (usa cedula)
+    // Sin esta extension, los leads capturados por godentist-fb-ig / varixcenter NO recibiran tag VAL
+    // y las metricas de valoraciones mostraran 0 falsamente.
+    if (
+      this.config.agentModule !== 'godentist' &&
+      this.config.agentModule !== 'godentist-fb-ig' &&
+      this.config.agentModule !== 'varixcenter'
+    ) return
     if (!input.contactId) return
 
-    // Must stay in sync with src/lib/agents/godentist/constants.ts::CRITICAL_FIELDS
-    const GODENTIST_CRITICAL_FIELDS = ['nombre', 'telefono', 'sede_preferida'] as const
+    // CRITICAL_FIELDS divergen por agente: godentist usa sede_preferida, varixcenter usa cedula (D-05).
+    // Must stay in sync con cada constants.ts::CRITICAL_FIELDS.
+    const CRITICAL_FIELDS_BY_AGENT: Record<string, readonly string[]> = {
+      'godentist': ['nombre', 'telefono', 'sede_preferida'],
+      'godentist-fb-ig': ['nombre', 'telefono', 'sede_preferida'],
+      'varixcenter': ['nombre', 'telefono', 'cedula'],
+    }
+    const criticalFields = CRITICAL_FIELDS_BY_AGENT[this.config.agentModule] ?? ['nombre', 'telefono', 'sede_preferida']
 
     const hasAllCriticalFields = (datos: Record<string, string> | undefined): boolean => {
       if (!datos) return false
-      return GODENTIST_CRITICAL_FIELDS.every(f => {
+      return criticalFields.every(f => {
         const val = datos[f]
         return typeof val === 'string' && val.trim() !== ''
       })
@@ -634,8 +653,8 @@ export class V3ProductionRunner {
         )
       } else {
         console.log(
-          `[V3-RUNNER][godentist] Assigned VAL tag to contact ${input.contactId} ` +
-          `on datosCriticos completion (nombre+telefono+sede)`,
+          `[V3-RUNNER][${this.config.agentModule}] Assigned VAL tag to contact ${input.contactId} ` +
+          `on datosCriticos completion (${criticalFields.join('+')})`,
         )
       }
     } catch (err) {

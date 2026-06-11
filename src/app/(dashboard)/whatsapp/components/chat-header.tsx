@@ -25,6 +25,7 @@ import { toggleConversationAgent, getConversationAgentStatus } from '@/app/actio
 import { confirmAppointment, getAppointmentForContact } from '@/app/actions/godentist'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { firstGrapheme } from '@/lib/utils/initials'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 
 const GODENTIST_WORKSPACE_ID = '36a74890-aad6-4804-838c-57904b1c9328'
@@ -299,7 +300,7 @@ export function ChatHeader({
       <>
       <div className="th-head">
         {/* Avatar */}
-        <div className="av">{displayName.charAt(0).toUpperCase()}</div>
+        <div className="av">{firstGrapheme(displayName).toUpperCase()}</div>
 
         {/* Who: name + phone */}
         <div className="who">
@@ -493,7 +494,7 @@ export function ChatHeader({
             }
           >
             <span className={cn(!v2 && 'text-sm font-medium text-primary')}>
-              {displayName.charAt(0).toUpperCase()}
+              {firstGrapheme(displayName).toUpperCase()}
             </span>
           </div>
 

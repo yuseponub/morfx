@@ -15,6 +15,7 @@ import {
 } from '@/app/actions/teams'
 import { toast } from 'sonner'
 import { Loader2, UserPlus, UserMinus, Circle } from 'lucide-react'
+import { firstGrapheme } from '@/lib/utils/initials'
 
 interface TeamMembersManagerProps {
   teamId: string
@@ -145,7 +146,7 @@ export function TeamMembersManager({ teamId }: TeamMembersManagerProps) {
               <div className="flex items-center gap-3">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback>
-                    {(member.user_name || member.user_email || 'A').charAt(0).toUpperCase()}
+                    {firstGrapheme(member.user_name || member.user_email || 'A').toUpperCase() || 'A'}
                   </AvatarFallback>
                 </Avatar>
                 <div>

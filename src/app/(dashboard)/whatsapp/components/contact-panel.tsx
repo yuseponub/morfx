@@ -39,6 +39,7 @@ import { useInboxV3 } from './inbox-v3-context'
 import { updateContactName } from '@/app/actions/contacts'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { getInitials } from '@/lib/utils/initials'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 
 /**
@@ -240,12 +241,7 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
 
   // Initials for the .av-lg avatar (EB Garamond via CSS).
   const fichaName = contact?.name || conversation.profile_name || conversation.phone
-  const fichaInitials = fichaName
-    .split(' ')
-    .slice(0, 2)
-    .map((n) => n[0] || '')
-    .join('')
-    .toUpperCase()
+  const fichaInitials = getInitials(fichaName)
 
   // ===================== EDITORIAL V3 (.ficha verbatim) =====================
   // Mock `ui_kits/conversaciones/index.html` contact column: 64px `.av-lg`,

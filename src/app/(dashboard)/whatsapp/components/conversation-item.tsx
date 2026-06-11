@@ -10,19 +10,8 @@ import { tagColorToVariant } from '@/lib/editorial/tag-variant'
 import { MxTag } from './mx-tag'
 import { useInboxV2 } from './inbox-v2-context'
 import { useInboxV3 } from './inbox-v3-context'
+import { getInitials } from '@/lib/utils/initials'
 import type { ConversationWithDetails, OrderSummary } from '@/lib/whatsapp/types'
-
-/**
- * Get initials from a name (up to 2 characters).
- */
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .slice(0, 2)
-    .map(n => n[0] || '')
-    .join('')
-    .toUpperCase()
-}
 
 interface ConversationItemProps {
   conversation: ConversationWithDetails

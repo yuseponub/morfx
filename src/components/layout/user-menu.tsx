@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
+import { firstGrapheme } from '@/lib/utils/initials'
 
 interface UserMenuProps {
   user: User
@@ -20,7 +21,7 @@ interface UserMenuProps {
 
 function getUserInitial(user: User): string {
   if (user.email) {
-    return user.email.charAt(0).toUpperCase()
+    return firstGrapheme(user.email).toUpperCase() || 'U'
   }
   return 'U'
 }

@@ -21,6 +21,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { InviteMemberForm } from '@/components/workspace/invite-member-form'
 import { removeMember, updateMemberRole, cancelInvitation } from '@/app/actions/invitations'
+import { firstGrapheme } from '@/lib/utils/initials'
 import type { WorkspaceWithRole, MemberWithUser, WorkspaceInvitation } from '@/lib/types/database'
 
 interface MembersPageContentProps {
@@ -76,7 +77,10 @@ export function MembersPageContent({
   }
 
   function getInitials(email: string): string {
-    return email.slice(0, 2).toUpperCase()
+    // Grapheme-safe (F-2): never slice UTF-16 over a name — first 2 graphemes of the email.
+    const first = firstGrapheme(email)
+    const rest = firstGrapheme(email.slice(first.length))
+    return (first + rest).toUpperCase()
   }
 
   return (

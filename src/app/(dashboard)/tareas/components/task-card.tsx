@@ -10,6 +10,7 @@ import {
   AlarmClockIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { getInitials } from '@/lib/utils/initials'
 import type { TaskWithDetails } from '@/lib/tasks/types'
 
 interface TaskCardProps {
@@ -30,13 +31,6 @@ function getPriStripeColor(priority: string): string {
     default:
       return 'var(--ink-4)'
   }
-}
-
-function getInitials(name: string): string {
-  const parts = name.split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return '?'
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase()
-  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase()
 }
 
 // SLA tone based on due_date urgency (mock .task-foot .sla danger/warn/ok)

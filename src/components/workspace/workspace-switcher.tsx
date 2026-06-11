@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Check, ChevronsUpDown, Plus, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { firstGrapheme } from '@/lib/utils/initials'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -65,7 +66,7 @@ export function WorkspaceSwitcher({ workspaces, currentWorkspace, editorial = fa
         {editorial ? (
           <button type="button" className="ws" aria-expanded={open}>
             <span className="ws-badge">
-              {displayWorkspace.name?.charAt(0).toUpperCase() || 'W'}
+              {firstGrapheme(displayWorkspace.name ?? '').toUpperCase() || 'W'}
             </span>
             <span className="ws-meta">
               <span className="ws-name">{displayWorkspace.name}</span>

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Building2, MessageSquare, MessageSquareText, Settings, Users, LogOut, ListTodo, BarChart3, Bot, Zap, Sparkles, Terminal, CalendarCheck, TrendingUp, FlaskConical } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { firstGrapheme } from '@/lib/utils/initials'
 import {
   Tooltip,
   TooltipContent,
@@ -360,7 +361,7 @@ export function Sidebar({ workspaces = [], currentWorkspace, user, v2 = false, v
                   fontSize: 12,
                 }}
               >
-                {user.email?.charAt(0).toUpperCase() || 'U'}
+                {firstGrapheme(user.email ?? '').toUpperCase() || 'U'}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p
@@ -544,7 +545,7 @@ export function Sidebar({ workspaces = [], currentWorkspace, user, v2 = false, v
                   fontSize: 12,
                 }}
               >
-                {user.email?.charAt(0).toUpperCase() || 'U'}
+                {firstGrapheme(user.email ?? '').toUpperCase() || 'U'}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p
@@ -746,7 +747,7 @@ export function Sidebar({ workspaces = [], currentWorkspace, user, v2 = false, v
                     : 'bg-primary text-primary-foreground',
                 )}
               >
-                {user.email?.charAt(0).toUpperCase() || 'U'}
+                {firstGrapheme(user.email ?? '').toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">

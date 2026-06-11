@@ -464,6 +464,26 @@ export const TRANSITIONS: TransitionEntry[] = [
   },
 
   // ========================================================================
+  // Fallback de intent `otro` (WR-02 — patrón godentist) — handoff
+  // ========================================================================
+  // Transición 10 del diseño §7 (`initial + otro conf<80 -> handoff`) la maneja
+  // guards.ts R0. PERO `otro` con conf>=80 (mensaje claramente no reconocido) NO
+  // lo intercepta el guard y ninguna fila específica matchea -> resolveTransition
+  // retornaba null -> sales-track sin acción -> response-track sin template
+  // (`otro` no está en INFORMATIONAL_INTENTS) -> natural_silence (cliente sin
+  // respuesta). Esta fila catch-all garantiza que `otro` SIEMPRE produzca una
+  // acción visible: handoff a humano. Va DESPUÉS del catch-all phase-específico
+  // de `appointment_registered` (* -> silence), que gana para esa fase.
+  {
+    phase: '*', on: 'otro', action: 'handoff',
+    resolve: () => ({
+      timerSignal: { type: 'cancel', reason: 'intent otro sin match' },
+      reason: 'Intent otro sin transicion especifica -> handoff (WR-02)',
+    }),
+    description: '10-fallback: * + otro -> handoff (cualquier confianza sin match de guard)',
+  },
+
+  // ========================================================================
   // Desde `closed` — catch-all
   // ========================================================================
   {

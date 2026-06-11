@@ -356,3 +356,33 @@ describe('checkGuards — escape intents -> handoff (diseño §7)', () => {
     expect(r.blocked).toBe(false)
   })
 })
+
+describe('WR-02 — otro conf>=80 cae al catch-all de la tabla -> handoff (nunca silence)', () => {
+  // guards.ts R0 NO bloquea `otro` con conf>=80. Antes ninguna fila matcheaba ->
+  // resolveTransition retornaba null -> sales-track sin acción -> natural_silence
+  // (cliente sin respuesta). El catch-all `* + otro -> handoff` lo cubre en
+  // TODAS las fases de captura.
+  const PHASES: Phase[] = [
+    'initial',
+    'capturing_data',
+    'capturing_fecha',
+    'showing_availability',
+    'confirming',
+  ]
+
+  for (const phase of PHASES) {
+    it(`fase ${phase} + otro -> handoff (no null/silence)`, () => {
+      const r = resolveTransition(phase, 'otro', makeState(), GATES_NONE)
+      expect(r).not.toBeNull()
+      expect(r?.action).toBe('handoff')
+      expect(r?.output.timerSignal?.type).toBe('cancel')
+    })
+  }
+
+  it('appointment_registered + otro -> silence (catch-all phase-específico gana, post-cita)', () => {
+    // En appointment_registered la fila `* -> silence` específica de la fase va
+    // ANTES del catch-all de `otro`, así que post-cita el bot no escala.
+    const r = resolveTransition('appointment_registered', 'otro', makeState(), GATES_NONE)
+    expect(r?.action).toBe('silence')
+  })
+})

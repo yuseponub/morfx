@@ -654,6 +654,8 @@ Conversation Tags to Contact decisions:
 | 260611-w1a | Parity v3 Contactos: acciones de fila + filtro dinámico tags + TagManager (C-1/C-2/C-3 audit) | 2026-06-11 | c8c0c9d2 | [260611-w1a-contactos-v3-crud-tags](./quick/260611-w1a-contactos-v3-crud-tags/) |
 | 260611-w2b | Parity v3 Pedidos kanban: badge duplicado + WIP + grip + tracking + empty state (C-4/C-5/M-4/M-5/M-7) | 2026-06-11 | ba77ca62 | [260611-w2b-pedidos-kanban-v3-parity](./quick/260611-w2b-pedidos-kanban-v3-parity/) |
 | 260611-w3c | Parity v3 Inbox + nav: chips sin-asignar/sin-respuesta + sort + mobile-nav 14 módulos (C-6/C-7/M-1) | 2026-06-11 | ea1fbae6 | [260611-w3c-inbox-filtros-mobile-nav-v3](./quick/260611-w3c-inbox-filtros-mobile-nav-v3/) |
+| 260611-f1b | Rutas huérfanas v3: builder IA templates + Roles y permisos + tab Productos (2ª pasada audit) | 2026-06-11 | 9c5da1fa | [260611-f1b-builder-ia-entrypoints](./quick/260611-f1b-builder-ia-entrypoints/) |
+| 260611-cfg | Config UI: ConfigBackLink compartido en 15 subsecciones + pulido hub /configuracion | 2026-06-11 | b74fb9b2 | [260611-cfg-config-ui-back-navigation](./quick/260611-cfg-config-ui-back-navigation/) |
 
 ### Roadmap Evolution
 

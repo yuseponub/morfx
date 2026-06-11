@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { KanbanCard } from './kanban-card'
 import { cn } from '@/lib/utils'
+import { parseHex, rgbToHsl } from '@/lib/editorial/tag-variant'
 import type { OrderWithDetails, PipelineStage } from '@/lib/orders/types'
 
 interface KanbanColumnProps {
@@ -43,8 +44,8 @@ interface KanbanColumnProps {
  * are workspace-configurable so there is no fixed slug — cycle the mock's
  * stage colors in declared order. The real `stage.color` still drives the
  * legacy path; v3 uses these token-built classes. (Vivificación v3 2026-06:
- * 7th class `cancel` added; color resolution moved to `--stage-c` on
- * `.kcol-head.s-*` in globals.css.)
+ * 7th class `cancel` added; color resolution via `--stage-c` on the column
+ * root `.kcol.s-*` in globals.css — ajustes post-deploy.)
  */
 const V3_DOT_CLASSES = ['agend', 'web', 'nuevo', 'info', 'conf', 'ok', 'cancel'] as const
 
@@ -64,8 +65,37 @@ const V3_STAGE_NAME_CLASS: Record<string, string> = {
   'cancelado': 'cancel', 'perdido': 'cancel', 'devuelto': 'cancel', 'rechazado': 'cancel',
 }
 
-export function v3StageClass(stageName: string, index: number): string {
-  return V3_STAGE_NAME_CLASS[stageName.trim().toLowerCase()] ?? v3DotClassForIndex(index)
+/**
+ * Proyecta el hex del stage (DB `stage.color`) a la clase viv más cercana por
+ * hue (Vivificación v3 ajustes 2026-06). Devuelve null para grises/neutros
+ * (s < 0.2) o hex inválido → cae al fallback por nombre/posición.
+ */
+export function stageHexToVivClass(hex: string | null | undefined): string | null {
+  const rgb = parseHex(hex)
+  if (!rgb) return null
+  const { h, s } = rgbToHsl(rgb.r, rgb.g, rgb.b)
+  if (s < 0.2) return null
+  if (h >= 345 || h < 20) return 'cancel'  // rojo
+  if (h < 70) return 'info'                // ocre/ámbar
+  if (h < 160) return 'ok'                 // verde/salvia
+  if (h < 195) return 'web'                // teal/cian
+  if (h < 245) return 'agend'              // azul/índigo
+  if (h < 320) return 'nuevo'              // violeta
+  return 'conf'                            // rosa
+}
+
+/**
+ * Prioridad de asignación de color de columna (Vivificación v3 ajustes):
+ * 1. hex de DB (`stage.color`, lo que el operador eligió en el diálogo
+ *    "Cambiar color") proyectado por hue al set editorial;
+ * 2. mapa por NOMBRE conocido (confirmado→ok, cancelado→cancel, etc.);
+ * 3. ciclo por posición.
+ * Así "Cambiar color" en el diálogo se refleja también en la rama v3.
+ */
+export function v3StageClass(stage: { name: string; color?: string | null }, index: number): string {
+  return stageHexToVivClass(stage.color)
+    ?? V3_STAGE_NAME_CLASS[stage.name.trim().toLowerCase()]
+    ?? v3DotClassForIndex(index)
 }
 
 /**
@@ -162,14 +192,50 @@ export function KanbanColumn({
       <div
         ref={setNodeRef}
         style={style}
-        className={cn('kcol', isOver && 'ring-1 ring-primary/40', isDragging && 'opacity-50')}
+        className={cn('kcol', `s-${v3DotClass}`, isOver && 'ring-1 ring-primary/40', isDragging && 'opacity-50')}
       >
         {/* Column head — drag handle is the whole head via attributes/listeners.
-            `s-${v3DotClass}` sets --stage-c (dot + contador + línea superior). */}
-        <div className={cn('kcol-head', `s-${v3DotClass}`)} {...attributes} {...listeners} suppressHydrationWarning>
+            `s-*` vive en la RAÍZ .kcol (ajustes 2026-06): --stage-c lo heredan
+            head (dot/contador/línea) Y las cards (.nm .ci). El kebab .kmenu
+            cancela el drag con stopPropagation en pointerdown. */}
+        <div className="kcol-head" {...attributes} {...listeners} suppressHydrationWarning>
           <span className={cn('dot', v3DotClass)} />
           <span className="t" title={stage.name}>{stage.name}</span>
           <span className="c">{totalCount !== undefined ? totalCount : orderCount}</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="kmenu"
+                aria-label="Editar etapa"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+              >⋮</button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => onEditStage?.(stage)}>
+                <PencilIcon className="h-4 w-4 mr-2" />
+                Editar etapa
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEditStage?.(stage)}>
+                <PaletteIcon className="h-4 w-4 mr-2" />
+                Cambiar color
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onAddStage?.()}>
+                <PlusIcon className="h-4 w-4 mr-2" />
+                Agregar etapa
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => onDeleteStage?.(stage)}
+                className="text-destructive focus:text-destructive"
+              >
+                <TrashIcon className="h-4 w-4 mr-2" />
+                Eliminar etapa
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Cards container */}

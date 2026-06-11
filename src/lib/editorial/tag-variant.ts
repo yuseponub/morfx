@@ -34,8 +34,11 @@ export type MxTagVariant =
  * Tolerates: leading/trailing whitespace, missing `#`, 3-digit shorthand
  * (`#abc` → `aabbcc`) and 6-digit form. Returns `null` for anything else
  * (empty, wrong length, non-hex chars) so callers can fail safe.
+ *
+ * Exported (Vivificación v3 ajustes 2026-06): reused by
+ * `stageHexToVivClass` in kanban-column.tsx to project `stage.color`.
  */
-function parseHex(input: string | null | undefined): { r: number; g: number; b: number } | null {
+export function parseHex(input: string | null | undefined): { r: number; g: number; b: number } | null {
   if (!input || typeof input !== 'string') return null
   let hex = input.trim().toLowerCase()
   if (hex.startsWith('#')) hex = hex.slice(1)
@@ -54,8 +57,11 @@ function parseHex(input: string | null | undefined): { r: number; g: number; b: 
 /**
  * Convert 8-bit RGB to HSL.
  * h ∈ [0,360), s ∈ [0,1], l ∈ [0,1].
+ *
+ * Exported (Vivificación v3 ajustes 2026-06): reused by
+ * `stageHexToVivClass` in kanban-column.tsx.
  */
-function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
+export function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
   const rn = r / 255
   const gn = g / 255
   const bn = b / 255

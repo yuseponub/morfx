@@ -1523,3 +1523,42 @@ html:has(.theme-editorial) body {
   background:color-mix(in oklch, var(--viv-teal) 8%, var(--paper-0));
 }
 .theme-editorial-v3 .msg.out .agent-mark{color:color-mix(in oklch, var(--viv-teal) 70%, var(--paper-0))}
+
+/* ===== VIVIFICACIÓN v3 — ajustes post-deploy (2026-06-10) =====
+ * 1) Receta de tags re-declarada a nivel de variante (blindaje de cascada:
+ *    gana a las reglas mx-tag--* originales sin depender del orden que el
+ *    minificador dé a la receta base .mx-tag).
+ * 2) --stage-c sube del head a la raíz .kcol para que las cards hereden el
+ *    color del stage (icono .ci junto al nombre). Las reglas .kcol-head.s-*
+ *    de arriba quedan sin efecto (la clase s-* ya no vive en el head).
+ * 3) Botón kebab .kmenu en el head (abre el menú de etapa; visible al hover).
+ */
+.theme-editorial-v3 .mx-tag--rubric,
+.theme-editorial-v3 .mx-tag--gold,
+.theme-editorial-v3 .mx-tag--success,
+.theme-editorial-v3 .mx-tag--verdigris,
+.theme-editorial-v3 .mx-tag--indigo,
+.theme-editorial-v3 .mx-tag--violet,
+.theme-editorial-v3 .mx-tag--rose,
+.theme-editorial-v3 .mx-tag--ink{
+  background:color-mix(in oklch, var(--tc) calc(var(--tag-mix) * 1%), var(--paper-0));
+  color:color-mix(in oklch, var(--tc) 72%, var(--ink-1));
+  border-color:color-mix(in oklch, var(--tc) 50%, var(--paper-0));
+}
+
+.theme-editorial-v3 .kcol{--stage-c:var(--ink-4)}
+.theme-editorial-v3 .kcol.s-agend{--stage-c:var(--viv-indigo)}
+.theme-editorial-v3 .kcol.s-web{--stage-c:var(--viv-teal)}
+.theme-editorial-v3 .kcol.s-nuevo{--stage-c:var(--viv-violeta)}
+.theme-editorial-v3 .kcol.s-info{--stage-c:var(--viv-gold)}
+.theme-editorial-v3 .kcol.s-conf{--stage-c:var(--viv-rosa)}
+.theme-editorial-v3 .kcol.s-ok{--stage-c:var(--viv-salvia)}
+.theme-editorial-v3 .kcol.s-cancel{--stage-c:var(--viv-red)}
+
+.theme-editorial-v3 .kcard .nm .ci{color:var(--stage-c)}
+
+.theme-editorial-v3 .kcol-head .kmenu{flex:none;width:20px;height:20px;border:0;background:transparent;border-radius:var(--radius-2);color:var(--ink-4);cursor:pointer;font-size:13px;line-height:1;padding:0;opacity:0;display:flex;align-items:center;justify-content:center}
+.theme-editorial-v3 .kcol-head:hover .kmenu,
+.theme-editorial-v3 .kcol-head .kmenu:focus-visible,
+.theme-editorial-v3 .kcol-head .kmenu[data-state="open"]{opacity:1}
+.theme-editorial-v3 .kcol-head .kmenu:hover{background:var(--paper-3);color:var(--ink-1)}

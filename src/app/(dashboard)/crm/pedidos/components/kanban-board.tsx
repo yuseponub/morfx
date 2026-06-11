@@ -458,7 +458,7 @@ export function KanbanBoard({
               isLoadingMore={stageLoading?.[stage.id] ?? false}
               onLoadMore={onLoadMore ? () => onLoadMore(stage.id) : undefined}
               v3={v3}
-              v3DotClass={v3StageClass(stage.name, index)}
+              v3DotClass={v3StageClass(stage, index)}
             />
           ))}
         </div>

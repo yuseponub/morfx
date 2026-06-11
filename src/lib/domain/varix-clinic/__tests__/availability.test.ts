@@ -228,6 +228,49 @@ describe('getVarixAvailability — fail-open', () => {
       /VARIX_CLINIC/,
     )
   })
+
+  it('W-01: si la query de appointments retorna error, lanza (NO trata error como 0 citas)', async () => {
+    // Una query fallida (red/RLS/permiso) devuelve { data:null, error }.
+    // NUNCA debe degradar a "0 citas = todos los slots libres" (disponibilidad falsa).
+    notMock.mockImplementation(() =>
+      Promise.resolve({ data: null, error: { message: 'permission denied' } }),
+    )
+    await expect(getVarixAvailability('2026-06-16')).rejects.toThrow(
+      /availability query failed/,
+    )
+  })
+})
+
+describe('parseSlotToISO — CR-01: formato solo hora de inicio (comprehension)', () => {
+  it('"10:00 AM" (sin separador) calcula fin = inicio + SLOT_MINUTES (20min)', () => {
+    // horario_seleccionado de la comprehension llega como "10:00 AM" (solo inicio).
+    // Antes esto producía TypeError (undefined.trim()) y booking siempre fallaba.
+    expect(parseSlotToISO('2026-06-15', '10:00 AM')).toEqual({
+      inicio: '2026-06-15T10:00:00-05:00',
+      fin: '2026-06-15T10:20:00-05:00',
+    })
+  })
+
+  it('"2:00 PM" (solo inicio PM) calcula fin +20min correctamente', () => {
+    expect(parseSlotToISO('2026-06-16', '2:00 PM')).toEqual({
+      inicio: '2026-06-16T14:00:00-05:00',
+      fin: '2026-06-16T14:20:00-05:00',
+    })
+  })
+
+  it('formato rango completo "8:00 AM - 8:20 AM" sigue funcionando (retrocompatible)', () => {
+    expect(parseSlotToISO('2026-06-15', '8:00 AM - 8:20 AM')).toEqual({
+      inicio: '2026-06-15T08:00:00-05:00',
+      fin: '2026-06-15T08:20:00-05:00',
+    })
+  })
+
+  it('casing minúscula "10:00 am" (variación de comprehension) parsea igual', () => {
+    expect(parseSlotToISO('2026-06-15', '10:00 am')).toEqual({
+      inicio: '2026-06-15T10:00:00-05:00',
+      fin: '2026-06-15T10:20:00-05:00',
+    })
+  })
 })
 
 describe('parseSlotToISO — offset literal -05:00 (Regla 2, Pitfall 6)', () => {

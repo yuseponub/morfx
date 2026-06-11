@@ -59,8 +59,14 @@ function minutesToTime(mins: number): string {
 // ── parseSlotToISO — slot string → TIMESTAMPTZ con offset -05:00 ─────────────
 
 /**
- * Convierte un slot ("8:00 AM - 8:20 AM") + fecha (YYYY-MM-DD) en su par de
- * timestamps ISO con offset literal `-05:00` (America/Bogota — Regla 2 / Pitfall 6).
+ * Convierte un slot + fecha (YYYY-MM-DD) en su par de timestamps ISO con offset
+ * literal `-05:00` (America/Bogota — Regla 2 / Pitfall 6).
+ *
+ * Tolera DOS formatos de entrada (CR-01):
+ *   - Rango completo: "8:00 AM - 8:20 AM" (lo que genera buildSlotGrid).
+ *   - Solo hora de inicio: "10:00 AM" (lo que captura la comprehension en
+ *     `horario_seleccionado` — ver comprehension-schema.ts: "el de las 10" ->
+ *     "10:00 AM"). En este caso el fin se calcula como inicio + SLOT_MINUTES.
  *
  * Lo consume Plan 06 (varixcenter-agent) para construir `fechaHoraInicio` /
  * `fechaHoraFin` que pasa a `bookVarixAppointment`.
@@ -68,14 +74,25 @@ function minutesToTime(mins: number): string {
  * @example
  * parseSlotToISO('2026-06-15', '8:00 AM - 8:20 AM')
  *   → { inicio: '2026-06-15T08:00:00-05:00', fin: '2026-06-15T08:20:00-05:00' }
+ * @example
+ * parseSlotToISO('2026-06-15', '10:00 AM')
+ *   → { inicio: '2026-06-15T10:00:00-05:00', fin: '2026-06-15T10:20:00-05:00' }
  */
 export function parseSlotToISO(
   fecha: string,
   slotStr: string,
 ): { inicio: string; fin: string } {
-  const [startStr, endStr] = slotStr.split(' - ')
+  const parts = slotStr.split(' - ')
+  const startStr = parts[0].trim()
+  const endStr = parts[1]?.trim()
+
   const startMin = parseTimeToMinutes(startStr)
-  const endMin = parseTimeToMinutes(endStr)
+  // Si no viene el fin (formato "10:00 AM" de la comprehension), o si el fin no
+  // parsea, calcular fin = inicio + SLOT_MINUTES. NUNCA pasar undefined a
+  // parseTimeToMinutes (CR-01: undefined.trim() -> TypeError).
+  const parsedEnd = endStr ? parseTimeToMinutes(endStr) : -1
+  const endMin = parsedEnd === -1 ? startMin + SLOT_MINUTES : parsedEnd
+
   return {
     inicio: `${fecha}T${minutesToHHMMSS(startMin)}-05:00`,
     fin: `${fecha}T${minutesToHHMMSS(endMin)}-05:00`,
@@ -154,12 +171,19 @@ export async function getVarixAvailability(
   const sb = getVarixClinicClient()
   const dayStart = `${fecha}T00:00:00-05:00`
   const dayEnd = `${fecha}T23:59:59-05:00`
-  const { data: appts } = await sb
+  const { data: appts, error: apptError } = await sb
     .from('appointments')
     .select('doctor_id, fecha_hora_inicio, fecha_hora_fin, estado')
     .gte('fecha_hora_inicio', dayStart)
     .lte('fecha_hora_inicio', dayEnd)
     .not('estado', 'in', '(cancelada,no_asistio)')
+
+  // W-01: NUNCA tratar un error de Supabase como "0 citas = todos los slots
+  // libres". Si la query falla (red, RLS, permiso), propagar — el caller
+  // (varixcenter-agent) ya hace fail-open -> sin_disponibilidad/handoff.
+  if (apptError) {
+    throw new Error(`varix-clinic availability query failed: ${apptError.message}`)
+  }
 
   const rows: VarixAppointmentRow[] = (appts as VarixAppointmentRow[]) ?? []
 

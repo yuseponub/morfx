@@ -199,9 +199,15 @@ export function KanbanColumn({
             head (dot/contador/línea) Y las cards (.nm .ci). El kebab .kmenu
             cancela el drag con stopPropagation en pointerdown. */}
         <div className="kcol-head" {...attributes} {...listeners} suppressHydrationWarning>
+          {/* M-4 — grip de drag (puramente visual; los listeners viven en .kcol-head). */}
+          <GripVerticalIcon className="grip" aria-hidden />
           <span className={cn('dot', v3DotClass)} />
           <span className="t" title={stage.name}>{stage.name}</span>
-          <span className="c">{totalCount !== undefined ? totalCount : orderCount}</span>
+          {/* C-5 — contador WIP {count}/{wipLimit} con color warning/over. */}
+          <span className={cn('c', isOverLimit && 'over', isAtLimit && !isOverLimit && 'warn')}>
+            {totalCount !== undefined ? totalCount : orderCount}
+            {wipLimit !== null && <>/{wipLimit}</>}
+          </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button

@@ -1646,7 +1646,7 @@ html:has(.theme-editorial) body {
 .theme-editorial-v3 .kcard .track .car{font-family:var(--font-sans);text-transform:uppercase;font-size:9px;color:var(--ink-4)}
 
 /* M-4 — grip de drag visible al hover en la cabecera de columna v3. */
-.theme-editorial-v3 .kcol-head .grip{display:inline-flex;align-items:center;color:var(--ink-4);cursor:grab;font-size:10px;line-height:0;opacity:0;transition:opacity .12s;flex:none}
+.theme-editorial-v3 .kcol-head .grip{display:inline-flex;align-items:center;width:12px;height:12px;color:var(--ink-4);cursor:grab;font-size:10px;line-height:0;opacity:0;transition:opacity .12s;flex:none}
 .theme-editorial-v3 .kcol-head:hover .grip{opacity:.55}
 .theme-editorial-v3 .kcol-head:active .grip{cursor:grabbing}
 

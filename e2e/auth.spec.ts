@@ -155,8 +155,11 @@ test.describe('auth-hardening E2E', () => {
 
   // ==================== C-2 / H-9 — OPEN REDIRECT ====================
 
-  test('C-2 — /login?redirect=https://example.org/phish NO debe salir del origen', async ({ page }) => {
+  test('C-2 — /login?redirect=https://example.org/phish NO debe salir del origen', async ({ page, baseURL }) => {
     test.setTimeout(60_000)
+    // Host esperado derivado de baseURL: el mismo test sirve para dev local
+    // (localhost:3020) y smoke prod (PLAYWRIGHT_BASE_URL=https://www.morfx.app).
+    const appHost = new URL(baseURL ?? 'http://localhost:3020').host
     const user = await createAuditUser(admin, 'c2')
     await page.goto(`/login?redirect=${encodeURIComponent('https://example.org/phish')}`, { waitUntil: 'networkidle' })
     await page.fill('#email', user.email)
@@ -164,11 +167,12 @@ test.describe('auth-hardening E2E', () => {
     await page.click('button[type=submit]')
     await page.waitForTimeout(6_000)
     const landed = new URL(page.url())
-    expect(landed.host, 'tras login el usuario debe quedarse en MorfX').toContain('localhost:3020')
+    expect(landed.host, 'tras login el usuario debe quedarse en MorfX').toBe(appHost)
   })
 
-  test('H-9 — /auth/confirm con next externo debe responder redirect interno', async ({ page }) => {
+  test('H-9 — /auth/confirm con next externo debe responder redirect interno', async ({ page, baseURL }) => {
     test.setTimeout(60_000)
+    const appHost = new URL(baseURL ?? 'http://localhost:3020').host
     const user = await createAuditUser(admin, 'h9')
     const { data, error } = await admin.auth.admin.generateLink({ type: 'recovery', email: user.email })
     expect(error, `generateLink recovery: ${error?.message}`).toBeNull()
@@ -182,7 +186,7 @@ test.describe('auth-hardening E2E', () => {
     expect(res.status()).toBeLessThan(400)
     const location = res.headers()['location'] ?? ''
     expect(location, 'el Location no debe apuntar a un host externo').not.toMatch(/example\.org/)
-    expect(new URL(location, 'http://localhost:3020').host).toContain('localhost:3020')
+    expect(new URL(location, baseURL ?? 'http://localhost:3020').host).toBe(appHost)
   })
 
   // ==================== CONFIRMACIÓN DE EMAIL (baseline) ====================

@@ -109,4 +109,4 @@ None - plan executed exactly as written. (El conteo final 46 vs "~44" del plan e
 ---
 *Phase: agent-varixcenter*
 *Completed: 2026-06-11*
-*Estado: SQL creado, apply en prod PENDIENTE (checkpoint)*
+*Estado: SQL creado, apply en prod CONFIRMADO 2026-06-11 (count=46, saludo D-12 verificado via REST)*

@@ -56,7 +56,18 @@ SELECT priority, name FROM routing_rules WHERE workspace_id='c6621640-ba67-43de-
 - A1 (allowlist IP): la conexión REST desde esta máquina funcionó sin allowlist; Supabase no restringe IPs por defecto. Confirmar solo si varix-clinic tiene Network Restrictions activadas en el dashboard (improbable).
 - Nota: el código (Waves 1-4) se puede escribir y testear con mocks SIN estas env vars; son bloqueantes solo para runtime prod (push Wave 6).
 
-## Saludo escogido (PENDIENTE CLIENTE — D-12, bloquea Wave 5)
+## Saludo escogido ✅ (decisión del usuario 2026-06-11 — AMENDA D-12)
 
-- [ ] Cliente escoge 1 de las 5 opciones de PLANTILLAS.md §1 (A / B / C / D / E).
-- Escogido: `___` (letra + texto verbatim al confirmarse)
+El usuario escogió un saludo CUSTOM de **2 plantillas** (no una de las 5 opciones A-E):
+
+| ID | Prioridad | Contenido verbatim |
+|----|-----------|--------------------|
+| `saludo` | CORE | `¡Hola! 👋 Bienvenido a VarixCenter, donde tus várices son cosa del pasado ✨` |
+| `saludo_comp` | COMP | `¿Deseas agendar tu valoración?` |
+
+**Implicaciones (D-12 amendada — el saludo YA NO hace doble triage):**
+1. El triage (ciudad + tipo_venas) se difiere al template `triage` existente — se dispara cuando el cliente pregunta precio/tratamiento sin `tipo_venas` (flujo §9 del diseño, sin cambios).
+2. **Comprehension (Plan 04):** una respuesta afirmativa ("sí", "claro", "me interesa") inmediatamente después del saludo DEBE clasificarse como `quiero_agendar` (no `confirmar` ni `acknowledgment`) — el saludo termina con "¿Deseas agendar tu valoración?". Incluir esta regla contextual en el prompt de comprehension.
+3. **Response-track (Plan 06):** el saludo emite 2 mensajes (CORE + COMP), igual que el patrón CORE+COMP existente.
+4. **Plan 10 (templates SQL):** insertar `saludo` + `saludo_comp` con el wording de esta tabla; NO insertar ninguna de las 5 opciones A-E de PLANTILLAS.md §1.
+5. `es_foraneo`/ciudad: se captura cuando el cliente la mencione o vía template `triage`; sigue siendo no-bloqueante (D-15 sin cambios).

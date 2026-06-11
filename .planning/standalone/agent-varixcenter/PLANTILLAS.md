@@ -3,11 +3,23 @@
 > Wording verbatim para `agent_templates` (agent_id `varixcenter`). Basado en el playbook real
 > del equipo ("MENSAJE PARA CUANDO PREGUNTAN VALORACION") + estructura GoDentist.
 > Prioridades: CORE (siempre), COMP (complementaria), OPCIONAL (una vez por conversación).
-> ⚠️ PENDIENTE del cliente: escoger 1 de las 5 opciones de saludo (sección 1).
+> ✅ RESUELTO 2026-06-11: el usuario escogió un saludo CUSTOM de 2 plantillas (ver §1) — las 5 opciones A-E quedan descartadas.
 
 ---
 
-## 1. Saludo — 5 OPCIONES (escoger una)
+## 1. Saludo — ESCOGIDO (custom, 2 plantillas — amenda D-12)
+
+**Decisión del usuario 2026-06-11** (registrada también en 00-WAVE0-AUDIT.md): el saludo NO hace doble triage; es bienvenida + CTA directo a agendar. El triage se difiere al template `triage` (§2).
+
+| ID | Prioridad | Contenido |
+|----|-----------|-----------|
+| `saludo` | CORE | "¡Hola! 👋 Bienvenido a VarixCenter, donde tus várices son cosa del pasado ✨" |
+| `saludo_comp` | COMP | "¿Deseas agendar tu valoración?" |
+
+⚠️ Implicación comprehension: "sí"/"claro"/"me interesa" justo después del saludo = `quiero_agendar`.
+
+<details>
+<summary>Opciones A-E originales (descartadas — histórico)</summary>
 
 Todas hacen el doble triage (ciudad + tipo de venas) que el equipo ya usa hoy.
 
@@ -39,6 +51,8 @@ Todas hacen el doble triage (ciudad + tipo de venas) que el equipo ya usa hoy.
 > ¡Hola! ✨ Bienvenido a VarixCenter, centro médico flebológico con más de 28 años de experiencia
 > en Bucaramanga. Nuestros especialistas te dan un diagnóstico exacto en tu valoración.
 > Cuéntame: 1️⃣ ¿De qué ciudad te comunicas? 2️⃣ ¿Tienes várices grandes o vasitos?
+
+</details>
 
 ## 2. Triage (cuando piden precio sin haber dado tipo de venas)
 

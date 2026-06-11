@@ -42,11 +42,11 @@ MorfX lanza el popup sin restricciones (`config_id` + `sessionInfoVersion:3`, si
 |---|---|---|
 | **Nuevo, número nuevo** (nunca en API) | ✅ **Sí, todo** | El popup crea/selecciona Business Portfolio + crea WABA + agrega número + verifica OTP. El cliente NO crea el WABA antes. |
 | **Nuevo, número ya en app WhatsApp** (no API) | ✅ Sí | Primero hay que **sacar el número de la app de WhatsApp normal** (no puede estar en la app Y la API a la vez), luego el popup lo registra por OTP. |
-| **Migra de otro BSP** (ej. 360dialog) | ⚠️ **Popup + pasos externos** | El popup registra el número al WABA destino, PERO requiere: 360dialog Hub → Migrate Number + desactivar 2FA. Y para **pre-aprobar plantillas** (evitar downtime), **crear el WABA destino ANTES** y en el popup **seleccionarlo** (no crear uno nuevo en el popup). |
+| **Migra de otro BSP** (ej. 360dialog) | ✅ **Sí, desde el popup** (VERIFICADO Somnio 2026-06-11) | **NO existe "Migrate Number" en 360dialog para salir** — la migración se dispara desde el popup de MorfX (el destino). El popup **crea una WABA NUEVA limpia** y migra el número. Prereqs solo en 360dialog: pagar facturas + **desactivar 2FA**. Las **plantillas viajan solas** (Meta las copia). El `register` exige **método de pago en la WABA nueva** (agregar tarjeta → sí deja, está limpia). |
 
 > Glosario — **HSM** (Highly Structured Message) = **plantilla de WhatsApp**. Es el mensaje pre-aprobado por Meta que se usa **fuera de la ventana de 24h** o para iniciar conversación. Las respuestas del bot DENTRO de 24h son **texto libre** (no HSM). Solo las HSM están atadas al WABA.
 
-> Pendiente de confirmar al primer onboarding real: que el `config_id` del Embedded Signup de MorfX tenga habilitado "crear nuevo WABA/número" en el popup (config del lado Meta App).
+> ✅ **CONFIRMADO (Somnio 2026-06-11):** el `config_id` del Embedded Signup de MorfX SÍ crea una WABA nueva y migra un número existente de otro BSP. La WABA nueva sale limpia (sin línea de crédito del BSP) — por eso conviene dejar que el popup la cree, NO reusar el WABA viejo (si tenía línea de crédito del BSP, queda pegada e inamovible).
 
 ### 1.3 ⚠️ GATE de madurez (verificar ANTES de migrar un cliente productivo)
 **Phase 39 (`39-whatsapp-outbound-templates`) está en `human_needed`**: código verificado 8/8, pero los **smokes en vivo nunca se completaron**. Antes de migrar cualquier número que venda, hay que cerrar este gate en el banco de pruebas:
@@ -59,18 +59,18 @@ MorfX lanza el popup sin restricciones (`config_id` + `sessionInfoVersion:3`, si
   - WA-06: recibir media inbound → URL durable en Supabase Storage (no CDN Meta que expira ~5min).
 - **Si todos pasan** → MorfX WhatsApp directo está probado; se puede migrar clientes. **Si falla el template** → arreglar antes de tocar cualquier cliente.
 
-### 1.4 ¿Qué se conserva al migrar 360dialog → directo? (REALIDAD verificada con soporte 360dialog, 2026-06-10)
-**Hallazgo clave (caso Somnio):** cuando el WABA tiene una **línea de crédito de un BSP** (360dialog GmbH), esa línea **NO se puede desasociar self-serve** y **ni el soporte la quita**. La salida real que ofrece 360dialog es **migrar el número a un WABA NUEVO** (destino propio) vía su Hub — es decir, una migración **entre WABAs**, NO "mismo WABA".
+### 1.4 ¿Qué se conserva al migrar 360dialog → directo? (REALIDAD verificada en vivo, caso Somnio 2026-06-11)
+**Hallazgo clave:** cuando el WABA tiene una **línea de crédito de un BSP** (360dialog GmbH), esa línea **NO se puede desasociar self-serve** y **ni el soporte la quita** (regla de Meta: una línea de crédito pegada a un WABA no se cambia). Por eso **el WABA viejo se abandona** y el número migra a un **WABA NUEVO limpio** — que el popup de MorfX crea solo.
 
-| Se conserva ✅ (migración entre WABAs) | NO viaja ❌ |
+| Se conserva ✅ (verificado Somnio) | Ojo ⚠️ |
 |---|---|
-| Número + **display name** | **Plantillas (HSM)** → recrear + re-aprobar en el WABA nuevo |
-| **Quality rating** + messaging limits | **Historial de chats** |
-| Estado **Official Business Account** | **Catálogo** de productos |
-| **Historial de mensajería** (según 360dialog) | |
+| Número + **display name** (APPROVED) | **Plantillas (HSM): SÍ viajaron solas** (22, APPROVED) — Meta las copió al WABA nuevo. Igual **respaldar** por si un BSP no las copia. |
+| **Quality rating GREEN** (intacto) | `notifica_recoger` llegó `REJECTED` — revisar/recrear esa puntual. |
+| Estado **Official Business Account** | **Historial de chats / catálogo** NO viajan (eso vive en MorfX igual). |
+| **Messaging limits** | |
 
-> ⚠️ **Asume que las plantillas NO viajan** al WABA nuevo (360dialog "no confirma que se mantengan"). Plan = **recrearlas**. Es el mismo patrón que vivió el usuario migrando de **Callbell → 360dialog**.
-> ⛔ **NUNCA borrar el número** con el ícono de basura en WhatsApp Manager → eso lo *downgradea* y pierde display name + plantillas high-quality. Usar siempre el flujo **Migrate**.
+> ✅ **Realidad (Somnio):** las plantillas **SÍ se transfirieron** vía Embedded Signup (lo que dice la doc oficial de Meta). El miedo de "recrear 12" (precedente Callbell) **no se materializó**. Aun así, **respaldar siempre** (query abajo) — es barato y cubre el caso de un BSP que no las copie.
+> ⛔ **NUNCA borrar el número** con el ícono de basura en WhatsApp Manager → eso lo *downgradea* y pierde display name + plantillas high-quality. Usar siempre el **Embedded Signup** (NO existe botón "Migrate" en 360dialog para salir).
 
 **Lo que NO se toca (vive en MorfX, no en el WABA) — sobrevive intacto:**
 - ✅ **Respuestas rápidas** (`quick_replies`) — tabla MorfX, no toca Meta.
@@ -86,30 +86,32 @@ MorfX lanza el popup sin restricciones (`config_id` + `sessionInfoVersion:3`, si
 >   FROM whatsapp_templates WHERE workspace_id='<ws>') t;
 > ```
 
-### 1.5 Runbook de migración de número (360dialog → Meta Direct) — estrategia SIN downtime
+### 1.5 Runbook de migración de número (360dialog → Meta Direct) — FLUJO REAL VERIFICADO (Somnio 2026-06-11)
 
-> **Truco clave:** las plantillas son **por-WABA y se crean independientes del número**. Por eso se **pre-aprueban en el WABA destino ANTES** de migrar el número → cuando el número llega, las HSM ya están aprobadas → **no hay ventana sin notificaciones**. Mientras tanto el cliente sigue 100% vivo en 360dialog.
+> ⚠️ **VERDAD DEL DOWNTIME (corrige la versión anterior "sin downtime"):** apenas metes el número al **Embedded Signup**, Meta empieza a reclamarlo y **360dialog deja de poder enviar** — aunque el `register` final tarde. En Somnio hubo **~3h de ventana** (número "entre proveedores") en la que entraban mensajes pero el bot no respondía, hasta hacer el flip. **La ventana de bajo tráfico debe empezar AL ABRIR EL POPUP, no en el register.** No existe una estrategia mágica "sin downtime" — minimízalo con preparación + ventana + ejecución rápida.
 
-**FASE 1 — Preparación (CERO riesgo, el cliente sigue en 360dialog):**
-1. **GATE §1.3 cerrado** (outbound directo probado en banco de pruebas, incl. template).
-2. **Respaldar las HSM** del workspace a JSON (query en §1.4).
-3. **Crear el WABA destino NUEVO** en el Meta Business Portfolio del cliente (vacío, sin línea de crédito).
-4. **Agregarle el método de pago propio** del cliente a ese WABA nuevo (ahí SÍ deja, porque no tiene la línea de crédito del BSP).
-5. **Recrear las HSM** en ese WABA nuevo (Meta WhatsApp Manager, usando el JSON de respaldo) y **enviarlas a aprobación**.
-6. **Esperar aprobación de Meta** (horas/días — sin afectar al cliente).
+**FASE 0 — Preparación (CERO riesgo, el cliente sigue 100% en 360dialog):**
+1. **GATE §1.3** — confirmar outbound directo (texto + imagen + template) en banco de pruebas. (Somnio ya validó texto `delivered` + plantillas `read` en vivo, 2026-06-11.)
+2. **Respaldar las HSM** del workspace a JSON (query en §1.4) — por si un BSP no las copia.
+3. **Pagar facturas pendientes** en el Hub del BSP (sin esto Meta bloquea la migración).
+4. **Tener a la mano** la tarjeta/método de pago del cliente (se necesita en el paso 7).
+5. **Elegir ventana de bajo tráfico** y avisar al cliente que habrá un lapso de minutos sin respuestas automáticas.
 
-**FASE 2 — Cutover (ventana de bajo tráfico, con todo ya aprobado):**
-7. **Desactivar 2FA** del número (WhatsApp Manager → Números → Configuración → Verificación en dos pasos → desactivar). WABA propio = el dueño lo hace, sin ticket.
-8. **360dialog Hub → Manage WhatsApp Business Account → Migrate Number → Migrate number between WABAs** → destino = el WABA nuevo.
-9. **Embedded Signup en MorfX** (workspace del cliente, como Owner) → **seleccionar el WABA destino** + completar hasta que el número quede registrado (`registerPhoneNumber` pone un PIN nuevo).
-10. Confirmar que el número aparece como **"transferred"** en WhatsApp Manager.
-11. **Flip provider** (Regla 5 — operador): `UPDATE workspaces SET whatsapp_provider='meta_direct' WHERE id='<ws>';` (NO tocar messenger/instagram).
-12. **Verificar live:** inbound real llega al inbox + outbound texto + **template** salen por directo (no `131047`) + los agentes responden normal.
-13. **Cancelar la suscripción 360dialog** del número (si no, sigue facturando).
-14. **Sincronizar las HSM** en MorfX (que el workspace vea las plantillas del WABA nuevo).
+**FASE 1 — Cutover (DENTRO de la ventana — el reloj del downtime arranca aquí):**
+6. **Desactivar 2FA** del número: WhatsApp Manager → el número → *Verificación en dos pasos → Desactivar* (se confirma por **email**, no por SMS → no hay rate-limit). WABA propio = el dueño lo hace, sin ticket al BSP.
+7. **Embedded Signup en MorfX** (workspace del cliente, como Owner) → `/configuracion/integraciones → Conectar WhatsApp` → meter el número. El popup **crea una WABA NUEVA limpia** y migra el número (NO seleccionar el WABA viejo si tiene línea de crédito del BSP). Las **plantillas viajan solas**.
+8. El `register` falla con **falta de método de pago** → MorfX muestra "falta método de pago" (fix `error_data.details` aplicado 2026-06-11). **Agregar tarjeta a la WABA NUEVA** (Business Settings → esa WABA → Configuración de pagos → sí deja, está limpia) → reintentar Conectar → `CONNECTED`.
+9. **Verificar el número** en `workspace_meta_accounts` (`registration_status='connected'`) y en WhatsApp Manager (`status: CONNECTED`, `platform_type: CLOUD_API`, `quality_rating` conservado).
+10. **Flip provider** (Regla 5 — operador): `UPDATE workspaces SET whatsapp_provider='meta_direct' WHERE id='<ws>';` (NO tocar messenger/instagram). **Esto cierra la ventana de downtime** — el outbound vuelve por Meta.
+11. **Verificar live:** mandar un WhatsApp al número → el agente responde por Meta (en DB: outbound `delivered`, `processed_by_agent=true`).
 
-> **Rollback** (solo antes del paso 12 OK): migrar el número de vuelta a 360dialog (Hub) + re-flip `whatsapp_provider='360dialog'` + reactivar 2FA.
-> **Regla de Meta:** un BSP no puede bloquear ni demorar la migración ni la salida de su línea de crédito.
+**FASE 2 — Cierre (sin prisa, ya operativo):**
+12. **Atender el backlog** — los inbounds que llegaron durante la ventana quedan `processed_by_agent=false`; se atienden cuando el cliente reescriba, o revisión manual en el inbox.
+13. **Cancelar la suscripción del BSP** + pedir **reembolso** de fondos no usados.
+14. **Limpiar** WABAs duplicadas creadas en intentos previos (quitarles el número) + revisar plantillas que llegaron `REJECTED`.
+
+> **Rollback:** una vez el número está `CONNECTED` en Meta, **ya salió del BSP** — no hay rollback rápido (re-migrar al BSP es lento). Por eso FASE 1 va en ventana y con la tarjeta lista, para no quedar en limbo. El único "rollback" real antes del paso 7 es: no abrir el popup.
+> **Causa-raíz del downtime (para el record):** no es el `register` el que corta 360dialog — es el **inicio del Embedded Signup** (Meta marca el número como en-migración). Por eso FASE 1 debe ser rápida y seguida.
 
 ### 1.6 Migración de conversaciones ("desde WPP por QR" — de la nota)
 MorfX tiene un toolkit para respaldar e importar el historial de WhatsApp antes/después de migrar:

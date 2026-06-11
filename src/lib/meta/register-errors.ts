@@ -17,11 +17,25 @@ export interface RegisterErrorMapping {
 }
 
 export function mapRegisterError(e: unknown): RegisterErrorMapping {
-  const detail = e instanceof Error ? e.message : String(e)
+  const baseMsg = e instanceof Error ? e.message : String(e)
+
+  // Meta frequently hides the actionable reason in `error_data.details` behind a
+  // generic top-level message like "(#100) Invalid parameter". Discovered live in the
+  // Somnio 360dialog→Meta migration (2026-06-11): the missing-payment case surfaced
+  // ONLY in error_data.details, so matching e.message alone fell through to the generic
+  // bucket and the operator saw "intenta de nuevo" instead of "falta método de pago".
+  // Classify against BOTH the message and the details.
+  const details = e instanceof MetaGraphApiError ? e.details : undefined
+  const detail = details ? `${baseMsg} — ${details}` : baseMsg
+  const haystack = `${baseMsg} ${details ?? ''}`
 
   if (e instanceof MetaGraphApiError) {
-    // Leftover two-step verification from a previous BSP (err subcode 2388001).
-    if (e.errorSubcode === 2388001) {
+    // Leftover two-step verification from a previous BSP — usually subcode 2388001,
+    // but Meta may also surface it as a generic (#100) whose details mention two-step.
+    if (
+      e.errorSubcode === 2388001 ||
+      /two-?step|two-?factor|two factor authentication/i.test(haystack)
+    ) {
       return {
         status: 'needs_2sv',
         detail,
@@ -32,8 +46,9 @@ export function mapRegisterError(e: unknown): RegisterErrorMapping {
           'proveedor anterior que la desactive.',
       }
     }
-    // WABA has no payment method ("Cannot Migrate Phone Number ... payment method").
-    if (/payment method|cannot migrate phone number/i.test(e.message)) {
+    // WABA has no payment method. Clear in some flows, but in the migrate flow Meta
+    // buries it in error_data.details behind "(#100) Invalid parameter".
+    if (/payment method|cannot migrate phone number/i.test(haystack)) {
       return {
         status: 'needs_payment',
         detail,

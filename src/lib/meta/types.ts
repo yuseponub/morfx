@@ -14,6 +14,15 @@ export interface MetaApiError {
     error_subcode?: number
     fbtrace_id?: string
     type?: string
+    /**
+     * Meta nests the actionable sub-reason here. Often the REAL cause behind a
+     * generic top-level `message` like "(#100) Invalid parameter" (e.g. the migrate
+     * flow puts "...doesn't have a payment method set up." in `error_data.details`).
+     */
+    error_data?: {
+      messaging_product?: string
+      details?: string
+    }
   }
 }
 
@@ -27,7 +36,14 @@ export class MetaGraphApiError extends Error {
     public readonly code?: number,
     public readonly errorSubcode?: number,
     public readonly httpStatus?: number,
-    public readonly fbtraceId?: string
+    public readonly fbtraceId?: string,
+    /**
+     * `error_data.details` — Meta's actionable sub-message. Frequently carries the
+     * REAL reason behind a generic top-level message like "(#100) Invalid parameter"
+     * (e.g. "Cannot Migrate Phone Number: ...doesn't have a payment method set up.").
+     * Discovered live in the Somnio 360dialog→Meta migration (2026-06-11).
+     */
+    public readonly details?: string
   ) {
     super(message)
     this.name = 'MetaGraphApiError'

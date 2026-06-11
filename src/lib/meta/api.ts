@@ -46,7 +46,8 @@ export async function metaRequest<T>(
       err?.code,
       err?.error_subcode,
       response.status,
-      err?.fbtrace_id
+      err?.fbtrace_id,
+      err?.error_data?.details
     )
   }
 

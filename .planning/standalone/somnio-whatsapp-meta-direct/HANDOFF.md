@@ -1,8 +1,18 @@
 # Somnio WhatsApp → Meta Direct (migración 360dialog → Cloud API propio) — HANDOFF
 
-**Estado:** EN PROGRESO — bloqueado esperando respuesta de soporte 360dialog. **NO ejecutado aún.**
-**Última actualización:** 2026-06-10
+**Estado:** ✅ **COMPLETADA Y VIVA — 2026-06-11.** Número en Meta Cloud API, GREEN conservado, 22 plantillas transferidas solas, provider=meta_direct, inbound/outbound verificados (delivered/read).
+**Última actualización:** 2026-06-11
 **Playbook general reutilizable:** `docs/onboarding/client-integration-playbook.md` (§1 WhatsApp).
+
+## ✅ CÓMO SE HIZO REALMENTE (flujo verificado en vivo 2026-06-11)
+1. NO existe "Migrate Number" para salir de 360dialog → la migración se dispara desde el **Embedded Signup de MorfX** (`/configuracion/integraciones → Conectar WhatsApp`).
+2. El popup **creó una WABA NUEVA limpia** (`1658478765367601`) y migró el número — NO se reusó la "Somnio Morf" vieja (que tenía la línea de crédito 360dialog pegada e inamovible).
+3. El `register` falló por **falta de método de pago en la WABA nueva**. ⚠️ El error de Meta llegó como genérico `"(#100) Invalid parameter"` con la causa real escondida en `error_data.details` ("Cannot Migrate Phone Number: ...doesn't have a payment method set up."). **Fix de código aplicado 2026-06-11:** `MetaGraphApiError` ahora captura `error_data.details` y `mapRegisterError` lo lee → futuros clientes ven "falta método de pago" directo.
+4. Se agregó **tarjeta** a la WABA nueva (sí dejó, sin línea de crédito vieja) → register OK → `CONNECTED` + GREEN.
+5. **Flip `whatsapp_provider='meta_direct'`** → outbound recuperado (texto delivered + plantillas read).
+
+## ⚠️ DOWNTIME REAL (~3h) — lección crítica
+El número quedó "entre proveedores" desde que se abrió el popup (Meta empieza a reclamarlo y 360dialog deja de enviar) hasta el flip. **NO esperar al register** — la ventana de bajo tráfico debe empezar **al abrir el popup**. 16 inbounds quedaron sin procesar (backlog), se atienden cuando el cliente reescriba.
 
 ## Goal
 Migrar el número de WhatsApp de Somnio de **360dialog (BSP)** a **Meta Cloud API directo vía MorfX**, conservando el número y minimizando downtime. WhatsApp es lo único que migra (FB/IG de otros workspaces ya se hizo aparte).
@@ -31,21 +41,44 @@ Migrar el número de WhatsApp de Somnio de **360dialog (BSP)** a **Meta Cloud AP
 - ✅ **Template por directo PASÓ** (probado en Pruebas Morfx — era el error `131047`).
 - ⏳ Pendiente confirmar: envío de **texto** + **imagen** por directo en Pruebas Morfx.
 
-## 🚩 BLOQUEO ACTUAL
-No aparece la opción **"Migrate Number"** en el Hub de 360dialog (en el detalle del canal solo está "Cancel subscription" en Danger Zone). Doc oficial dice que está en **"Manage WhatsApp Business Account → localizar WABA → toggle Migrate Number → Migrate number between WABAs"**, pero el usuario no la encuentra.
-**Pregunta abierta enviada a soporte 360dialog (humano):**
-1. ¿Dónde exactamente está "Migrate Number" en el Hub?
-2. ¿El flujo deja el número en **MorfX directo** o sigue en 360dialog? (si sigue en 360dialog, NO sirve).
-3. Alternativa: ¿iniciar desde el Embedded Signup de MorfX (2FA off + facturas pagadas)?
+## ✅ BLOQUEO RESUELTO (investigación 2026-06-10, fuentes abajo)
+**El botón "Migrate Number" NO existe en el Hub de 360dialog para SALIR a otro BSP — y eso es correcto, no es un bug ni falta de permisos.**
 
-## Pasos oficiales verificados (docs 360dialog)
-**Flujo "Migrate number between WABAs" (Hub):** Manage WhatsApp Business Account → localizar WABA → toggle **Migrate Number** → "Migrate number between WABAs" → login Meta Business Portfolio → **crear WABA destino** → completar campos → registrar número vía **Embedded Signup** → verificar status "transferred" en WhatsApp Manager. ⚠️ Números **COEX no se pueden migrar** entre WABAs.
-**Prerrequisitos (flujo alternate-BSP):** pagar facturas pendientes → **desactivar 2FA** (obligatorio) → coordinar con Meta/nueva app para iniciar → cancelar suscripción → pedir reembolso de fondos no usados.
+360dialog tiene 6 escenarios de migración. La opción "Migrate number between WABAs" (que antes mandé a buscar) es el escenario **#2** = mover a otro WABA **DENTRO de 360dialog** (WABA destino debe tener <48h). **NO es la nuestra.**
+
+Lo de Somnio es el escenario **#3: "Migrate to alternate BSP"** (360dialog → app Meta propia de MorfX). Doc oficial 360dialog: *"Coordinate with your new BSP or Meta to initiate the migration"* → **la migración se DISPARA DESDE EL DESTINO, no desde 360dialog.** Del lado 360dialog solo: (1) pagar facturas, (2) desactivar 2FA, (3) cancelar suscripción DESPUÉS.
+
+**El disparador real = Embedded Signup de MorfX** (mismo popup de GoDentist FB/IG). MorfX está en el Tech Provider Program. Meta: *"Migrations between different Service Providers can now be completed using the Meta Embedded Sign-Up flow. Partners enrolled in the Tech Provider Program... must use this Hosted Embedded signup process."* Al meter el número (que ya existe en el WABA de 360dialog con 2FA off) en nuestro Embedded Signup, **Meta detecta el número y ofrece migrarlo** ahí mismo.
+
+**Plantillas SÍ viajan (oficial):** Meta dice que en la migración vía Embedded Signup el número *"remain[s] connected... retaining the display name, quality rating, **approved templates** and Official Business Account statuses."* → Probablemente NO toque recrear las 12. (No 100% garantizado por precedente Callbell — backup ✅ listo por si acaso.)
+
+**Ya NO hace falta esperar respuesta de soporte 360dialog** para el "dónde está Migrate" — la respuesta es: no está, va por nuestro Embedded Signup.
+
+**Fuentes:**
+- 360dialog — Migrate to alternate BSP: https://docs.360dialog.com/docs/hub/migrations/migrate-to-alternate-bsp
+- 360dialog — Migrations (6 escenarios): https://docs.360dialog.com/docs/hub/migrations
+- Meta — migración vía Embedded Signup retiene plantillas + 2FA off obligatorio (búsqueda oficial Meta dev docs, 2026-06-10)
+
+## Prerrequisitos verificados (flujo alternate-BSP, lado 360dialog)
+Pagar facturas pendientes → **desactivar 2FA** (obligatorio; con 2FA la migración falla) → iniciar desde Embedded Signup MorfX (destino) → tras "transferred": cancelar suscripción + pedir reembolso de fondos no usados. ⚠️ Números **COEX no se pueden migrar**.
+
+## ⚠️ CORRECCIÓN CRÍTICA 2026-06-10 — línea de crédito 360dialog pegada (muro Callbell CONFIRMADO en vivo)
+Captura del usuario en `business.facebook.com/.../billing_hub` (asset_id=1990038191949199 "Somnio Morf"): método de pago = **Línea de crédito · Predeterminado · 360dialog GmbH**, botón **"Agregar método de pago" BLOQUEADO** con tooltip *"No puedes agregar un método de pago porque estás usando una línea de crédito compartida."*
+
+**Regla dura de Meta (confirmada, fuente abajo):** una línea de crédito, una vez pegada a un WABA, **NO se puede cambiar**; *"once a payment method is added to a WABA it can only be revoked but never fully removed."* → El WABA "Somnio Morf" está **QUEMADO** (línea 360dialog permanente, no self-serve).
+
+**Solución (textual Meta):** *"If your previous BSP is still holding the credit line... **create a new WABA** and connect it."* → El número se migra a un **WABA NUEVO limpio**. La calificación/límite/display name/OBA **viajan con el NÚMERO** (no con el WABA). El "Somnio Morf" viejo se abandona — da igual perderlo (instinto del usuario = correcto, es la solución técnica, no capricho).
+
+**El paso "agregar tarjeta a Somnio Morf" del runbook viejo era ERRÓNEO** — no se puede y no se debe. La tarjeta/método de pago va al **WABA NUEVO**.
+
+**Variable abierta (verificar):** ¿MorfX como Tech Provider tiene su propia línea de crédito con Meta? Si sí → WABA nuevo la hereda (sin tarjeta). Si no → WABA nuevo necesita tarjeta propia (evidencia playbook: "Pruebas Morfx" usó tarjeta directa → MorfX probablemente NO comparte línea). Revisar Business Settings → Líneas de crédito del BM de MorfX.
+
+**Fuente:** Meta — Share and revoke credit lines: https://developers.facebook.com/docs/whatsapp/embedded-signup/manage-accounts/share-and-revoke-credit-lines/
 
 ## Runbook Opción B (resumen — detalle en playbook §1.5)
 1. (Pre) Cerrar smokes Pruebas Morfx (texto+imagen). Pagar facturas 360dialog. Ventana de bajo tráfico. Owner en MorfX.
 2. Desactivar **2FA** del número.
-3. Migrar (Hub 360dialog **o** Embedded Signup MorfX — según respuesta de soporte) → crear WABA destino → registrar número.
+3. Migrar **desde el Embedded Signup de MorfX** (mismo popup de GoDentist FB/IG): meter +57 310 5879824 → Meta detecta el número existente → ofrece migrarlo → registrar. (NO se inicia desde el Hub 360dialog — ahí no hay botón Migrate para esta dirección.)
 4. Confirmar "transferred".
 5. `UPDATE workspaces SET whatsapp_provider='meta_direct' WHERE id='a3843b3f-c337-4836-92b5-89c58bb98490';`
 6. Verificar live (inbound + bot responde).

@@ -60,6 +60,18 @@ export function getVarixClinicClient(): SupabaseClient {
     throw new Error('VARIX_CLINIC_* env vars not set')
   }
 
+  // W-03: validar el FORMATO de la URL ANTES de cachear el singleton. `createClient`
+  // NO lanza al construir con una URL malformada — lanza recién en la primera
+  // operación de red, lo que cachearía un cliente inválido y movería el error de
+  // construcción al call-site (availability/booking), dificultando el debug. Con
+  // esta validación el throw fail-fast ocurre acá (el caller hace fail-open) y
+  // nunca se cachea un singleton con credenciales inválidas.
+  try {
+    new URL(url)
+  } catch {
+    throw new Error(`VARIX_CLINIC_SUPABASE_URL inválida: ${url}`)
+  }
+
   _client = createClient(url, key, {
     auth: {
       autoRefreshToken: false,

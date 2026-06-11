@@ -56,6 +56,13 @@ interface UseMessagesReturn {
   messages: Message[]
   /** Loading state */
   isLoading: boolean
+  /** Error state — true once the message fetch fails after its bounded retry
+   *  (F-6 / D-20). chat-view uses this to render an explicit error state with a
+   *  manual retry instead of an indistinguishable empty chat. */
+  isError: boolean
+  /** Manual retry — re-runs the message fetch (wired to the "Reintentar" button
+   *  in chat-view's error state, F-6 / D-20). */
+  refetch: () => void
   /** Load more (older) messages */
   loadMore: () => Promise<void>
   /** Whether there are more messages to load */
@@ -112,7 +119,7 @@ export function useMessages({
   // `retry` is capped at 1 here (vs the default 3) because this is a one-shot
   // Server Action — 3 exponential-backoff retries froze the loading skeletons
   // for 20-50s on Vercel cold-starts (debug whatsapp-inbox-messages-stuck).
-  const { data: messages = [], isLoading } = useQuery({
+  const { data: messages = [], isLoading, isError, refetch } = useQuery({
     queryKey,
     queryFn: () => getConversationMessages(conversationId!, limit),
     enabled: !!conversationId,
@@ -477,6 +484,8 @@ export function useMessages({
   return {
     messages,
     isLoading,
+    isError,
+    refetch,
     loadMore,
     hasMore,
     addOptimisticMessage,

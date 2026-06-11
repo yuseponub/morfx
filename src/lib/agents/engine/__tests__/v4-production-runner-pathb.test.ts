@@ -23,6 +23,7 @@ import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest'
 import { randomUUID } from 'crypto'
 import type { MockRedis } from '../../interruption-system-v2/__tests__/_helpers/mock-redis'
 import type { V4AgentInput, V4AgentOutput, ProcessedMessage } from '../../somnio-v4/types'
+import { VersionConflictError } from '../../errors'
 
 // ---------------------------------------------------------------------------
 // vi.mock hoisting block.
@@ -53,8 +54,38 @@ vi.mock('@/lib/audit/logger', () => ({
 // Default checkpoint: proceed unless an interrupt key is staged in mock-redis.
 // These tests stage NO interrupt key — the interrupt is simulated by the
 // messaging.send mock returning `interrupted: true` mid-send-loop.
+//
+// M-01 (review): a per-test `checkpointOverrideRef` lets a test surgically force
+// a specific ckptId (e.g. CKPT-6b with opts.hasSentAnything) to interrupt WITHOUT
+// staging a redis interrupt key (which CKPT-0 would consume first). Returning null
+// from the override falls through to the default behavior.
+interface CheckpointResultMock {
+  proceed: boolean
+  lostLock?: boolean
+  interrupted?: { pendingListLength: number } | false
+}
+type CheckpointOverride = (
+  ckptId: string,
+  opts: { templateIndex?: number; hasSentAnything?: boolean } | undefined,
+) => CheckpointResultMock | null
+const checkpointOverrideRef: { current: CheckpointOverride | null } = { current: null }
+function setCheckpointOverride(fn: CheckpointOverride | null): void {
+  checkpointOverrideRef.current = fn
+}
+
 vi.mock('@/lib/agents/interruption-system-v2/checkpoints', () => ({
-  checkpoint: vi.fn(async (_ckptId: string, _h: unknown, ws: unknown, ch: unknown, id: unknown) => {
+  checkpoint: vi.fn(async (
+    ckptId: string,
+    _h: unknown,
+    ws: unknown,
+    ch: unknown,
+    id: unknown,
+    opts?: { templateIndex?: number; hasSentAnything?: boolean },
+  ) => {
+    if (checkpointOverrideRef.current) {
+      const r = checkpointOverrideRef.current(ckptId, opts)
+      if (r) return r
+    }
     if (!mockRedis) return { proceed: true, lostLock: false }
     const all = mockRedis.__getAll()
     const val = all.store.get(`interrupt:${ws}:${ch}:${id}`)
@@ -105,6 +136,7 @@ beforeEach(async () => {
   }
   emittedEvents.length = 0
   agentMockFn.mockReset()
+  setCheckpointOverride(null)
 
   // Real multi() that actually clears keys (readAndClearPending needs it).
   const allMaps = mockRedis.__getAll()
@@ -308,5 +340,155 @@ describe('V4ProductionRunner — Path B clean reprocess (bug 2026-05-28)', { tim
     expect(agentMockFn).toHaveBeenCalledTimes(2)
     // BOTH queued messages combined into the reprocess (whole-list drain).
     expect(agentMockFn.mock.calls[1][0].message).toBe('que precio\ny envio?')
+  })
+
+  // =========================================================================
+  // H-01 (review) — retry de VersionConflictError. `commitTurn` (vía storage.updateMode con
+  // optimistic locking) corre DENTRO de loopBody() del core; el catch del core lo convierte a
+  // `{ kind:'error', cause }` SIN re-lanzar. El wrapper DEBE inspeccionar `result.cause instanceof
+  // VersionConflictError` y reintentar processMessage (restaura el retry del runner viejo :1124,
+  // que era código muerto tras el rewrite). Sin test previo (grep VersionConflict en suites = 0).
+  // =========================================================================
+  it('H-01: VersionConflictError en updateMode reintenta el turno (máx 3) y eventualmente tiene éxito', async () => {
+    const IDENT = '+57300H01'
+    // Sin pending → un solo turno limpio que llega a commitTurn → updateMode.
+
+    // newMode 'sales' ≠ current_mode 'initial' → updateMode SÍ se invoca (gated).
+    agentMockFn.mockResolvedValue(agentOut({
+      templates: [tmpl('t-saludo', 'Hola!')],
+      newMode: 'sales',
+      intentsVistos: ['saludo'],
+    }))
+
+    // Send limpio en cada intento (sin interrupt).
+    const mockSend = vi.fn().mockResolvedValue({ messagesSent: 1, interrupted: false })
+
+    const lockHandle = await acquireLock(WS, CHANNEL, IDENT)
+    expect(lockHandle).not.toBeNull()
+
+    const { adapters } = makeAdapters(mockSend)
+    // updateMode: 1er intento lanza VersionConflictError; 2do intento OK.
+    let updateModeCalls = 0
+    adapters.storage.updateMode = vi.fn(async () => {
+      updateModeCalls++
+      if (updateModeCalls === 1) throw new VersionConflictError('sess-1', 1)
+      return undefined
+    })
+
+    const { V4ProductionRunner } = await import('@/lib/agents/engine/v4-production-runner')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const runner = new V4ProductionRunner(adapters as any, { workspaceId: WS })
+
+    const output = await runner.processMessage({
+      sessionId: 'sess-1', conversationId: 'conv-1', contactId: 'contact-1',
+      message: 'hola', workspaceId: WS, history: [],
+      lockHandle: lockHandle!, lockChannel: CHANNEL, lockIdentifier: IDENT,
+      ownPendingEntryJson: null,
+    })
+
+    // El turno reintentó: éxito tras el retry (NO V4_ENGINE_ERROR).
+    expect(output.success).toBe(true)
+    expect(output.error).toBeUndefined()
+    expect(output.newMode).toBe('sales')
+    // updateMode invocado 2 veces (intento fallido + retry OK).
+    expect(updateModeCalls).toBe(2)
+    // El agente corrió 2 veces (un turno completo por intento — re-entry de processMessage).
+    expect(agentMockFn).toHaveBeenCalledTimes(2)
+  })
+
+  it('H-01: VersionConflictError persistente agota los 3 reintentos y retorna V4_ENGINE_ERROR', async () => {
+    const IDENT = '+57300H01B'
+
+    agentMockFn.mockResolvedValue(agentOut({
+      templates: [tmpl('t-saludo', 'Hola!')],
+      newMode: 'sales',
+      intentsVistos: ['saludo'],
+    }))
+    const mockSend = vi.fn().mockResolvedValue({ messagesSent: 1, interrupted: false })
+
+    const lockHandle = await acquireLock(WS, CHANNEL, IDENT)
+    const { adapters } = makeAdapters(mockSend)
+    // updateMode SIEMPRE lanza → agota los reintentos.
+    const updateMode = vi.fn(async () => { throw new VersionConflictError('sess-1', 1) })
+    adapters.storage.updateMode = updateMode
+
+    const { V4ProductionRunner } = await import('@/lib/agents/engine/v4-production-runner')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const runner = new V4ProductionRunner(adapters as any, { workspaceId: WS })
+
+    const output = await runner.processMessage({
+      sessionId: 'sess-1', conversationId: 'conv-1', contactId: 'contact-1',
+      message: 'hola', workspaceId: WS, history: [],
+      lockHandle: lockHandle!, lockChannel: CHANNEL, lockIdentifier: IDENT,
+      ownPendingEntryJson: null,
+    })
+
+    // Tras agotar MAX_VERSION_CONFLICT_RETRIES (3) → error prod (success:false).
+    expect(output.success).toBe(false)
+    expect(output.error?.code).toBe('V4_ENGINE_ERROR')
+    // Intento inicial (retryCount 0) + 3 reintentos = 4 invocaciones de updateMode.
+    expect(updateMode).toHaveBeenCalledTimes(4)
+  })
+
+  // =========================================================================
+  // M-01 (review) — early-return de CKPT-6b Path B con pending vacío: el output de msg1 fue
+  // DESCARTADO (solo se enviaron los pending-templates de un turno previo). El runner viejo
+  // retornaba { success:true, messages:[] } SIN newMode/orderCreated. La reescritura exponía el
+  // output descartado completo → si traía newMode='handoff', webhook-processor:1053 ejecutaría un
+  // handoff fantasma. El fix marca outputDiscarded:true en el core y mapResult los suprime.
+  // =========================================================================
+  it('M-01: CKPT-6b Path B pending-vacío NO propaga newMode/orderCreated del output descartado', async () => {
+    const IDENT = '+57300M01'
+
+    // CKPT-6a corre porque el adapter implementa getPendingTemplates con 1 template pendiente del
+    // turno previo → se envía → actuallySentIds.length > 0 en CKPT-6b. El send limpio NO interrumpe.
+    const mockSend = vi.fn().mockResolvedValue({ messagesSent: 1, interrupted: false })
+
+    const lockHandle = await acquireLock(WS, CHANNEL, IDENT)
+    const { adapters } = makeAdapters(mockSend)
+    // Pending-templates de un turno previo (CKPT-6a los envía → actuallySentIds.length > 0).
+    adapters.storage.getPendingTemplates = vi.fn().mockResolvedValue([
+      { templateId: 'pending-1', content: 'pendiente previo', contentType: 'template', priority: 'CORE' },
+    ])
+    adapters.storage.clearPendingTemplates = vi.fn().mockResolvedValue(undefined)
+
+    // El output de msg1 trae newMode='handoff' — DEBE ser descartado, NO propagado.
+    agentMockFn.mockResolvedValueOnce(agentOut({
+      templates: [tmpl('t-precio', '$89.000')],
+      newMode: 'handoff',
+      crmResult: { success: true, orderId: 'o-fantasma', contactId: 'contact-1' },
+    } as Partial<V4AgentOutput>))
+
+    // Forzar SOLO el CKPT-6b (hasSentAnything:true tras enviar el pending-template) a interrumpir
+    // con pending VACÍO (pendingListLength 0). CKPT-6a (hasSentAnything:false) y CKPT-0 proceden.
+    // El pending list real está vacío (no pushToPending) → drainB.pendingCount === 0 → early-return
+    // del output DESCARTADO de msg1. Sin staging de interrupt key (CKPT-0 lo consumiría primero).
+    setCheckpointOverride((ckptId, opts) => {
+      if (ckptId === 'ckpt_6_pre_send_loop' && opts?.hasSentAnything === true) {
+        return { proceed: false, lostLock: false, interrupted: { pendingListLength: 0 } }
+      }
+      return null
+    })
+
+    const { V4ProductionRunner } = await import('@/lib/agents/engine/v4-production-runner')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const runner = new V4ProductionRunner(adapters as any, { workspaceId: WS })
+
+    const output = await runner.processMessage({
+      sessionId: 'sess-1', conversationId: 'conv-1', contactId: 'contact-1',
+      message: 'hola', workspaceId: WS, history: [],
+      lockHandle: lockHandle!, lockChannel: CHANNEL, lockIdentifier: IDENT,
+      ownPendingEntryJson: null,
+    })
+
+    expect(output.success).toBe(true)
+    // CRÍTICO (M-01): el newMode='handoff' del output DESCARTADO NO se propaga → no hay handoff
+    // fantasma en webhook-processor:1053.
+    expect(output.newMode).toBeUndefined()
+    // orderCreated/orderId del output descartado tampoco se propagan.
+    expect(output.orderCreated).toBeUndefined()
+    expect(output.orderId).toBeUndefined()
+    // El agente del msg1 corrió una vez (su output fue descartado, no recombinado).
+    expect(agentMockFn).toHaveBeenCalledTimes(1)
   })
 })

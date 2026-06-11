@@ -97,17 +97,27 @@ export class V4ProductionRunner {
     // conoce VersionConflictError (es un error de la capa de persistencia prod). El re-entry usa el
     // MISMO lockHandle: releaseLockIfOwner es owner-checked (Lua) → el release doble del finally del
     // core es un no-op safe (T-cons-14). Idéntico al comportamiento del runner viejo (:1124).
+    //
+    // H-01 (review): el `commitTurn` (fuente del VersionConflictError vía `storage.updateMode`
+    // optimistic-lock) corre DENTRO de `loopBody()` del core; el catch del core convierte TODO lo
+    // que no es LostLockError a `{ kind:'error', cause }` SIN re-lanzar. Por eso el `catch (error)`
+    // de abajo NUNCA veía el VersionConflictError (era código muerto). El core deja el error original
+    // en `result.cause` precisamente para esto → inspeccionamos el RESULTADO, no solo el throw.
+    // Nota: el re-entry ocurre con el lock YA liberado por el finally del core (a diferencia del
+    // runner viejo que retryaba bajo el mismo lock); releaseLockIfOwner owner-checked hace el doble
+    // release un no-op safe, y el re-fetch de sesión en getSeedState toma la versión fresca.
     // ----------------------------------------------------------------
     let result: TurnResult
     try {
       result = await runTurn(coreInput, prodAdapters)
     } catch (error) {
+      // Defensivo: throw que escape del core (no debería — el core captura todo en su try/catch).
+      // El retry de VersionConflictError se maneja ABAJO inspeccionando result.cause (H-01), pero
+      // conservamos esta rama por si una futura ruta re-lanza el error sin envolverlo.
       if (error instanceof VersionConflictError && retryCount < MAX_VERSION_CONFLICT_RETRIES) {
-        console.warn(`[V4-RUNNER] Version conflict, retrying (${retryCount + 1}/${MAX_VERSION_CONFLICT_RETRIES})`)
+        console.warn(`[V4-RUNNER] Version conflict (thrown), retrying (${retryCount + 1}/${MAX_VERSION_CONFLICT_RETRIES})`)
         return this.processMessage(input, retryCount + 1)
       }
-      // Cualquier otro throw que escape del core (no debería: el core captura todo en su try/catch
-      // y devuelve kind:'error'). Defensivo — mismo contrato prod success:false (C5).
       const errorMessage = error instanceof Error
         ? `${error.message}\n${error.stack?.split('\n').slice(0, 3).join('\n')}`
         : 'Unknown error'
@@ -117,6 +127,18 @@ export class V4ProductionRunner {
         messages: [],
         error: { code: 'V4_ENGINE_ERROR', message: errorMessage },
       }
+    }
+
+    // H-01 — retry de VersionConflictError inspeccionando el RESULTADO del core. El core convierte
+    // el throw de commitTurn en `kind:'error'` con `cause` = el error original; aquí lo detectamos
+    // y reintentamos hasta MAX_VERSION_CONFLICT_RETRIES (restaura el retry del runner viejo :1124).
+    if (
+      result.kind === 'error' &&
+      result.cause instanceof VersionConflictError &&
+      retryCount < MAX_VERSION_CONFLICT_RETRIES
+    ) {
+      console.warn(`[V4-RUNNER] Version conflict, retrying (${retryCount + 1}/${MAX_VERSION_CONFLICT_RETRIES})`)
+      return this.processMessage(input, retryCount + 1)
     }
 
     // ----------------------------------------------------------------
@@ -551,17 +573,26 @@ export class V4ProductionRunner {
     // viejo lo emitía una sola vez por invocación del agente; el core conserva esa cardinalidad.
     const output: V4AgentOutput = result.output
 
+    // M-01 (review): en el early-return de CKPT-6b Path B con pending vacío, `output` es el de msg1
+    // DESCARTADO (no enviado ni commiteado — solo se enviaron los pending-templates del turno previo).
+    // El runner viejo retornaba `{ success:true, messages:[] }` SIN newMode/orderCreated. Suprimir
+    // esos campos del output descartado evita que webhook-processor:1053 ejecute un handoff fantasma
+    // de un turno que el sistema decidió no persistir.
+    const outputDiscarded = result.outputDiscarded === true
+    // newMode también se suprime en el edge Path A 0-sends (wasInterruptedWithZeroSends, D-18).
+    const suppressTurnEffects = outputDiscarded || result.wasInterruptedWithZeroSends
+
     return {
       success: output.success,
-      messages: output.messages,
-      newMode: result.wasInterruptedWithZeroSends ? undefined : output.newMode,
+      messages: outputDiscarded ? [] : output.messages,
+      newMode: suppressTurnEffects ? undefined : output.newMode,
       tokensUsed: result.totalTokens,
       sessionId: result.sessionId,
       messagesSent: result.templatesSentCount,
       response: result.allSentContents.join('\n'),
       // D-06 / Pitfall 6: re-cableado del orderResult eliminado a output.crmResult.
-      orderCreated: output.crmResult?.success,
-      orderId: output.crmResult?.orderId,
+      orderCreated: outputDiscarded ? undefined : output.crmResult?.success,
+      orderId: outputDiscarded ? undefined : output.crmResult?.orderId,
       contactId: output.crmResult?.contactId ?? input.contactId,
       error: output.success ? undefined : {
         code: 'V4_AGENT_ERROR',

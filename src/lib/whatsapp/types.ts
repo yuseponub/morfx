@@ -527,6 +527,37 @@ export interface ConversationFilters {
   sortBy?: 'last_message' | 'last_customer_message'
 }
 
+/**
+ * Filters for the keyset-paginated conversation list (F-1, whatsapp-inbox-reliability).
+ * Every filter is evaluated SERVER-SIDE inside the `get_conversations_page` RPC (D-06)
+ * — including tag + agent, which used to be a second client-side pass in
+ * conversation-list.tsx (RESEARCH Q4 / P4).
+ */
+export interface ConversationPageFilters {
+  search?: string
+  status?: ConversationStatus
+  is_read?: boolean
+  /** uuid = 'mine'; null = unassigned; undefined = no filter */
+  assigned_to?: string | null
+  unanswered?: boolean
+  /** Single tag filter (maps to p_tag_id) */
+  tag_id?: string | null
+  /** true = agente activo (`agent_conversational IS DISTINCT FROM false`); undefined/null = no filter */
+  agent_attended?: boolean | null
+  sortBy?: 'last_message' | 'last_customer_message'
+}
+
+/**
+ * One keyset page of conversations (F-1).
+ * `nextCursor` is an opaque base64 of `{ sort: ISO|null, sortIsNull: boolean, id: uuid }`
+ * taken from the LAST row of the page — feed it back to get the next page.
+ */
+export interface ConversationsPage {
+  conversations: ConversationWithDetails[]
+  hasMore: boolean
+  nextCursor: string | null
+}
+
 // ============================================================================
 // ACTION RESULT TYPE
 // ============================================================================

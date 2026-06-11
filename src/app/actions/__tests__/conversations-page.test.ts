@@ -98,14 +98,24 @@ function decodeCursor(cursor: string): { sort: string | null; sortIsNull: boolea
 }
 
 beforeEach(() => {
+  // mockReset on the bare mocks (NOT vi.resetAllMocks, which would wipe the
+  // createClient factory implementation): drops stale mockResolvedValueOnce
+  // queues. An empty page never consumes its queued joinIn once-impl (the
+  // action returns before the re-join), so clearAllMocks would leak it.
   vi.clearAllMocks()
+  mocks.rpc.mockReset()
+  mocks.joinIn.mockReset()
+  mocks.getRequestAuth.mockReset()
   mocks.getRequestAuth.mockResolvedValue({ workspaceId: WORKSPACE_ID, userId: uuid(999) })
 })
 
 /** Wire the RPC + re-join mocks for a given set of base rows. */
 function primePage(rows: Array<ReturnType<typeof makeRow>>) {
   mocks.rpc.mockResolvedValueOnce({ data: rows, error: null })
-  mocks.joinIn.mockResolvedValueOnce({ data: rows.map(makeJoinedRow), error: null })
+  if (rows.length > 0) {
+    // Empty pages short-circuit before the re-join — do not queue a join impl.
+    mocks.joinIn.mockResolvedValueOnce({ data: rows.map(makeJoinedRow), error: null })
+  }
 }
 
 // ---------------------------------------------------------------------------

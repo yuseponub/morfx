@@ -13,6 +13,8 @@ import type { DomainContext } from '@/lib/domain/types'
 import type {
   ConversationWithDetails,
   ConversationFilters,
+  ConversationPageFilters,
+  ConversationsPage,
   ActionResult,
   Message,
 } from '@/lib/whatsapp/types'
@@ -20,6 +22,32 @@ import type {
 // ============================================================================
 // READ OPERATIONS
 // ============================================================================
+
+/**
+ * Shared row transform: nested contact+tags join → flat ConversationWithDetails.
+ * Used by getConversations AND getConversationsPage so the shape stays
+ * byte-identical between the legacy unbounded query and the keyset page (F-1).
+ */
+function transformConversationRow(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  conv: any
+): ConversationWithDetails {
+  // Get tags from linked contact (source of truth)
+  const contactTagsData = conv.contact?.tags || []
+  const inheritedTags = contactTagsData.map(
+    (t: { tag: { id: string; name: string; color: string } }) => t.tag
+  ) || []
+
+  // Remove nested tags from contact object
+  const contact = conv.contact ? { ...conv.contact, tags: undefined } : null
+
+  return {
+    ...conv,
+    contact,
+    tags: inheritedTags,
+    assigned_name: null, // TODO: fetch from profiles if needed
+  } as ConversationWithDetails
+}
 
 /**
  * Get conversations with optional filters.
@@ -85,21 +113,7 @@ export async function getConversations(
   }
 
   // Transform and apply client-side filters
-  let conversations = (data || []).map((conv) => {
-    // Get tags from linked contact (source of truth)
-    const contactTagsData = conv.contact?.tags || []
-    const inheritedTags = contactTagsData.map((t: { tag: { id: string; name: string; color: string } }) => t.tag) || []
-
-    // Remove nested tags from contact object
-    const contact = conv.contact ? { ...conv.contact, tags: undefined } : null
-
-    return {
-      ...conv,
-      contact,
-      tags: inheritedTags,
-      assigned_name: null, // TODO: fetch from profiles if needed
-    }
-  }) as ConversationWithDetails[]
+  let conversations = (data || []).map(transformConversationRow)
 
   // Apply search filter (client-side for fuzzy matching)
   if (filters?.search && filters.search.trim()) {
@@ -126,6 +140,147 @@ export async function getConversations(
   }
 
   return conversations
+}
+
+// ============================================================================
+// KEYSET PAGINATION (F-1, whatsapp-inbox-reliability plan 05)
+// ============================================================================
+
+const CONVERSATIONS_PAGE_SIZE = 50
+
+/** Cursor payload: sort value + NULL flag + id tie-breaker of the page's LAST row. */
+interface ConversationsCursor {
+  sort: string | null
+  sortIsNull: boolean
+  id: string
+}
+
+function decodeConversationsCursor(cursor: string): ConversationsCursor | null {
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, 'base64').toString('utf8'))
+    if (!parsed || typeof parsed.id !== 'string') return null
+    return {
+      sort: parsed.sort ?? null,
+      sortIsNull: parsed.sortIsNull === true,
+      id: parsed.id,
+    }
+  } catch {
+    // Malformed cursor → treat as page 1 (never throw on client input)
+    return null
+  }
+}
+
+function encodeConversationsCursor(cursor: ConversationsCursor): string {
+  return Buffer.from(JSON.stringify(cursor)).toString('base64')
+}
+
+/**
+ * Get ONE keyset page of conversations via the `get_conversations_page` RPC
+ * (migration 20260611160000 — NULL-correct keyset over the active sort column,
+ * server-side filters + ILIKE search; SECURITY INVOKER so workspace RLS applies).
+ *
+ * Approach A (RESEARCH Q1): the RPC returns base rows in authoritative order;
+ * this action re-hydrates contact+tags with a single `.in('id', pageIds)` and
+ * re-sorts the join to the RPC's order (`.in()` does not preserve order).
+ *
+ * SECURITY (T-wir-09/10): `filters.search`/`tag_id`/cursor pass ONLY as typed
+ * RPC params — never interpolated into SQL. `workspaceId` comes from
+ * `getRequestAuth()`, NEVER from the client filters object.
+ */
+export async function getConversationsPage(
+  filters: ConversationPageFilters = {},
+  cursor: string | null = null
+): Promise<ConversationsPage> {
+  const emptyPage: ConversationsPage = { conversations: [], hasMore: false, nextCursor: null }
+
+  // [perf] wraps auth + RPC + re-join together (same convention as getConversations)
+  const startTime = Date.now()
+
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return emptyPage
+  }
+  const { workspaceId } = auth
+
+  const supabase = await createClient()
+
+  const sortColumn = filters.sortBy === 'last_message'
+    ? 'last_message_at'
+    : 'last_customer_message_at'
+
+  const decodedCursor = cursor ? decodeConversationsCursor(cursor) : null
+
+  const { data, error } = await supabase.rpc('get_conversations_page', {
+    p_workspace_id: workspaceId,
+    p_sort: sortColumn,
+    p_status: filters.status ?? 'active',
+    p_is_read: filters.is_read ?? null,
+    p_assigned_to: filters.assigned_to ?? null,
+    p_unassigned: filters.assigned_to === null,
+    p_unanswered: filters.unanswered ?? false,
+    p_search: filters.search?.trim() || null,
+    p_tag_id: filters.tag_id ?? null,
+    p_agent_attended: filters.agent_attended ?? null,
+    p_cursor_sort: decodedCursor?.sort ?? null,
+    p_cursor_is_null: decodedCursor?.sortIsNull ?? false,
+    p_cursor_id: decodedCursor?.id ?? null,
+    p_limit: CONVERSATIONS_PAGE_SIZE,
+  })
+
+  if (error) {
+    console.error(`[getConversationsPage] RPC error (${Date.now() - startTime}ms):`, error)
+    return emptyPage
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pageRows = (data ?? []) as Array<Record<string, any>>
+  if (pageRows.length === 0) {
+    return emptyPage
+  }
+
+  // Re-hydrate join data for the page ids (approach A, RESEARCH Q1).
+  // Same nested-join select string as getConversations — shape stays identical.
+  const pageIds = pageRows.map((r) => r.id as string)
+  const { data: joined, error: joinError } = await supabase
+    .from('conversations')
+    .select(`
+      *,
+      contact:contacts!left(id, name, phone, is_client, tags:contact_tags(tag:tags(id, name, color)))
+    `)
+    .in('id', pageIds)
+
+  if (joinError) {
+    console.error(`[getConversationsPage] join error (${Date.now() - startTime}ms):`, joinError)
+    return emptyPage
+  }
+
+  // Re-sort the joined rows to the RPC's order (authoritative — .in() does not preserve it)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const joinedById = new Map<string, any>((joined ?? []).map((r) => [r.id, r]))
+  const conversations = pageIds
+    .map((id) => joinedById.get(id))
+    .filter((r) => r !== undefined)
+    .map(transformConversationRow)
+
+  // Encode nextCursor from the LAST RPC row (base columns are authoritative for the sort value)
+  const lastRow = pageRows[pageRows.length - 1]
+  const lastSortValue = (lastRow[sortColumn] ?? null) as string | null
+  const nextCursor = encodeConversationsCursor({
+    sort: lastSortValue,
+    sortIsNull: lastSortValue === null,
+    id: lastRow.id as string,
+  })
+
+  const elapsed = Date.now() - startTime
+  if (elapsed > 2000) {
+    console.warn(`[perf] getConversationsPage: ${elapsed}ms (${conversations.length} conversations)`)
+  }
+
+  return {
+    conversations,
+    hasMore: pageRows.length === CONVERSATIONS_PAGE_SIZE,
+    nextCursor,
+  }
 }
 
 /**

@@ -429,10 +429,18 @@ export async function runTurn(
             }
             // A12: 0 sent → path_a; ≥1 sent → path_b_solo + carrySource='output' (A14).
             const sendMode = sendResult.messagesSent === 0 ? 'path_a' : 'path_b_solo'
+            // El at_step replica byte-exacto el CKPT-7.N per-template donde el send se interrumpió
+            // (`ckpt_7_pre_template_${i}`) — es el contrato de observabilidad que las suites de
+            // paridad sandbox (E5/E6/E10 de engine-v4-lock.test.ts) asertan. El send-adapter (prod
+            // messaging.send + sandbox loop sintético) ya retorna `interruptedAtIndex` = el índice
+            // del template abortado; el core lo deriva aquí. Pre-Plan-11 el core hardcodeaba
+            // 'send_loop_ckpt7' (label que ningún test de prod aserta — la extracción del Plan 09/10
+            // dropeó el discriminador per-template que el lado sandbox necesita).
+            const ckpt7AtStep = `ckpt_7_pre_template_${sendResult.interruptedAtIndex ?? sendResult.messagesSent}`
             const drainSL = await drainPendingAndCombine({
               ctx,
               lockCtx: { workspaceId: input.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
-              atStep: 'send_loop_ckpt7',
+              atStep: ckpt7AtStep,
               priorMsg: turnEffectiveMessage,
               mode: sendMode,
               pathBEmitExtra: sendMode === 'path_a'

@@ -43,13 +43,16 @@ import type { SystemEvent } from './types'
 // D-06 (Plan 07): skip-gate + lostLock throw de CKPT-0/6/7.N factorizados en
 // runCheckpointGate (specifier relativo — interno a somnio-v4).
 import { runCheckpointGate } from './core/checkpoint-gate'
+// D-03 (Plan 08): acumuladores cross-iteración + drain de los 5 sites consolidados
+// en core/restart-context + core/drain (mismo core que el runner de producción).
+import { createRestartContext } from './core/restart-context'
+import { drainPendingAndCombine } from './core/drain'
 import {
   releaseLockIfOwner,
   startHeartbeat,
   type LockHandle,
   type LockChannel,
 } from '@/lib/agents/interruption-system-v2/lock'
-import { readAndClearPending, clearInterrupt } from '@/lib/agents/interruption-system-v2/pending'
 import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
 import { redis } from '@/lib/agents/interruption-system-v2/redis-client'
 import { LostLockError } from '@/lib/agents/engine-adapters/production/v4-messaging-adapter'
@@ -159,36 +162,19 @@ export class SomnioV4Engine {
       // D-05: heartbeat lifecycle OUTSIDE the while loop (Pitfall 6 — no heartbeat stacking).
       stopHeartbeat = startHeartbeat(input.lockHandle)
     }
-    let totalTokensAcrossRestarts = 0
-    let restartIteration = 0
-    let effectiveMessage: string | null = null
-    let templatesSentCount = 0
-    // Accumulates templates actually streamed to the client ACROSS restart
-    // iterations. On a Path B reprocess (abort remaining + answer the
-    // interrupting message), iter-1's already-sent templates live here so the
-    // final result/state record reflects everything the customer saw, not just
-    // the last iteration's output.
-    const accumulatedSentMessages: string[] = []
-
-    // Bug 2026-05-28 (phantom self-message): the HOLDER pushes its OWN inbound
-    // message into the pending list (route/webhook) so it is crash-recoverable.
-    // But `readAndClearPending` drains the WHOLE list, so the holder's own entry
-    // would be re-combined with the interrupting message(s) — producing a
-    // duplicated/echoed message (e.g. the original "hola" reappearing in the
-    // combined effectiveMessage, and re-greeting on a Path B reprocess). Parse
-    // the holder's own entry_uuid once and EXCLUDE it from every drain. Filtering
-    // by entry_uuid (vs byte-exact `removeOwnEntry`) is robust against any JSON
-    // serialization drift and needs no extra Redis round-trip.
-    let ownEntryUuid: string | null = null
-    if (input.ownPendingEntryJson) {
-      try {
-        ownEntryUuid = (JSON.parse(input.ownPendingEntryJson) as { entry_uuid?: string }).entry_uuid ?? null
-      } catch {
-        ownEntryUuid = null
-      }
-    }
-    const dropOwnEntry = <T extends { entry_uuid: string }>(entries: T[]): T[] =>
-      ownEntryUuid ? entries.filter((e) => e.entry_uuid !== ownEntryUuid) : entries
+    // ============================================================
+    // D-03 (somnio-v4-consolidation Plan 08): los acumuladores cross-iteración
+    // (totalTokensAcrossRestarts, restartIteration, effectiveMessage,
+    // templatesSentCount, accumulatedSentContents [engine lo llamaba
+    // accumulatedSentMessages — A6], ownEntryUuid + dropOwnEntry, shouldRestart)
+    // viven en el struct ÚNICO RestartContext, idéntico al runner de producción.
+    // El bug del 2026-05-28 (dropOwnEntry/carryState) ya no se arregla dos veces.
+    //
+    // ownEntryUuid: el HOLDER apila su mensaje propio en la pending list
+    // (crash-recovery); todos los drains lo EXCLUYEN por entry_uuid (sino se
+    // combina consigo mismo: "hola\nhola…", el "hola" fantasma).
+    // ============================================================
+    const ctx = createRestartContext(input.ownPendingEntryJson)
 
     // Bug 2026-05-28 (re-greet on Path B reprocess): each restart iteration
     // re-seeds the agent from `input.state` (the ORIGINAL turn state). For a
@@ -215,11 +201,10 @@ export class SomnioV4Engine {
       // turn). CKPT-7.N (post-send) does NOT restart in either runner (D-05 from
       // parent: Path B preserved after first send).
       // ============================================================
-      let shouldRestart = true
       let lastV4Result: V4EngineOutput | null = null
-      while (shouldRestart) {
-        shouldRestart = false
-        const turnEffectiveMessage: string = effectiveMessage ?? input.message
+      while (ctx.shouldRestart) {
+        ctx.shouldRestart = false
+        const turnEffectiveMessage: string = ctx.effectiveMessage ?? input.message
 
         // === CKPT-0 post-acquire ===
         {
@@ -234,27 +219,16 @@ export class SomnioV4Engine {
             lockIdentifier: lockCtx?.identifier,
           })
           if (typeof ck0 === 'object' && lockCtx) {
-            const pending = dropOwnEntry(await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier))
-            // Consume the interrupt signal too (bug 2026-05-28): without this the
-            // next iteration's CKPT-0 re-reads the still-set interrupt key and
-            // spins Path A on an empty pending list until the 60s TTL expires.
-            await clearInterrupt(input.workspaceId, lockCtx.channel, lockCtx.identifier)
-            restartIteration++
-            emitLockEvent('msg_aborted_path_a_combined', {
-              at_step: 'ckpt_0_post_acquire',
-              combined_msg_count: pending.length + 1,
-              total_chars: pending.reduce((s, p) => s + p.content.length, 0) + turnEffectiveMessage.length,
-              restart_iteration: restartIteration,
+            // D-03 (Plan 08): drain consolidado (dropOwnEntry+readAndClearPending+
+            // clearInterrupt+emit×2+combine cronológico+shouldRestart). Sin esto el
+            // siguiente CKPT-0 relee el interrupt y spinea Path A vacío hasta el TTL.
+            await drainPendingAndCombine({
+              ctx,
+              lockCtx: { workspaceId: input.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
+              atStep: 'ckpt_0_post_acquire',
+              priorMsg: turnEffectiveMessage,
+              mode: 'path_a',
             })
-            emitLockEvent('pending_list_combined', {
-              at_step: 'ckpt_0_post_acquire',
-              entries_count: pending.length,
-              total_chars: pending.reduce((s, p) => s + p.content.length, 0),
-              restart_iteration: restartIteration,
-            })
-            // Chronological order (commit 494d3bb4): priorMsg FIRST, pending APPENDED.
-            effectiveMessage = [turnEffectiveMessage, ...pending.map(p => p.content)].join('\n')
-            shouldRestart = true
             continue
           }
         }
@@ -271,7 +245,7 @@ export class SomnioV4Engine {
         if (
           input.lockHandle &&
           (input.simulateProdTimingMs ?? 0) > 0 &&
-          restartIteration === 0
+          ctx.restartIteration === 0
         ) {
           await sleep(input.simulateProdTimingMs!)
         }
@@ -316,7 +290,7 @@ export class SomnioV4Engine {
         // across restart iterations. The final return uses
         // `totalTokensAcrossRestarts` (NOT `output.totalTokens`) as the single
         // source of truth for cost accounting (Pitfall 2).
-        totalTokensAcrossRestarts += (output.totalTokens ?? 0)
+        ctx.totalTokensAcrossRestarts += (output.totalTokens ?? 0)
 
         // ============================================================
         // R-04 + Pitfall 7 (debounce-v2-interrupt-reprocess): detect Path A
@@ -336,24 +310,14 @@ export class SomnioV4Engine {
           if (!lockCtx) {
             throw new Error(`[SomnioV4Engine] agent emitted ${output.errorMessage} but lockCtx is null`)
           }
-          const pending = dropOwnEntry(await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier))
-          // Consume the interrupt signal too (bug 2026-05-28) — see CKPT-0 site.
-          await clearInterrupt(input.workspaceId, lockCtx.channel, lockCtx.identifier)
-          restartIteration++
-          emitLockEvent('msg_aborted_path_a_combined', {
-            at_step: output.errorMessage,
-            combined_msg_count: pending.length + 1,
-            total_chars: pending.reduce((s, p) => s + p.content.length, 0) + turnEffectiveMessage.length,
-            restart_iteration: restartIteration,
+          // D-03 (Plan 08): drain consolidado. at_step = el discriminator.
+          await drainPendingAndCombine({
+            ctx,
+            lockCtx: { workspaceId: input.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
+            atStep: output.errorMessage,
+            priorMsg: turnEffectiveMessage,
+            mode: 'path_a',
           })
-          emitLockEvent('pending_list_combined', {
-            at_step: output.errorMessage,
-            entries_count: pending.length,
-            total_chars: pending.reduce((s, p) => s + p.content.length, 0),
-            restart_iteration: restartIteration,
-          })
-          effectiveMessage = [turnEffectiveMessage, ...pending.map(p => p.content)].join('\n')
-          shouldRestart = true
           continue
         }
 
@@ -376,25 +340,16 @@ export class SomnioV4Engine {
           if (typeof ck6 === 'object' && lockCtx) {
             // In sandbox, sentCount is always 0 at this point (the CKPT-7.N
             // synthetic loop runs AFTER CKPT-6). Always Path A → restart.
-            const pending = dropOwnEntry(await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier))
-            // Consume the interrupt signal too (bug 2026-05-28) — see CKPT-0 site.
-            await clearInterrupt(input.workspaceId, lockCtx.channel, lockCtx.identifier)
-            restartIteration++
-            emitLockEvent('msg_aborted_path_a_combined', {
-              at_step: 'ckpt_6_pre_send_loop',
-              templates_sent_before_abort: 0,
-              combined_msg_count: pending.length + 1,
-              total_chars: pending.reduce((s, p) => s + p.content.length, 0) + turnEffectiveMessage.length,
-              restart_iteration: restartIteration,
+            // D-03 (Plan 08): drain consolidado; templates_sent_before_abort:0
+            // preservado vía pathBEmitExtra.
+            await drainPendingAndCombine({
+              ctx,
+              lockCtx: { workspaceId: input.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
+              atStep: 'ckpt_6_pre_send_loop',
+              priorMsg: turnEffectiveMessage,
+              mode: 'path_a',
+              pathBEmitExtra: { templates_sent_before_abort: 0 },
             })
-            emitLockEvent('pending_list_combined', {
-              at_step: 'ckpt_6_pre_send_loop',
-              entries_count: pending.length,
-              total_chars: pending.reduce((s, p) => s + p.content.length, 0),
-              restart_iteration: restartIteration,
-            })
-            effectiveMessage = [turnEffectiveMessage, ...pending.map(p => p.content)].join('\n')
-            shouldRestart = true
             continue
           }
         }
@@ -442,44 +397,30 @@ export class SomnioV4Engine {
               lostLockLabel: `ckpt_7_pre_template_${i}`,
             })
             if (typeof ck7 === 'object' && lockCtx) {
-              const pending = dropOwnEntry(await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier))
-              await clearInterrupt(input.workspaceId, lockCtx.channel, lockCtx.identifier)
-              if (i === 0) {
-                // Nothing sent yet this iteration → Path A: combine prior msg
-                // with the interrupting message(s) and re-run from the top.
-                restartIteration++
-                emitLockEvent('msg_aborted_path_a_combined', {
-                  at_step: `ckpt_7_pre_template_${i}`,
-                  templates_sent_before_abort: 0,
-                  combined_msg_count: pending.length + 1,
-                  total_chars: pending.reduce((s, p) => s + p.content.length, 0) + turnEffectiveMessage.length,
-                  restart_iteration: restartIteration,
-                })
-                emitLockEvent('pending_list_combined', {
-                  at_step: `ckpt_7_pre_template_${i}`,
-                  entries_count: pending.length,
-                  total_chars: pending.reduce((s, p) => s + p.content.length, 0),
-                  restart_iteration: restartIteration,
-                })
-                effectiveMessage = [turnEffectiveMessage, ...pending.map(p => p.content)].join('\n')
-                shouldRestart = true
-                break
-              }
-              // Path B (i > 0): templates already sent for the prior message.
-              // Abort the rest, KEEP what was sent, and ANSWER the interrupting
-              // message(s) so the customer's question is never dropped. Re-run
-              // with the NEW message(s) ONLY — the prior message was already
-              // (partially) answered, so re-combining it would re-send templates.
-              emitLockEvent('msg_aborted_path_b_solo', {
-                at_step: `ckpt_7_pre_template_${i}`,
-                templates_sent_before_abort: i,
+              // D-03 (Plan 08): drain consolidado. i===0 → Path A (combine prior +
+              // new, re-run desde arriba); i>0 → Path B (descartar resto, KEEP lo
+              // enviado, contestar solo lo nuevo). El drain comparte la misma
+              // secuencia (dropOwnEntry+readAndClearPending+clearInterrupt+emit);
+              // el at_step 'ckpt_7_pre_template_${i}' es el del send-adapter sandbox.
+              const ckpt7Mode = i === 0 ? 'path_a' : 'path_b_solo'
+              const drain7 = await drainPendingAndCombine({
+                ctx,
+                lockCtx: { workspaceId: input.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
+                atStep: `ckpt_7_pre_template_${i}`,
+                priorMsg: turnEffectiveMessage,
+                mode: ckpt7Mode,
+                pathBEmitExtra: i === 0
+                  ? { templates_sent_before_abort: 0 }
+                  : { templates_sent_before_abort: i },
               })
-              if (pending.length > 0) {
-                // Preserve what was already sent, then re-run with the new
-                // message(s) only. Push here (not in the post-loop block, which
-                // is skipped by `continue` below) so the count isn't doubled.
-                accumulatedSentMessages.push(...finalMessages)
-                restartIteration++
+              if (ckpt7Mode === 'path_b_solo' && drain7.pendingCount > 0) {
+                // Path B (i > 0): templates already sent for the prior message.
+                // KEEP what was sent, then re-run with the new message(s) only.
+                // Push here (not in the post-loop block, skipped by the break +
+                // outer `continue`) so the count isn't doubled. carrySource='output'
+                // (Pitfall 6 — engine SOLO tiene la variante output, A14).
+                ctx.accumulatedSentContents.push(...finalMessages)
+                ctx.carrySource = 'output'
                 // Seed the reprocess from THIS iteration's resulting state so the
                 // agent knows the saludo/templates were already sent and does NOT
                 // re-greet when answering the interrupting message (bug 2026-05-28).
@@ -498,14 +439,6 @@ export class SomnioV4Engine {
                   // output de msg1 (≥1 template enviado) → el reprocess no re-registra.
                   turnLedgerDims: output.turnLedgerDims,
                 }
-                emitLockEvent('pending_list_combined', {
-                  at_step: `ckpt_7_pre_template_${i}`,
-                  entries_count: pending.length,
-                  total_chars: pending.reduce((s, p) => s + p.content.length, 0),
-                  restart_iteration: restartIteration,
-                })
-                effectiveMessage = pending.map(p => p.content).join('\n')
-                shouldRestart = true
               }
               break
             }
@@ -523,10 +456,10 @@ export class SomnioV4Engine {
         // Path B reprocess (or Path A combine at CKPT-7.1): jump to the next
         // restart iteration WITHOUT building/returning state for this partial
         // iteration. The already-sent templates are preserved in
-        // accumulatedSentMessages (pushed in the CKPT-7.N branch for Path B).
-        if (shouldRestart) continue
-        accumulatedSentMessages.push(...finalMessages)
-        templatesSentCount = accumulatedSentMessages.length
+        // ctx.accumulatedSentContents (pushed in the CKPT-7.N branch for Path B).
+        if (ctx.shouldRestart) continue
+        ctx.accumulatedSentContents.push(...finalMessages)
+        ctx.templatesSentCount = ctx.accumulatedSentContents.length
 
         const newState: SandboxState = {
           currentMode: output.newMode ?? input.state.currentMode,
@@ -556,7 +489,7 @@ export class SomnioV4Engine {
 
         lastV4Result = {
           success: output.success,
-          messages: accumulatedSentMessages,
+          messages: ctx.accumulatedSentContents,
           newState,
           timerSignal: lastTimerSignal,
           debugTurn: {
@@ -584,11 +517,11 @@ export class SomnioV4Engine {
             tools: [],
             tokens: {
               turnNumber: input.turnNumber,
-              tokensUsed: totalTokensAcrossRestarts,
+              tokensUsed: ctx.totalTokensAcrossRestarts,
               models: [{
                 model: 'gemini-2.5-flash' as const,
-                inputTokens: Math.round(totalTokensAcrossRestarts * 0.7),
-                outputTokens: Math.round(totalTokensAcrossRestarts * 0.3),
+                inputTokens: Math.round(ctx.totalTokensAcrossRestarts * 0.7),
+                outputTokens: Math.round(ctx.totalTokensAcrossRestarts * 0.3),
               }],
               timestamp,
             },
@@ -698,7 +631,7 @@ export class SomnioV4Engine {
             tools: [],
             tokens: {
               turnNumber: input.turnNumber,
-              tokensUsed: totalTokensAcrossRestarts,
+              tokensUsed: ctx.totalTokensAcrossRestarts,
               models: [],
               timestamp,
             },
@@ -767,7 +700,7 @@ export class SomnioV4Engine {
             emitLockEvent('lock_released_normal', {
               holder_uuid: input.lockHandle.holderUuid,
               duration_ms: Date.now() - startMs,
-              templates_sent: templatesSentCount,
+              templates_sent: ctx.templatesSentCount,
             })
           }
         } catch (releaseError) {

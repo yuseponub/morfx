@@ -87,6 +87,51 @@ export const INFORMATIONAL_INTENTS: ReadonlySet<string> = new Set([
  */
 export const VARIX_CRITICAL_FIELDS = ['nombre', 'telefono', 'cedula'] as const
 
+/** Alias usado por state.ts (gate datosCriticos). */
+export const CRITICAL_FIELDS = VARIX_CRITICAL_FIELDS
+
+/** Etiquetas legibles de los campos pedidos al cliente (camposFaltantes). */
+export const FIELD_LABELS: Record<string, string> = {
+  nombre: 'Nombre completo',
+  cedula: 'Número de cédula',
+  telefono: 'Número de teléfono',
+  fecha_preferida: 'Fecha preferida',
+}
+
+// ============================================================================
+// Área metropolitana (es_foraneo — diseño §2, D-15 no bloquea)
+// ============================================================================
+
+/**
+ * Ciudades del área metropolitana de Bucaramanga. Una ciudad fuera de este set
+ * marca al paciente como `es_foraneo` (activa template `fuera_de_ciudad` como COMP,
+ * NO bloquea agendamiento — D-15). Comparación case/acento-insensitive vía normalizeCity.
+ */
+export const AREA_METRO: ReadonlySet<string> = new Set([
+  'bucaramanga',
+  'floridablanca',
+  'giron',
+  'piedecuesta',
+])
+
+/** Normaliza una ciudad para comparación: minúsculas + sin acentos + trim. */
+export function normalizeCity(ciudad: string): string {
+  return ciudad
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+/**
+ * ¿La ciudad está fuera del área metropolitana? (es_foraneo derivado — diseño §2).
+ * Si ciudad es null/empty retorna false (no sabemos -> no marcar foráneo). NO bloquea (D-15).
+ */
+export function isForaneo(ciudad: string | null): boolean {
+  if (!ciudad || ciudad.trim() === '') return false
+  return !AREA_METRO.has(normalizeCity(ciudad))
+}
+
 // ============================================================================
 // Action → Template Mapping
 // ============================================================================

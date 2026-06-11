@@ -137,6 +137,15 @@ type SidebarCategoryV2 = {
   items: NavItem[]
 }
 
+/**
+ * Vivificación v3 (2026-06): slug de sección para colorear bullets e iconos
+ * del sidebar v3 vía `.sb-sec.{op,auto,ana,adm}` → `--sec-c` (globals.css,
+ * bloque VIVIFICACIÓN). Solo lo consume la rama v3 — v2/legacy intactas.
+ */
+const CAT_SLUG: Record<string, string> = {
+  'Operación': 'op', 'Automatización': 'auto', 'Análisis': 'ana', 'Admin': 'adm',
+}
+
 const navCategoriesV2: SidebarCategoryV2[] = [
   {
     label: 'Operación',
@@ -273,7 +282,7 @@ export function Sidebar({ workspaces = [], currentWorkspace, user, v2 = false, v
               const visibleItems = category.items.filter(filterItem)
               if (visibleItems.length === 0) return null
               return (
-                <div key={category.label}>
+                <div key={category.label} className={cn('sb-sec', CAT_SLUG[category.label])}>
                   <div className="cat">{category.label}</div>
                   <ul>
                     {visibleItems.map(item => {
@@ -296,7 +305,7 @@ export function Sidebar({ workspaces = [], currentWorkspace, user, v2 = false, v
                                   fontFamily: 'var(--font-mono)',
                                   fontSize: 10,
                                   color: 'var(--paper-0)',
-                                  background: 'var(--rubric-2)',
+                                  background: 'var(--viv-red)',
                                   padding: '1px 6px',
                                   borderRadius: 999,
                                   minWidth: 18,

@@ -270,6 +270,8 @@ export function ConversationList({
     const isTodas = filter === 'all' && agentFilter === 'all'
     const isSinLeer = filter === 'unread'
     const isMias = filter === 'mine'
+    const isSinAsignar = filter === 'unassigned'
+    const isSinRespuesta = filter === 'unanswered'
     const isAgenteIA = agentFilter === 'agent-attended'
     const isCerradas = filter === 'archived'
 
@@ -311,6 +313,20 @@ export function ConversationList({
             onClick={() => setFilter('mine')}
           >
             Mías
+          </button>
+          <button
+            type="button"
+            className={cn('chip', isSinAsignar && 'on')}
+            onClick={() => setFilter('unassigned')}
+          >
+            Sin asignar
+          </button>
+          <button
+            type="button"
+            className={cn('chip', isSinRespuesta && 'on')}
+            onClick={() => setFilter('unanswered')}
+          >
+            Sin respuesta
           </button>
           <button
             type="button"
@@ -376,6 +392,19 @@ export function ConversationList({
               </div>
             </PopoverContent>
           </Popover>
+          <button
+            type="button"
+            className={cn('chip', sortMode === 'last_message' && 'on')}
+            onClick={() => setSortMode(prev =>
+              prev === 'last_customer_message' ? 'last_message' : 'last_customer_message')}
+            title={sortMode === 'last_message'
+              ? 'Ordenando por última interacción'
+              : 'Ordenar por última interacción'}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+          >
+            <UserRoundSearch style={{ width: 12, height: 12 }} aria-hidden />
+            Orden
+          </button>
         </div>
 
         {/* Conversation list */}

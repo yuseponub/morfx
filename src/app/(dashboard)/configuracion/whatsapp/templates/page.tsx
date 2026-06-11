@@ -7,7 +7,7 @@ import {
 } from '@/app/actions/templates'
 import { TemplateList } from './components/template-list'
 import { Button } from '@/components/ui/button'
-import { RefreshCw, Plus } from 'lucide-react'
+import { RefreshCw, Plus, Sparkles } from 'lucide-react'
 
 async function handleSync(): Promise<void> {
   'use server'
@@ -44,6 +44,12 @@ export default async function TemplatesPage() {
                 Sincronizar
               </Button>
             </form>
+            <Link href="/configuracion/whatsapp/templates/builder">
+              <Button variant="secondary">
+                <Sparkles className="h-4 w-4 mr-2" />
+                Crear con IA
+              </Button>
+            </Link>
             <Link href="/configuracion/whatsapp/templates/nuevo">
               <Button>
                 <Plus className="h-4 w-4 mr-2" />

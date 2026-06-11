@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { FileText, Users, MessageSquare, DollarSign } from 'lucide-react'
+import { FileText, Users, MessageSquare, DollarSign, Sparkles } from 'lucide-react'
 
 const settings = [
   {
@@ -8,6 +8,12 @@ const settings = [
     description: 'Gestionar plantillas de mensajes para WhatsApp',
     href: '/configuracion/whatsapp/templates',
     icon: FileText,
+  },
+  {
+    title: 'Crear Template con IA',
+    description: 'Disena plantillas guiado por IA con preview en tiempo real',
+    href: '/configuracion/whatsapp/templates/builder',
+    icon: Sparkles,
   },
   {
     title: 'Equipos',

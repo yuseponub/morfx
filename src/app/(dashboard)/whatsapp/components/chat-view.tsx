@@ -62,7 +62,7 @@ export function ChatView({
   const lastScrollTopRef = useRef(0)
   const prevLenRef = useRef(0)
 
-  const { messages, isLoading, loadMore, hasMore, addOptimisticMessage, scheduleSafetyRefetch } = useMessages({
+  const { messages, isLoading, isError, refetch, loadMore, hasMore, addOptimisticMessage, scheduleSafetyRefetch } = useMessages({
     workspaceId,
     conversationId,
     limit: 50,
@@ -297,6 +297,22 @@ export function ChatView({
           )
         )}
 
+        {/* Error state — F-6 / D-20: a failed message fetch (timeout, cold start,
+            network) must render an explicit, recoverable error with a manual
+            "Reintentar", NEVER a permanent empty chat (DIAGNOSIS case 3). React
+            Query's retry: 1 already did one auto-retry before landing here. */}
+        {isError && messages.length === 0 && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 py-20 text-center">
+            <p className="mx-caption">No se pudieron cargar los mensajes.</p>
+            <button
+              className="mx-btn-ghost text-sm"
+              onClick={() => refetch()}
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+
         {/* Virtualized message list */}
         <div
           style={{
@@ -348,8 +364,9 @@ export function ChatView({
           })}
         </div>
 
-        {/* Empty messages state */}
-        {messages.length === 0 && !isLoading && (
+        {/* Real-empty state — gated on !isLoading && !isError (F-6 / D-20) so a
+            fetch failure shows the error+Reintentar above, never this empty copy. */}
+        {messages.length === 0 && !isLoading && !isError && (
           <div className="flex-1 flex items-center justify-center py-20">
             <div className="text-center text-muted-foreground">
               <p className="text-sm">No hay mensajes aun</p>

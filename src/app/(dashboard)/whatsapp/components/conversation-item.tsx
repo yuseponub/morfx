@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { cn } from '@/lib/utils'
 import { Bot, Check, User } from 'lucide-react'
 import { TagBadge } from '@/components/contacts/tag-badge'
@@ -26,8 +27,12 @@ interface ConversationItemProps {
 /**
  * Single conversation item in the inbox list.
  * Shows contact name/phone, last message preview, timestamp, order indicators, and tags.
+ *
+ * Exported wrapped in React.memo (D-03, whatsapp-inbox-reliability F-1) — with
+ * the virtualized list + frequent realtime updates, rows must only re-render
+ * when something display-relevant changed (see comparator below).
  */
-export function ConversationItem({
+function ConversationItemBase({
   conversation,
   isSelected,
   onSelect,
@@ -371,3 +376,31 @@ export function ConversationItem({
     </button>
   )
 }
+
+/**
+ * D-03 memo comparator: return true (SKIP re-render) when nothing
+ * display-relevant changed. Scalars cover the mutable flat columns; `tags` and
+ * `orders` compare by REFERENCE (the hook produces a new ref on change — do
+ * NOT deep-compare, RESEARCH Q10). `onSelect` is intentionally NOT compared
+ * (inline closure recreated per parent render; identity changes are not
+ * display-relevant).
+ */
+export const ConversationItem = memo(ConversationItemBase, (prev, next) => {
+  return (
+    prev.conversation.id === next.conversation.id &&
+    prev.conversation.last_message_preview === next.conversation.last_message_preview &&
+    prev.conversation.last_message_at === next.conversation.last_message_at &&
+    prev.conversation.last_customer_message_at === next.conversation.last_customer_message_at &&
+    prev.conversation.is_read === next.conversation.is_read &&
+    prev.conversation.unread_count === next.conversation.unread_count &&
+    prev.conversation.assigned_to === next.conversation.assigned_to &&
+    prev.conversation.agent_conversational === next.conversation.agent_conversational &&
+    prev.conversation.profile_name === next.conversation.profile_name &&
+    prev.conversation.tags === next.conversation.tags &&      // ref equality
+    prev.conversation.contact?.is_client === next.conversation.contact?.is_client &&
+    prev.conversation.contact?.name === next.conversation.contact?.name &&
+    prev.isSelected === next.isSelected &&
+    prev.showClientBadge === next.showClientBadge &&
+    prev.orders === next.orders                               // ref equality
+  )
+})

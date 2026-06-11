@@ -24,6 +24,18 @@ type RightPanel = 'contact' | 'agent-config'
 interface InboxLayoutProps {
   workspaceId: string
   initialConversations: ConversationWithDetails[]
+  /** Opaque keyset cursor of the SSR first page (F-1 — threads into useConversations) */
+  initialCursor?: string | null
+  /** Whether more pages exist after the SSR first page (F-1) */
+  initialHasMore?: boolean
+  /**
+   * True total of active conversations from the count:'exact' query (D-04).
+   * NEVER derive topbar counts from initialConversations.length — that's only
+   * the first 50-row page now (RESEARCH P5).
+   */
+  totalCount?: number
+  /** True unread total from the count:'exact' query (D-04) */
+  unreadCount?: number
   /** Pre-select a conversation by ID (e.g., from URL param) */
   initialSelectedId?: string
   clientConfig?: ClientActivationConfig | null
@@ -66,6 +78,10 @@ interface InboxLayoutProps {
 export function InboxLayout({
   workspaceId,
   initialConversations,
+  initialCursor,
+  initialHasMore,
+  totalCount,
+  unreadCount,
   initialSelectedId,
   clientConfig,
   isSuperUser = false,
@@ -178,11 +194,12 @@ export function InboxLayout({
   // wiring (Supabase, server actions, realtime, event handlers) is preserved —
   // the children are the SAME real components, only laid out per the mock grid.
   if (v3) {
-    // Count summary for the topbar `<em>` subtitle — derived from the
-    // server-provided initial conversations (open + unread). Purely
-    // presentational; the live list updates via realtime in ConversationList.
-    const openCount = initialConversations.length
-    const unreadCount = initialConversations.filter((c) => !c.is_read).length
+    // Count summary for the topbar `<em>` subtitle — TRUE totals from the
+    // server count:'exact' query (D-04). initialConversations is only the
+    // first 50-row page now and would UNDERCOUNT (RESEARCH P5). Fallbacks
+    // keep older callers rendering something sane.
+    const openCount = totalCount ?? initialConversations.length
+    const unreadTopbarCount = unreadCount ?? initialConversations.filter((c) => !c.is_read).length
 
     return (
       <InboxV3Provider v3={v3}>
@@ -199,7 +216,7 @@ export function InboxLayout({
             <div className="eye">Agentes · Bandeja</div>
             <h1>
               Conversaciones{' '}
-              <em>{openCount} abiertas · {unreadCount} sin leer</em>
+              <em>{openCount} abiertas · {unreadTopbarCount} sin leer</em>
             </h1>
           </div>
           <div className="actions">
@@ -229,6 +246,8 @@ export function InboxLayout({
           <ConversationList
             workspaceId={workspaceId}
             initialConversations={initialConversations}
+            initialCursor={initialCursor}
+            initialHasMore={initialHasMore}
             selectedId={selectedConversationId}
             onSelect={handleSelectConversation}
             onSelectedUpdated={handleConversationUpdatedFromList}
@@ -307,6 +326,8 @@ export function InboxLayout({
           <ConversationList
             workspaceId={workspaceId}
             initialConversations={initialConversations}
+            initialCursor={initialCursor}
+            initialHasMore={initialHasMore}
             selectedId={selectedConversationId}
             onSelect={handleSelectConversation}
             onSelectedUpdated={handleConversationUpdatedFromList}

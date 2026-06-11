@@ -1,5 +1,5 @@
 import { InboxLayout } from './components/inbox-layout'
-import { getConversations, findConversationByPhone } from '@/app/actions/conversations'
+import { getConversationsPage, getConversationStats, findConversationByPhone } from '@/app/actions/conversations'
 import { getClientActivationSettings } from '@/app/actions/client-activation'
 import { getActiveWorkspaceId } from '@/app/actions/workspace'
 import { getIsSuperUser } from '@/lib/auth/super-user'
@@ -27,17 +27,22 @@ export default async function WhatsAppPage({ searchParams }: WhatsAppPageProps) 
     )
   }
 
-  // Fetch initial conversations, client config, super-user flag, inbox-v2 flag,
-  // and editorial-v3 flag in parallel. editorial-v3 (standalone
+  // Fetch the FIRST conversation page (50 rows — F-1/D-02, no more 1000-row
+  // SSR payload), true topbar counts (count:'exact' — D-04, never .length of
+  // the loaded array), client config, super-user flag, inbox-v2 flag, and
+  // editorial-v3 flag in parallel. editorial-v3 (standalone
   // ui-redesign-editorial-core) gates the verbatim editorial port; it fails
   // closed to false (Regla 6) and is independent of inbox-v2.
-  const [initialConversations, clientConfig, isSuperUser, isInboxV2, isEditorialV3] = await Promise.all([
-    getConversations({ status: 'active', sortBy: 'last_customer_message' }),
+  const [initialPage, stats, clientConfig, isSuperUser, isInboxV2, isEditorialV3] = await Promise.all([
+    getConversationsPage({ status: 'active', sortBy: 'last_customer_message' }, null),
+    getConversationStats(),
     getClientActivationSettings(),
     getIsSuperUser(),
     getIsInboxV2Enabled(workspaceId),
     getIsEditorialV3Enabled(workspaceId),
   ])
+
+  const initialConversations = initialPage.conversations
 
   // Find conversation by ID or phone if provided
   let initialSelectedId: string | undefined = c || undefined
@@ -61,6 +66,10 @@ export default async function WhatsAppPage({ searchParams }: WhatsAppPageProps) 
     <InboxLayout
       workspaceId={workspaceId}
       initialConversations={initialConversations}
+      initialCursor={initialPage.nextCursor}
+      initialHasMore={initialPage.hasMore}
+      totalCount={stats.total}
+      unreadCount={stats.unread}
       initialSelectedId={initialSelectedId}
       clientConfig={clientConfig}
       isSuperUser={isSuperUser}

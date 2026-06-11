@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { Bot, Plus, Search as SearchIcon, Tag, UserRoundSearch } from 'lucide-react'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -19,12 +19,16 @@ import { AvailabilityToggle } from './availability-toggle'
 import { NewConversationModal } from './new-conversation-modal'
 import { useInboxV2 } from './inbox-v2-context'
 import { useInboxV3 } from './inbox-v3-context'
-import type { ConversationWithDetails } from '@/lib/whatsapp/types'
+import type { ConversationWithDetails, OrderSummary } from '@/lib/whatsapp/types'
 import type { ClientActivationConfig } from '@/lib/domain/client-activation'
 
 interface ConversationListProps {
   workspaceId: string
   initialConversations: ConversationWithDetails[]
+  /** Opaque keyset cursor of the SSR first page (F-1 — threads into the hook) */
+  initialCursor?: string | null
+  /** Whether more pages exist after the SSR first page (F-1) */
+  initialHasMore?: boolean
   selectedId: string | null
   onSelect: (id: string | null, conversation?: ConversationWithDetails) => void
   /** Called when selected conversation data changes via realtime */
@@ -40,6 +44,114 @@ interface ConversationListProps {
   clientConfig?: ClientActivationConfig | null
 }
 
+// ============================================================================
+// Virtualized list body (F-1 / D-03 — @tanstack/react-virtual, same pattern
+// as chat-view.tsx). Plain overflow-auto scroll container (NOT Radix
+// ScrollArea — its nested viewport fights getScrollElement, RESEARCH Q7/P8).
+// Infinite-scroll trigger derived from the last virtual item (no
+// IntersectionObserver).
+// ============================================================================
+
+interface VirtualizedConversationListProps {
+  conversations: ConversationWithDetails[]
+  ordersByContact: Map<string, OrderSummary[]>
+  selectedId: string | null
+  onSelectItem: (id: string, conversation: ConversationWithDetails) => void
+  clientConfig?: ClientActivationConfig | null
+  hasMore: boolean
+  isLoadingMore: boolean
+  loadMore: () => Promise<void>
+  /** ~76px v3 (.conv grid) / ~88px v2 / ~100px legacy — measureElement corrects it */
+  estimateSize: number
+  className: string
+}
+
+function VirtualizedConversationList({
+  conversations,
+  ordersByContact,
+  selectedId,
+  onSelectItem,
+  clientConfig,
+  hasMore,
+  isLoadingMore,
+  loadMore,
+  estimateSize,
+  className,
+}: VirtualizedConversationListProps) {
+  const parentRef = useRef<HTMLDivElement>(null)
+
+  const virtualizer = useVirtualizer({
+    count: conversations.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => estimateSize,
+    // Dynamic height — tags row / badges vary per conversation (P9)
+    measureElement: (el) => el.getBoundingClientRect().height,
+    overscan: 5,
+  })
+
+  const virtualItems = virtualizer.getVirtualItems()
+  const lastIndex = virtualItems.length > 0 ? virtualItems[virtualItems.length - 1].index : -1
+
+  // Infinite-scroll: when the last rendered virtual item reaches the loaded
+  // tail (minus overscan), pull the next keyset page (RESEARCH Q7).
+  useEffect(() => {
+    if (lastIndex < 0) return
+    if (lastIndex >= conversations.length - 1 - 5 && hasMore && !isLoadingMore) {
+      loadMore()
+    }
+  }, [lastIndex, conversations.length, hasMore, isLoadingMore, loadMore])
+
+  return (
+    <div ref={parentRef} className={className} role="list" aria-label="Lista de conversaciones">
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          width: '100%',
+          position: 'relative',
+        }}
+      >
+        {virtualItems.map((virtualItem) => {
+          const conversation = conversations[virtualItem.index]
+          if (!conversation) return null
+          const contactOrders = conversation.contact?.id
+            ? ordersByContact.get(conversation.contact.id) || []
+            : []
+          const showClientBadge = clientConfig?.enabled && (
+            clientConfig.all_are_clients || conversation.contact?.is_client === true
+          )
+          return (
+            <div
+              key={virtualItem.key}
+              data-index={virtualItem.index}
+              ref={virtualizer.measureElement}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${virtualItem.start}px)`,
+              }}
+            >
+              <ConversationItem
+                conversation={conversation}
+                isSelected={selectedId === conversation.id}
+                onSelect={(id) => onSelectItem(id, conversation)}
+                orders={contactOrders}
+                showClientBadge={!!showClientBadge}
+              />
+            </div>
+          )
+        })}
+      </div>
+      {isLoadingMore && (
+        <div className="flex items-center justify-center py-3" aria-label="Cargando más conversaciones">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent opacity-50" />
+        </div>
+      )}
+    </div>
+  )
+}
+
 /**
  * Conversation list with search and filters.
  * Uses real-time subscription via useConversations hook.
@@ -47,6 +159,8 @@ interface ConversationListProps {
 export function ConversationList({
   workspaceId,
   initialConversations,
+  initialCursor,
+  initialHasMore,
   selectedId,
   onSelect,
   onSelectedUpdated,
@@ -63,11 +177,12 @@ export function ConversationList({
   const themeContainerRef = useRef<HTMLElement | null>(null)
 
   const [showNewModal, setShowNewModal] = useState(false)
-  const [agentFilter, setAgentFilter] = useState<'all' | 'agent-attended'>('all')
-  const [tagFilter, setTagFilter] = useState<string | null>(null)
   const [tagFilterOpen, setTagFilterOpen] = useState(false)
   const [availableTags, setAvailableTags] = useState<Array<{ id: string; name: string; color: string }>>([])
 
+  // tag + agent filters now live in the HOOK as server-side RPC params (Q4/P4)
+  // — a client-side pass here would only filter LOADED pages (same invisibility
+  // class F-1 fixes).
   const {
     conversations,
     ordersByContact,
@@ -75,7 +190,14 @@ export function ConversationList({
     setQuery,
     filter,
     setFilter,
+    tagFilter,
+    setTagFilter,
+    agentFilter,
+    setAgentFilter,
     isLoading,
+    isLoadingMore,
+    hasMore,
+    loadMore,
     hasQuery,
     refresh,
     refreshOrders,
@@ -86,6 +208,8 @@ export function ConversationList({
   } = useConversations({
     workspaceId,
     initialConversations,
+    initialCursor,
+    initialHasMore,
   })
 
   // Resolve the `.theme-editorial`/`.theme-editorial-v3` wrapper for Radix
@@ -165,18 +289,6 @@ export function ConversationList({
     onSelect(conversationId)
   }
 
-  // Apply agent + tag filters after existing search/filter logic
-  const filteredConversations = useMemo(() => {
-    let result = conversations
-    if (agentFilter === 'agent-attended') {
-      result = result.filter(c => c.agent_conversational !== false)
-    }
-    if (tagFilter) {
-      result = result.filter(c => c.tags?.some(t => t.id === tagFilter))
-    }
-    return result
-  }, [conversations, agentFilter, tagFilter])
-
   // Keyboard shortcuts: '[' previous / ']' next conversation (D-23, UI-SPEC §10.1).
   // Same scoping rules as '/': only fires when focus is inside [data-module="whatsapp"],
   // ignored on input/textarea/contenteditable, only active when v2.
@@ -191,13 +303,13 @@ export function ConversationList({
       const tag = target.tagName.toLowerCase()
       if (tag === 'input' || tag === 'textarea' || target.isContentEditable) return
       if (!target.closest('[data-module="whatsapp"]')) return
-      if (!filteredConversations.length) return
+      if (!conversations.length) return
 
-      const currentIdx = filteredConversations.findIndex((c) => c.id === selectedId)
+      const currentIdx = conversations.findIndex((c) => c.id === selectedId)
 
       if (e.key === '[') {
-        const prevIdx = currentIdx <= 0 ? filteredConversations.length - 1 : currentIdx - 1
-        const prev = filteredConversations[prevIdx]
+        const prevIdx = currentIdx <= 0 ? conversations.length - 1 : currentIdx - 1
+        const prev = conversations[prevIdx]
         if (prev) {
           e.preventDefault()
           markAsReadLocally(prev.id)
@@ -208,8 +320,8 @@ export function ConversationList({
 
       if (e.key === ']') {
         const nextIdx =
-          currentIdx < 0 || currentIdx >= filteredConversations.length - 1 ? 0 : currentIdx + 1
-        const next = filteredConversations[nextIdx]
+          currentIdx < 0 || currentIdx >= conversations.length - 1 ? 0 : currentIdx + 1
+        const next = conversations[nextIdx]
         if (next) {
           e.preventDefault()
           markAsReadLocally(next.id)
@@ -219,7 +331,7 @@ export function ConversationList({
     }
     document.addEventListener('keydown', handleBracketKey)
     return () => document.removeEventListener('keydown', handleBracketKey)
-  }, [v2, v3, filteredConversations, selectedId, onSelect, markAsReadLocally])
+  }, [v2, v3, conversations, selectedId, onSelect, markAsReadLocally])
 
   // Tab configuration for editorial header (v2). Maps editorial labels to
   // existing ConversationFilter values — D-19 no hook mutation.
@@ -238,28 +350,11 @@ export function ConversationList({
     agentFilter === 'agent-attended' ||
     !!tagFilter
 
-  // Shared list body — used by the v3 `.conv-list` and reused logic.
-  const conversationItems = filteredConversations.map((conversation) => {
-    const contactOrders = conversation.contact?.id
-      ? ordersByContact.get(conversation.contact.id) || []
-      : []
-    const showClientBadge = clientConfig?.enabled && (
-      clientConfig.all_are_clients || conversation.contact?.is_client === true
-    )
-    return (
-      <ConversationItem
-        key={conversation.id}
-        conversation={conversation}
-        isSelected={selectedId === conversation.id}
-        onSelect={(id) => {
-          markAsReadLocally(id)
-          onSelect(id, conversation)
-        }}
-        orders={contactOrders}
-        showClientBadge={!!showClientBadge}
-      />
-    )
-  })
+  // Shared item-select handler — used by the virtualized list rows.
+  const handleSelectItem = (id: string, conversation: ConversationWithDetails) => {
+    markAsReadLocally(id)
+    onSelect(id, conversation)
+  }
 
   // ===================== EDITORIAL V3 (.conv-col verbatim) =====================
   // Mock `ui_kits/conversaciones/index.html` list column: `.conv-head` (search)
@@ -407,14 +502,16 @@ export function ConversationList({
           </button>
         </div>
 
-        {/* Conversation list */}
-        <div className="conv-list" role="list" aria-label="Lista de conversaciones">
-          {isLoading && !initialConversations.length ? (
+        {/* Conversation list — virtualized (F-1/D-03) */}
+        {isLoading && !initialConversations.length ? (
+          <div className="conv-list" role="list" aria-label="Lista de conversaciones">
             <div className="flex items-center justify-center py-16">
               <span className="mx-caption">Cargando…</span>
             </div>
-          ) : filteredConversations.length === 0 ? (
-            isFiltered ? (
+          </div>
+        ) : conversations.length === 0 ? (
+          <div className="conv-list" role="list" aria-label="Lista de conversaciones">
+            {isFiltered ? (
               <div className="flex flex-col items-center justify-center px-6 py-16 text-center gap-2">
                 <p className="mx-h4">Nada coincide con los filtros activos.</p>
                 <button
@@ -435,11 +532,22 @@ export function ConversationList({
               <div className="flex flex-col items-center justify-center px-6 py-16 text-center gap-2">
                 <p className="mx-h4">No hay conversaciones nuevas.</p>
               </div>
-            )
-          ) : (
-            conversationItems
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          <VirtualizedConversationList
+            className="conv-list"
+            estimateSize={76}
+            conversations={conversations}
+            ordersByContact={ordersByContact}
+            selectedId={selectedId}
+            onSelectItem={handleSelectItem}
+            clientConfig={clientConfig}
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
+            loadMore={loadMore}
+          />
+        )}
 
         {/* New conversation modal (shared trigger via header in topbar; kept here for parity) */}
         <NewConversationModal
@@ -711,10 +819,12 @@ export function ConversationList({
         onConversationCreated={handleConversationCreated}
       />
 
-      {/* Conversation list */}
-      <ScrollArea className="flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block">
-        {isLoading && !initialConversations.length ? (
-          v2 ? (
+      {/* Conversation list — virtualized (F-1/D-03). Plain overflow-auto div
+          replaces Radix ScrollArea: its nested viewport fights the
+          virtualizer's getScrollElement (RESEARCH Q7/P8). */}
+      {isLoading && !initialConversations.length ? (
+        <div className="flex-1 overflow-auto">
+          {v2 ? (
             /* D-14 editorial skeleton — 6 conversation-item shaped placeholders
                using .mx-skeleton utility (globals.css: paper-2 bg + 1px border +
                mx-pulse 1.5s animation, disabled by prefers-reduced-motion). */
@@ -742,9 +852,11 @@ export function ConversationList({
             <div className="flex items-center justify-center h-32">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             </div>
-          )
-        ) : filteredConversations.length === 0 ? (
-          v2 ? (
+          )}
+        </div>
+      ) : conversations.length === 0 ? (
+        <div className="flex-1 overflow-auto">
+          {v2 ? (
             isFiltered ? (
               /* D-16 empty filter state */
               <div className="flex flex-col items-center justify-center h-full px-6 py-16 text-center gap-2">
@@ -794,41 +906,29 @@ export function ConversationList({
                 }
               </p>
             </div>
-          )
-        ) : (
-          <div role="list" aria-label="Lista de conversaciones">
-            {filteredConversations.map((conversation) => {
-              // Get orders for this conversation's contact
-              const contactOrders = conversation.contact?.id
-                ? ordersByContact.get(conversation.contact.id) || []
-                : []
+          )}
+        </div>
+      ) : (
+        <VirtualizedConversationList
+          className="flex-1 overflow-auto"
+          estimateSize={v2 ? 88 : 100}
+          conversations={conversations}
+          ordersByContact={ordersByContact}
+          selectedId={selectedId}
+          onSelectItem={handleSelectItem}
+          clientConfig={clientConfig}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
+          loadMore={loadMore}
+        />
+      )}
 
-              const showClientBadge = clientConfig?.enabled && (
-                clientConfig.all_are_clients || conversation.contact?.is_client === true
-              )
-
-              return (
-                <ConversationItem
-                  key={conversation.id}
-                  conversation={conversation}
-                  isSelected={selectedId === conversation.id}
-                  onSelect={(id) => {
-                    markAsReadLocally(id)
-                    onSelect(id, conversation)
-                  }}
-                  orders={contactOrders}
-                  showClientBadge={!!showClientBadge}
-                />
-              )
-            })}
-          </div>
-        )}
-      </ScrollArea>
-
-      {/* Results count when searching or filtering */}
-      {(hasQuery || agentFilter === 'agent-attended' || tagFilter) && filteredConversations.length > 0 && (
+      {/* Results count when searching or filtering — loaded count; '+' signals
+          more pages exist server-side (counts never derive from .length of the
+          full set anymore — D-04) */}
+      {(hasQuery || agentFilter === 'agent-attended' || tagFilter) && conversations.length > 0 && (
         <div className="p-2 border-t text-xs text-muted-foreground text-center">
-          {filteredConversations.length} resultado{filteredConversations.length !== 1 && 's'}
+          {conversations.length}{hasMore ? '+' : ''} resultado{(conversations.length !== 1 || hasMore) && 's'}
         </div>
       )}
     </div>

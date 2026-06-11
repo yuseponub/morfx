@@ -1430,3 +1430,96 @@ html:has(.theme-editorial) body {
     @apply bg-background text-foreground;
   }
 }
+
+/* ===== VIVIFICACIÓN v3 (2026-06) — append-only =====
+ * Más color en etiquetas, stages del kanban, sidebar y badges del scope
+ * .theme-editorial-v3, SIN tocar fondos, burbujas, botones ni tipografía.
+ * Fuente de verdad visual: mock ui_kits/vivificada/vivid.css.
+ * Viaja dentro del flag ui_editorial_v3 (default-OFF) — sin flag nuevo.
+ * Las ramas v2/legacy NO se tocan. --primary sigue = --ink-1.
+ * Dark: selector DESCENDIENTE .dark .theme-editorial-v3 (next-themes pone
+ * `dark` en <html>). Las reglas de aquí ganan a las previas del scope por
+ * orden de fuente con la misma especificidad — NO editar bloques de arriba. */
+.theme-editorial-v3{
+  --vk:1;            /* multiplicador de chroma — valor validado en mock */
+  --tag-mix:16;      /* % de relleno del fondo de etiquetas */
+  --cat-dot:9px;     /* diámetro del bullet de sección del sidebar */
+
+  /* 7 hues vivificados (light) */
+  --viv-red:    oklch(0.55 calc(0.13 * var(--vk)) 28);
+  --viv-gold:   oklch(0.60 calc(0.11 * var(--vk)) 78);
+  --viv-salvia: oklch(0.56 calc(0.10 * var(--vk)) 148);
+  --viv-teal:   oklch(0.55 calc(0.09 * var(--vk)) 188);
+  --viv-indigo: oklch(0.50 calc(0.10 * var(--vk)) 262);
+  --viv-violeta:oklch(0.52 calc(0.10 * var(--vk)) 300);
+  --viv-rosa:   oklch(0.58 calc(0.09 * var(--vk)) 355);
+}
+.dark .theme-editorial-v3{
+  /* mismos hues, más luminosos para charcoal-warm (mismo principio D-06) */
+  --viv-red:    oklch(0.72 calc(0.13 * var(--vk)) 30);
+  --viv-gold:   oklch(0.78 calc(0.11 * var(--vk)) 80);
+  --viv-salvia: oklch(0.75 calc(0.10 * var(--vk)) 148);
+  --viv-teal:   oklch(0.75 calc(0.09 * var(--vk)) 188);
+  --viv-indigo: oklch(0.73 calc(0.10 * var(--vk)) 262);
+  --viv-violeta:oklch(0.74 calc(0.10 * var(--vk)) 300);
+  --viv-rosa:   oklch(0.76 calc(0.09 * var(--vk)) 355);
+}
+
+/* --- Etiquetas MxTag: receta única parametrizada con --tc (gana a las
+ * reglas mx-tag--* previas por venir después con la misma especificidad).
+ * Variantes nuevas: violet + rose (mx-tag.tsx / tag-variant.ts). --- */
+.theme-editorial-v3 .mx-tag{
+  --tc:var(--ink-3);
+  background:color-mix(in oklch, var(--tc) calc(var(--tag-mix) * 1%), var(--paper-0));
+  color:color-mix(in oklch, var(--tc) 72%, var(--ink-1));
+  border-color:color-mix(in oklch, var(--tc) 50%, var(--paper-0));
+}
+.theme-editorial-v3 .mx-tag--rubric{--tc:var(--viv-red)}
+.theme-editorial-v3 .mx-tag--gold{--tc:var(--viv-gold)}
+.theme-editorial-v3 .mx-tag--success{--tc:var(--viv-salvia)}
+.theme-editorial-v3 .mx-tag--verdigris{--tc:var(--viv-teal)}
+.theme-editorial-v3 .mx-tag--indigo{--tc:var(--viv-indigo)}
+.theme-editorial-v3 .mx-tag--violet{--tc:var(--viv-violeta)}
+.theme-editorial-v3 .mx-tag--rose{--tc:var(--viv-rosa)}
+.theme-editorial-v3 .mx-tag--ink{--tc:var(--ink-3)}
+
+/* --- Kanban: stage color por columna via .kcol-head.s-* (clase derivada de
+ * v3StageClass — por NOMBRE conocido, fallback ciclo por posición). El .dot
+ * y el contador heredan --stage-c; línea superior 2px marca la columna. --- */
+.theme-editorial-v3 .kcol-head{--stage-c:var(--ink-4)}
+.theme-editorial-v3 .kcol-head.s-agend{--stage-c:var(--viv-indigo)}
+.theme-editorial-v3 .kcol-head.s-web{--stage-c:var(--viv-teal)}
+.theme-editorial-v3 .kcol-head.s-nuevo{--stage-c:var(--viv-violeta)}
+.theme-editorial-v3 .kcol-head.s-info{--stage-c:var(--viv-gold)}
+.theme-editorial-v3 .kcol-head.s-conf{--stage-c:var(--viv-rosa)}
+.theme-editorial-v3 .kcol-head.s-ok{--stage-c:var(--viv-salvia)}
+.theme-editorial-v3 .kcol-head.s-cancel{--stage-c:var(--viv-red)}
+
+.theme-editorial-v3 .kcol-head .dot{width:9px;height:9px;background:var(--stage-c)}
+.theme-editorial-v3 .kcol-head .c{color:color-mix(in oklch, var(--stage-c) 60%, var(--ink-3))}
+.theme-editorial-v3 .kcol-head{border-top:2px solid var(--stage-c);padding-top:9px}
+
+/* --- Sidebar: color por sección (.sb-sec.{op,auto,ana,adm} en sidebar.tsx).
+ * Bullet de titular 5px rubric → var(--cat-dot) con color de sección;
+ * iconos lucide tenues por defecto, color de sección en hover/activo;
+ * item activo con filete izquierdo. --- */
+.theme-editorial-v3 nav.sb-nav .sb-sec.op{--sec-c:var(--viv-red)}
+.theme-editorial-v3 nav.sb-nav .sb-sec.auto{--sec-c:var(--viv-indigo)}
+.theme-editorial-v3 nav.sb-nav .sb-sec.ana{--sec-c:var(--viv-teal)}
+.theme-editorial-v3 nav.sb-nav .sb-sec.adm{--sec-c:var(--viv-gold)}
+
+.theme-editorial-v3 nav.sb-nav .cat::before{width:var(--cat-dot);height:var(--cat-dot);background:var(--sec-c, var(--rubric-2))}
+
+.theme-editorial-v3 nav.sb-nav li a svg{color:var(--ink-4)}
+.theme-editorial-v3 nav.sb-nav li a:hover svg,
+.theme-editorial-v3 nav.sb-nav li a.active svg{color:var(--sec-c, var(--ink-2))}
+.theme-editorial-v3 nav.sb-nav li a.active{box-shadow:inset 2px 0 0 var(--sec-c, var(--ink-3))}
+
+/* --- Badges y agente (inbox v3) --- */
+.theme-editorial-v3 .conv .badge{background:var(--viv-red)}
+.theme-editorial-v3 .conv .agent{
+  color:var(--viv-teal);
+  border-color:color-mix(in oklch, var(--viv-teal) 60%, var(--paper-0));
+  background:color-mix(in oklch, var(--viv-teal) 8%, var(--paper-0));
+}
+.theme-editorial-v3 .msg.out .agent-mark{color:color-mix(in oklch, var(--viv-teal) 70%, var(--paper-0))}

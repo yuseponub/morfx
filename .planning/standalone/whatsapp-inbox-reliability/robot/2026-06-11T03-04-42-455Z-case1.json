@@ -1,0 +1,995 @@
+{
+  "phase": "case1",
+  "app": "http://localhost:3020",
+  "ws": "a3843b3f-c337-4836-92b5-89c58bb98490",
+  "startedAt": "2026-06-11T03:04:27.078Z",
+  "evidence": [
+    {
+      "t": 4580,
+      "kind": "pageerror",
+      "data": {
+        "message": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match th"
+      }
+    },
+    {
+      "t": 5929,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "00a3c9acb1e9",
+        "ms": 489
+      }
+    },
+    {
+      "t": 6976,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "00b30dbbdee0",
+        "ms": 796
+      }
+    },
+    {
+      "t": 7904,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 8358,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 12618,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40da91475f9c",
+        "ms": 4329
+      }
+    },
+    {
+      "t": 13512,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "00a3c9acb1e9",
+        "ms": 375
+      }
+    },
+    {
+      "t": 14228,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "00b30dbbdee0",
+        "ms": 720
+      }
+    },
+    {
+      "t": 15533,
+      "kind": "case1-iter",
+      "data": {
+        "iter": 1,
+        "firstItemsMs": 3403,
+        "flashes": 0,
+        "samples": [
+          {
+            "ms": 3403,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 3949,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 4257,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 5777,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 6162,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 6417,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 6672,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 7151,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 7405,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 7659,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 7916,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 8172,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 8428,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 8992,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 9245,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 9501,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 9759,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 10014,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 10270,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 10530,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 10789,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 11045,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 11303,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 11559,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 11815,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 12070,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 12325,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 12579,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 12836,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 13744,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 13999,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 14256,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 14511,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 14768,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 15023,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 15279,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          }
+        ]
+      }
+    },
+    {
+      "t": 15533,
+      "kind": "case1-first3-final",
+      "data": {
+        "iter": 1,
+        "first3": [
+          "S | Sandra | [Imagen] | hace 40 min | Sin asignar",
+          "LB | ✅️ | Luis bueno | Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas recibir tu compra",
+          "RO | ✅️ | Ricardo Orozco | Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas recibir tu co"
+        ],
+        "truthTop3": [
+          "Sandra",
+          "Luis bueno",
+          "Ricardo Orozco"
+        ]
+      }
+    },
+    {
+      "t": 15588,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 3528,
+      "kind": "pageerror",
+      "data": {
+        "message": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match th"
+      }
+    },
+    {
+      "t": 3916,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "00a3c9acb1e9",
+        "ms": 328
+      }
+    },
+    {
+      "t": 4879,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "00b30dbbdee0",
+        "ms": 786
+      }
+    },
+    {
+      "t": 5802,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 6229,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "401d64a0c127",
+        "ms": 1343
+      }
+    },
+    {
+      "t": 10325,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40da91475f9c",
+        "ms": 4156
+      }
+    },
+    {
+      "t": 11235,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "00a3c9acb1e9",
+        "ms": 351
+      }
+    },
+    {
+      "t": 12029,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "00b30dbbdee0",
+        "ms": 799
+      }
+    },
+    {
+      "t": 13434,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 13917,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] conversation INSERT 855b16d0-1baf-4a43-a977-d3c455b5c86a {unread: 0, is_read: false}"
+      }
+    },
+    {
+      "t": 14658,
+      "kind": "case1-iter",
+      "data": {
+        "iter": 2,
+        "firstItemsMs": 2539,
+        "flashes": 0,
+        "samples": [
+          {
+            "ms": 2539,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 3028,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 3284,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 3812,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 4164,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 4420,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 4683,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 5107,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 5369,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 5624,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 5882,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 6138,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 6394,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 6862,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 7119,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 7373,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 7628,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 7881,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 8137,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 8392,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 8646,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 8902,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 9158,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 9414,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 9670,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 9933,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 10191,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 10449,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 11462,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 11721,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 11978,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 12239,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 12495,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 12750,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 13012,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 13268,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 13523,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 14139,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 14397,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          }
+        ]
+      }
+    },
+    {
+      "t": 14658,
+      "kind": "case1-first3-final",
+      "data": {
+        "iter": 2,
+        "first3": [
+          "S | Sandra | [Imagen] | hace 40 min | Sin asignar",
+          "LB | ✅️ | Luis bueno | Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas recibir tu compra",
+          "RO | ✅️ | Ricardo Orozco | Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas recibir tu co"
+        ],
+        "truthTop3": [
+          "Sandra",
+          "Luis bueno",
+          "Ricardo Orozco"
+        ]
+      }
+    },
+    {
+      "t": 3485,
+      "kind": "pageerror",
+      "data": {
+        "message": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match th"
+      }
+    },
+    {
+      "t": 4864,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "00a3c9acb1e9",
+        "ms": 349
+      }
+    },
+    {
+      "t": 5814,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "00b30dbbdee0",
+        "ms": 738
+      }
+    },
+    {
+      "t": 6696,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 6972,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 11307,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40da91475f9c",
+        "ms": 4401
+      }
+    },
+    {
+      "t": 12148,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "00a3c9acb1e9",
+        "ms": 325
+      }
+    },
+    {
+      "t": 12850,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "00b30dbbdee0",
+        "ms": 705
+      }
+    },
+    {
+      "t": 14208,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 14805,
+      "kind": "case1-iter",
+      "data": {
+        "iter": 3,
+        "firstItemsMs": 2462,
+        "flashes": 0,
+        "samples": [
+          {
+            "ms": 2462,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 2937,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 3227,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 4703,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 5115,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 5370,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 5627,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 5988,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 6249,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 6503,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 6758,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 7011,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 7739,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 7994,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 8256,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 8512,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 8774,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 9030,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 9284,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 9540,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 9797,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 10053,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 10312,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 10568,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 10829,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 11084,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 11342,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 12382,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 12637,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 12893,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 13151,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 13406,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 13662,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 13917,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 14171,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          },
+          {
+            "ms": 14426,
+            "count": 1000,
+            "skel": 0,
+            "busy": false
+          }
+        ]
+      }
+    },
+    {
+      "t": 14805,
+      "kind": "case1-first3-final",
+      "data": {
+        "iter": 3,
+        "first3": [
+          "S | Sandra | [Imagen] | hace 40 min | Sin asignar",
+          "LB | ✅️ | Luis bueno | Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas recibir tu compra",
+          "RO | ✅️ | Ricardo Orozco | Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas recibir tu co"
+        ],
+        "truthTop3": [
+          "Sandra",
+          "Luis bueno",
+          "Ricardo Orozco"
+        ]
+      }
+    }
+  ]
+}

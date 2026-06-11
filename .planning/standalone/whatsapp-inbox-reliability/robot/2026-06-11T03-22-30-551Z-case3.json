@@ -1,0 +1,665 @@
+{
+  "phase": "case3",
+  "app": "http://localhost:3020",
+  "ws": "a3843b3f-c337-4836-92b5-89c58bb98490",
+  "startedAt": "2026-06-11T03:21:57.231Z",
+  "results": [
+    {
+      "idx": 0,
+      "tItemVisible": 87213,
+      "clickedAt": 166240,
+      "deadClickMs": 74024,
+      "selected": false,
+      "chatLoadedMs": -1,
+      "header": null,
+      "bubbles": 0,
+      "chatSkeletons": 0,
+      "chatSpinners": 0
+    },
+    {
+      "idx": 1,
+      "tItemVisible": 5435,
+      "clickedAt": 19538,
+      "deadClickMs": 10042,
+      "selected": true,
+      "chatLoadedMs": 19113,
+      "header": "Luis bueno",
+      "bubbles": 7,
+      "chatSkeletons": 0,
+      "chatSpinners": 0
+    },
+    {
+      "idx": 0,
+      "tItemVisible": 3783,
+      "clickedAt": 15040,
+      "deadClickMs": 6254,
+      "selected": true,
+      "chatLoadedMs": 9844,
+      "header": "Sandra",
+      "bubbles": 11,
+      "chatSkeletons": 0,
+      "chatSpinners": 0
+    },
+    {
+      "idx": 1,
+      "tItemVisible": 2390,
+      "clickedAt": 14532,
+      "deadClickMs": 7140,
+      "selected": true,
+      "chatLoadedMs": 19007,
+      "header": "Luis bueno",
+      "bubbles": 7,
+      "chatSkeletons": 0,
+      "chatSpinners": 0
+    }
+  ],
+  "evidence": [
+    {
+      "t": 703,
+      "kind": "case3-snapshot",
+      "data": [
+        {
+          "id": "5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+          "is_read": true,
+          "unread": 0
+        },
+        {
+          "id": "3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+          "is_read": true,
+          "unread": 0
+        },
+        {
+          "id": "01a326e0-d300-445b-8a3e-13c73034c2e3",
+          "is_read": true,
+          "unread": 0
+        },
+        {
+          "id": "75787fb9-b2cd-44ea-9fad-f8ae81858da0",
+          "is_read": true,
+          "unread": 0
+        },
+        {
+          "id": "b076f730-1d4d-4196-8163-f1fd7a1593a8",
+          "is_read": false,
+          "unread": 2
+        }
+      ]
+    },
+    {
+      "t": 171043,
+      "kind": "pageerror",
+      "data": {
+        "message": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match th"
+      }
+    },
+    {
+      "t": 174876,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "0022ad103ee7",
+        "ms": 1025
+      }
+    },
+    {
+      "t": 176841,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "008344f6cfc3",
+        "ms": 1322
+      }
+    },
+    {
+      "t": 177785,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 178867,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40b7e93d082d",
+        "ms": 2001
+      }
+    },
+    {
+      "t": 184867,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40c88a267619",
+        "ms": 6137
+      }
+    },
+    {
+      "t": 186507,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "0022ad103ee7",
+        "ms": 590
+      }
+    },
+    {
+      "t": 187523,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "008344f6cfc3",
+        "ms": 779
+      }
+    },
+    {
+      "t": 187562,
+      "kind": "case3-result",
+      "data": {
+        "idx": 0,
+        "tItemVisible": 87213,
+        "clickedAt": 166240,
+        "deadClickMs": 74024,
+        "selected": false,
+        "chatLoadedMs": -1,
+        "header": null,
+        "bubbles": 0,
+        "chatSkeletons": 0,
+        "chatSpinners": 0
+      }
+    },
+    {
+      "t": 11106,
+      "kind": "pageerror",
+      "data": {
+        "message": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match th"
+      }
+    },
+    {
+      "t": 16662,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "0022ad103ee7",
+        "ms": 1640
+      }
+    },
+    {
+      "t": 18450,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "008344f6cfc3",
+        "ms": 1036
+      }
+    },
+    {
+      "t": 19701,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 3ae6a2ad status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 19973,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 20328,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 21631,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "0022ad103ee7",
+        "ms": 774
+      }
+    },
+    {
+      "t": 22713,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "008344f6cfc3",
+        "ms": 1122
+      }
+    },
+    {
+      "t": 31467,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "40c88a267619",
+        "ms": 10398
+      }
+    },
+    {
+      "t": 35541,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "40b7e93d082d",
+        "ms": 8880
+      }
+    },
+    {
+      "t": 37118,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "40c88a267619",
+        "ms": 11384
+      }
+    },
+    {
+      "t": 37286,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] conversation UPDATE 3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b {unread: 0, is_read: true}"
+      }
+    },
+    {
+      "t": 38590,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "40ab5fcf1f53",
+        "ms": 1242
+      }
+    },
+    {
+      "t": 38673,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "40128939af73",
+        "ms": 3925
+      }
+    },
+    {
+      "t": 38675,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "00177118f9ac",
+        "ms": 1853
+      }
+    },
+    {
+      "t": 38374,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 38766,
+      "kind": "case3-result",
+      "data": {
+        "idx": 1,
+        "tItemVisible": 5435,
+        "clickedAt": 19538,
+        "deadClickMs": 10042,
+        "selected": true,
+        "chatLoadedMs": 19113,
+        "header": "Luis bueno",
+        "bubbles": 7,
+        "chatSkeletons": 0,
+        "chatSpinners": 0
+      }
+    },
+    {
+      "t": 8031,
+      "kind": "pageerror",
+      "data": {
+        "message": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match th"
+      }
+    },
+    {
+      "t": 10469,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "0022ad103ee7",
+        "ms": 841
+      }
+    },
+    {
+      "t": 11458,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "008344f6cfc3",
+        "ms": 993
+      }
+    },
+    {
+      "t": 14278,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40b7e93d082d",
+        "ms": 1644
+      }
+    },
+    {
+      "t": 15173,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "0022ad103ee7",
+        "ms": 772
+      }
+    },
+    {
+      "t": 15191,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 5f442c78 status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 15262,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 16038,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 17616,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40b7e93d082d",
+        "ms": 1546
+      }
+    },
+    {
+      "t": 19218,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 21750,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40b7e93d082d",
+        "ms": 1498
+      }
+    },
+    {
+      "t": 21821,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] conversation UPDATE 5f442c78-9b28-4c8c-9f27-ffd49ef7d4da {unread: 0, is_read: true}"
+      }
+    },
+    {
+      "t": 22780,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 23493,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "00177118f9ac",
+        "ms": 1064
+      }
+    },
+    {
+      "t": 23932,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 24700,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40128939af73",
+        "ms": 3251
+      }
+    },
+    {
+      "t": 24703,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "70ae8d3a4d6f",
+        "ms": 665
+      }
+    },
+    {
+      "t": 24893,
+      "kind": "case3-result",
+      "data": {
+        "idx": 0,
+        "tItemVisible": 3783,
+        "clickedAt": 15040,
+        "deadClickMs": 6254,
+        "selected": true,
+        "chatLoadedMs": 9844,
+        "header": "Sandra",
+        "bubbles": 11,
+        "chatSkeletons": 0,
+        "chatSpinners": 0
+      }
+    },
+    {
+      "t": 5672,
+      "kind": "pageerror",
+      "data": {
+        "message": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match th"
+      }
+    },
+    {
+      "t": 7981,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "0022ad103ee7",
+        "ms": 601
+      }
+    },
+    {
+      "t": 9297,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "008344f6cfc3",
+        "ms": 936
+      }
+    },
+    {
+      "t": 10220,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 11100,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40b7e93d082d",
+        "ms": 1787
+      }
+    },
+    {
+      "t": 14283,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 3ae6a2ad status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 22313,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "0022ad103ee7",
+        "ms": 8232
+      }
+    },
+    {
+      "t": 23235,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "008344f6cfc3",
+        "ms": 923
+      }
+    },
+    {
+      "t": 24184,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 26206,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "40b7e93d082d",
+        "ms": 1528
+      }
+    },
+    {
+      "t": 27997,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "40b7e93d082d",
+        "ms": 1764
+      }
+    },
+    {
+      "t": 28842,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "40c88a267619",
+        "ms": 4816
+      }
+    },
+    {
+      "t": 29347,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] conversation UPDATE 3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b {unread: 0, is_read: true}"
+      }
+    },
+    {
+      "t": 30490,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 30880,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "40128939af73",
+        "ms": 2024
+      }
+    },
+    {
+      "t": 31174,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 32734,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 33322,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "70ae8d3a4d6f",
+        "ms": 503
+      }
+    },
+    {
+      "t": 33383,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "402744e28fd1",
+        "ms": 2020
+      }
+    },
+    {
+      "t": 33544,
+      "kind": "case3-result",
+      "data": {
+        "idx": 1,
+        "tItemVisible": 2390,
+        "clickedAt": 14532,
+        "deadClickMs": 7140,
+        "selected": true,
+        "chatLoadedMs": 19007,
+        "header": "Luis bueno",
+        "bubbles": 7,
+        "chatSkeletons": 0,
+        "chatSpinners": 0
+      }
+    }
+  ]
+}

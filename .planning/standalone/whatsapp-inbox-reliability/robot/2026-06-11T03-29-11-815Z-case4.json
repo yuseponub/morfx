@@ -1,0 +1,1102 @@
+{
+  "phase": "case4",
+  "app": "http://localhost:3020",
+  "ws": "a3843b3f-c337-4836-92b5-89c58bb98490",
+  "startedAt": "2026-06-11T03:27:50.110Z",
+  "before": {
+    "scrollTop": 0,
+    "scrollHeight": 92000,
+    "clientHeight": 665,
+    "topItem": "S"
+  },
+  "afterNoop": {
+    "scrollTop": 0,
+    "scrollHeight": 92000,
+    "clientHeight": 665,
+    "topItem": "S"
+  },
+  "beforeB": {
+    "scrollTop": 54801,
+    "scrollHeight": 92000,
+    "clientHeight": 665,
+    "topItem": "O"
+  },
+  "afterBump": {
+    "scrollTop": 54801,
+    "scrollHeight": 92000,
+    "clientHeight": 665,
+    "topItem": "O"
+  },
+  "jumps": [
+    {
+      "ms": 18617,
+      "scrollTop": 54801,
+      "topItem": "O",
+      "count": 1000
+    }
+  ],
+  "contentShifts": [],
+  "evidence": [
+    {
+      "t": 42341,
+      "kind": "pageerror",
+      "data": {
+        "message": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match th"
+      }
+    },
+    {
+      "t": 43620,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "0022ad103ee7",
+        "ms": 347
+      }
+    },
+    {
+      "t": 44590,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "008344f6cfc3",
+        "ms": 711
+      }
+    },
+    {
+      "t": 45505,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 45855,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 47439,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] conversation UPDATE 4300820f-bc07-4207-8868-53f7d7c8daf6 {unread: 0, is_read: true}"
+      }
+    },
+    {
+      "t": 49204,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] conversation UPDATE 359dcc90-1bbe-4ad7-ac99-53f89c97911e {unread: 0, is_read: true}"
+      }
+    },
+    {
+      "t": 50099,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40c88a267619",
+        "ms": 4348
+      }
+    },
+    {
+      "t": 51218,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "0022ad103ee7",
+        "ms": 396
+      }
+    },
+    {
+      "t": 51947,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "008344f6cfc3",
+        "ms": 752
+      }
+    },
+    {
+      "t": 53601,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 57067,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40c88a267619",
+        "ms": 4556
+      }
+    },
+    {
+      "t": 58286,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 62795,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40c88a267619",
+        "ms": 4557
+      }
+    },
+    {
+      "t": 63573,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] conversation UPDATE 6bd0b77d-d63a-4888-8610-9fa0dec32a4f {unread: 0, is_read: true}"
+      }
+    },
+    {
+      "t": 64547,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40b7e93d082d",
+        "ms": 1426
+      }
+    },
+    {
+      "t": 69886,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] conversation UPDATE 6bd0b77d-d63a-4888-8610-9fa0dec32a4f {unread: 0, is_read: true}"
+      }
+    },
+    {
+      "t": 81695,
+      "kind": "case4-track",
+      "data": [
+        {
+          "ms": 490,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 705,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 915,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 1476,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 1685,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 1893,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 2100,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 2309,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 2520,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 2730,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 3257,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 3465,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 3671,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 3878,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 4086,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 4303,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 4512,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 4720,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 4928,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 5139,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 5351,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 5560,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 5767,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 5977,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 6188,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 6398,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 6609,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 6819,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 8091,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 8299,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 8508,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 8725,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 8937,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 9150,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 9364,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 9575,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 9789,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 10001,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 10213,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 10426,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 11558,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 11769,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 11980,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 12194,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 12406,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 12614,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 12825,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 13033,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 13246,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 12507,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 12718,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 12928,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 13138,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 13348,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 13559,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 13771,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 14495,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 14703,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 14911,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 15125,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 15870,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 16078,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 16286,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 16493,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 16700,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 16908,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 17119,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 17329,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 17540,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 17748,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 17958,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 18186,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 18398,
+          "scrollTop": 0,
+          "topItem": "S",
+          "count": 1000
+        },
+        {
+          "ms": 18617,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 18828,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 19042,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 19258,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 19473,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 20371,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 21153,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 21466,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 21678,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 21891,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 22100,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 22312,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 22523,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 22733,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 22946,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 23160,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 23371,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 23583,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 23797,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 24011,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 24225,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 24439,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 24653,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 24878,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 25095,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 25311,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 25523,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 25736,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 25947,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 26155,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 26365,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 26578,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 27693,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 27907,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 28122,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 28333,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 28555,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 28772,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 28987,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 29204,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 29428,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 29649,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 29870,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 30085,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 30299,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 30514,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 30725,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 30936,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 31150,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 31365,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 31580,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 31795,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 32018,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 32231,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 32444,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 32655,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 32872,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 33086,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 33301,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 33514,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 33727,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 33938,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 34152,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 34363,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 34578,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 34793,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 35015,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 35228,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 35477,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 35692,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 35904,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 36118,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 36327,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 36545,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 36760,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 37729,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 37948,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 38162,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        },
+        {
+          "ms": 38391,
+          "scrollTop": 54801,
+          "topItem": "O",
+          "count": 1000
+        }
+      ]
+    }
+  ]
+}

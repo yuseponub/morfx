@@ -1,0 +1,141 @@
+[pageerror] Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <InnerLayoutRouter url="/whatsapp" tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} segmentPath={[...]} ...>
+      <SegmentViewNode type="page" pagePath="(dashboard...">
+        <SegmentTrieNode>
+        <WhatsAppPage>
+          <InboxLayout workspaceId="a3843b3f-c..." initialConversations={[...]} clientConfig={{...}} isSuperUser={true} ...>
+            <InboxV3Provider v3={true}>
+              <div className="flex flex-...">
+                <header>
+                <div className="inbox no-f..." data-module="whatsapp">
+                  <ConversationList workspaceId="a3843b3f-c..." initialConversations={[...]} selectedId={null} ...>
+                    <section className="conv-col">
+                      <div>
+                      <div>
+                      <div className="conv-list" role="list" aria-label="Lista de c...">
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem>
+                        <ConversationItem conversation={{id:"ce8228...", ...}} isSelected={false} ...>
+                          <div onClick={function onClick} role="listitem" aria-selected={false} aria-current={undefined} ...>
+                            <div className="av" style={{position:"..."}}>
++                             �
+-                             �
+                            ...
+                        ...
+                      ...
+                  ...
+      ...
+
+Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <InnerLayoutRouter url="/whatsapp" tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} segmentPath={[...]} ...>
+      <SegmentViewNode type="page" pagePath="(dashboard...">
+        <SegmentTrieNode>
+        <WhatsAppPage>
+          <InboxLayout workspaceId="a3843b3f-c..." initialConversations={[...]} clientConfig={{...}} isSuperUser={true} ...>
+            <InboxV3Provider v3={true}>
+              <div className="flex flex-...">
+                <header>
+                <div className="inbox no-f..." data-module="whatsapp">
+                  <ConversationList workspaceId="a3843b3f-c..." initialConversations={[...]} selectedId={null} ...>
+                    <section className="conv-col">
+                      <div>
+                      <div>
+                      <div className="conv-list

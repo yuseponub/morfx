@@ -1,0 +1,239 @@
+ITEM 0:
+  SSR: S Sandra [Imagen] Sin asignar
+  CSR: S Sandra [Imagen] hace 48 min Sin asignar
+
+ITEM 1:
+  SSR: LB Luis bueno Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas recibir tu compra. E... Sin asignar WPP
+  CSR: LB Luis bueno Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas recibir tu compra. E... hace 2h Sin asignar WPP
+
+ITEM 2:
+  SSR: RO Ricardo Orozco Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas recibir tu compra. E... Sin asignar WPP
+  CSR: RO Ricardo Orozco Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas recibir tu compra. E... hace 3h Sin asignar WPP
+
+ITEM 3:
+  SSR: CM carlos mario stevenz Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas recibir tu compra. E... Sin asignar RECO WPP
+  CSR: CM carlos mario stevenz Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas recibir tu compra. E... hace 3h Sin asignar RECO WPP
+
+ITEM 4:
+  SSR: J JG Ok. Estaré llamándolos. En. Cuaquier. Momento. Apenas. Tenga. Los . Reales 2 Sin asignar
+  CSR: J JG Ok. Estaré llamándolos. En. Cuaquier. Momento. Apenas. Tenga. Los . Reales hace 4h 2 Sin asignar
+
+ITEM 5:
+  SSR: JC Juan Correa A quien se le paga Sin asignar WPP
+  CSR: JC Juan Correa A quien se le paga hace 4h Sin asignar WPP
+
+ITEM 6:
+  SSR: AR Abelardo Rodriguez Suarez [Imagen] Sin asignar RECO
+  CSR: AR Abelardo Rodriguez Suarez [Imagen] hace 4h Sin asignar RECO
+
+ITEM 7:
+  SSR: EG Edinson Gómez Romero Deseas confirmar tu compra? 1 Sin asignar
+  CSR: EG Edinson Gómez Romero Deseas confirmar tu compra? hace 4h 1 Sin asignar
+
+ITEM 8:
+  SSR: LS Leidy sanchez Las medias me aprietan, los jeans Sin asignar
+  CSR: LS Leidy sanchez Las medias me aprietan, los jeans hace 5h Sin asignar
+
+ITEM 9:
+  SSR: AY Anyi Yiney Bareño Casas Ok 1 Sin asignar WPP
+  CSR: AY Anyi Yiney Bareño Casas Ok hace 7h 1 Sin asignar WPP
+
+ITEM 10:
+  SSR: EC Edgar Cuevas [Imagen] Sin asignar WPP
+  CSR: EC Edgar Cuevas [Imagen] hace 7h Sin asignar WPP
+
+ITEM 11:
+  SSR: MZ Martha Zapata Amén Sin asignar RECO
+  CSR: MZ Martha Zapata Amén hace 8h Sin asignar RECO
+
+ITEM 12:
+  SSR: JE Jhon Emir Ramirez Perfecto! Despacharemos tu pedido lo antes posible✅Una vez entreguemos el pedido en transportadora t... Sin asignar RECO WPP
+  CSR: JE Jhon Emir Ramirez Perfecto! Despacharemos tu pedido lo antes posible✅Una vez entreguemos el pedido en transportadora t... hace 10h Sin asignar RECO WPP
+
+ITEM 13:
+  SSR: BE Beatriz Elena Perez Ok gracias Sin asignar RECO
+  CSR: BE Beatriz Elena Perez Ok gracias hace 10h Sin asignar RECO
+
+ITEM 14:
+  SSR: MG miguel gonzalez Deseas adquirir tu ELIXIR DEL SUENO? Sin asignar
+  CSR: MG miguel gonzalez Deseas adquirir tu ELIXIR DEL SUENO? hace 10h Sin asignar
+
+ITEM 15:
+  SSR: GM Gilma Madrigal Lo ideal es que con los días y de forma natural se ajuste tu reloj biológico y puedas tener un desca... Sin asignar
+  CSR: GM Gilma Madrigal Lo ideal es que con los días y de forma natural se ajuste tu reloj biológico y puedas tener un desca... hace 12h Sin asignar
+
+ITEM 16:
+  SSR: EM Estiven Moreno hortua oficina de ricaurte cundinamarca Sin asignar WPP
+  CSR: EM Estiven Moreno hortua oficina de ricaurte cundinamarca hace 12h Sin asignar WPP
+
+ITEM 17:
+  SSR: AA Andrés Arango Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas recibir tu compra. E... Sin asignar
+  CSR: AA Andrés Arango Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas recibir tu compra. E... hace 12h Sin asignar
+
+ITEM 18:
+  SSR: . . [Template] pedido_despachado Sin asignar WPP
+  CSR: . . [Template] pedido_despachado hace 12h Sin asignar WPP
+
+ITEM 19:
+  SSR: JR Jose Romero hola Sin asignar P/W
+  CSR: JR Jose Romero hola hace 12h Sin asignar P/W
+
+ITEM 20:
+  SSR: RL Raul Lasso Recuerda tener el efectivo listo el dia que te llegue el pedido para que puedas recibir tu compra. E... Sin asignar
+  CSR: RL Raul Lasso Recuerda tener el efectivo listo el dia que te llegue el pedido para que puedas recibir tu compra. E... hace 13h Sin asignar
+
+ITEM 21:
+  SSR: LL Lidy Linares Muchas gracias 1 Sin asignar
+  CSR: LL Lidy Linares Muchas gracias hace 13h 1 Sin asignar
+
+ITEM 22:
+  SSR: SB Sandra Bocanegra No Sin asignar WPP
+  CSR: SB Sandra Bocanegra No hace 15h Sin asignar WPP
+
+ITEM 23:
+  SSR: SN sofia ninko Deseas adquirir tu ELIXIR DEL SUENO? Sin asignar
+  CSR: SN sofia ninko Deseas adquirir tu ELIXIR DEL SUENO? hace 1 día Sin asignar
+
+ITEM 24:
+  SSR: EL Esther Lucia Llorente Hernandez [Template] pedido_despachado Sin asignar WPP
+  CSR: EL Esther Lucia Llorente Hernandez [Template] pedido_despachado hace 1 día Sin asignar WPP
+
+ITEM 25:
+  SSR: YA Yenifer Aldana Ok Sin asignar WPP
+  CSR: YA Yenifer Aldana Ok hace 1 día Sin asignar WPP
+
+ITEM 26:
+  SSR: LA Luis Alberto Fonseca Vasquez Si tomas anticoagulantes, consulta con tu m├®dico antes de usarlo. Sin asignar
+  CSR: LA Luis Alberto Fonseca Vasquez Si tomas anticoagulantes, consulta con tu m├®dico antes de usarlo. hace 1 día Sin asignar
+
+ITEM 27:
+  SSR: AS aristides solano Gracias Sin asignar WPP
+  CSR: AS aristides solano Gracias hace 1 día Sin asignar WPP
+
+ITEM 28:
+  SSR: GQ Gabbriel Q Quedamos pendientes a tus datos, o si tienes alguna pregunta acerca del producto no dudes en hacerla Sin asignar
+  CSR: GQ Gabbriel Q Quedamos pendientes a tus datos, o si tienes alguna pregunta acerca del producto no dudes en hacerla hace 1 día Sin asignar
+
+ITEM 29:
+  SSR: HP Hernando Prieto Ah gracias gracias Sin asignar WPP
+  CSR: HP Hernando Prieto Ah gracias gracias hace 1 día Sin asignar WPP
+
+ITEM 30:
+  SSR: RE Ricardo Enrique Alarcon Pueden enviarme una cuenta corporativa para transferirles Sin asignar RECO WPP
+  CSR: RE Ricardo Enrique Alarcon Pueden enviarme una cuenta corporativa para transferirles hace 1 día Sin asignar RECO WPP
+
+ITEM 31:
+  SSR: LS Luz Stella Ramirez Giraldo Ok gracias 3 Sin asignar WPP
+  CSR: LS Luz Stella Ramirez Giraldo Ok gracias hace 1 día 3 Sin asignar WPP
+
+ITEM 32:
+  SSR: MS Martha Suárez [Template] pedido_despachado Sin asignar WPP
+  CSR: MS Martha Suárez [Template] pedido_despachado hace 1 día Sin asignar WPP
+
+ITEM 33:
+  SSR: NF Nelson Flórez Peñaranda [Template] pedido_llega_hoy Sin asignar WPP
+  CSR: NF Nelson Flórez Peñaranda [Template] pedido_llega_hoy hace 1 día Sin asignar WPP
+
+ITEM 34:
+  SSR: GT Graciela Torrado. Alvarez Si me interesa Sin asignar
+  CSR: GT Graciela Torrado. Alvarez Si me interesa hace 1 día Sin asignar
+
+ITEM 35:
+  SSR: JM Jesus Maria Gualdron becerr 79.9000 Sin asignar
+  CSR: JM Jesus Maria Gualdron becerr 79.9000 hace 1 día Sin asignar
+
+ITEM 36:
+  SSR: JP Juan Patiño Para q me envíe uno Sin asignar
+  CSR: JP Juan Patiño Para q me envíe uno hace 1 día Sin asignar
+
+ITEM 37:
+  SSR: CA Camilo Andrés Arias Alarcón [Template] pedido_despachado Sin asignar WPP
+  CSR: CA Camilo Andrés Arias Alarcón [Template] pedido_despachado hace 1 día Sin asignar WPP
+
+ITEM 38:
+  SSR: LN Liliana Nova Peña & Deseas volver a adquirirlo? Sin asignar RECO
+  CSR: LN Liliana Nova Peña & Deseas volver a adquirirlo? hace 1 día Sin asignar RECO
+
+ITEM 39:
+  SSR: MG Meivis Garcia [Template] pedido_despachado Sin asignar P/W WPP
+  CSR: MG Meivis Garcia [Template] pedido_despachado hace 1 día Sin asignar P/W WPP
+
+ITEM 40:
+  SSR: GC GLADIS CHICA En que municipio te encuentras? Asi te puedo dar un estimado del tiempo de entrega 📦 Sin asignar
+  CSR: GC GLADIS CHICA En que municipio te encuentras? Asi te puedo dar un estimado del tiempo de entrega 📦 hace 1 día Sin asignar
+
+ITEM 41:
+  SSR: AR Alcides Rafael Elguedo Fontalvo [Template] pedido_despachado Sin asignar RECO WPP
+  CSR: AR Alcides Rafael Elguedo Fontalvo [Template] pedido_despachado hace 1 día Sin asignar RECO WPP
+
+ITEM 42:
+  SSR: YC YANETH CAMPO CUELLO Buen día ha bueno gracias Sin asignar
+  CSR: YC YANETH CAMPO CUELLO Buen día ha bueno gracias hace 1 día Sin asignar
+
+ITEM 43:
+  SSR: CC Carlos Caro [Template] pedido_despachado Sin asignar P/W WPP
+  CSR: CC Carlos Caro [Template] pedido_despachado hace 1 día Sin asignar P/W WPP
+
+ITEM 44:
+  SSR: PA Patricia avella Quiero saber si tengo que hacer el pedido nuevamente Sin asignar RECO WPP
+  CSR: PA Patricia avella Quiero saber si tengo que hacer el pedido nuevamente hace 1 día Sin asignar RECO WPP
+
+ITEM 45:
+  SSR: NS Norelby Segovia [Template] pedido_despachado 11 Sin asignar WPP
+  CSR: NS Norelby Segovia [Template] pedido_despachado hace 1 día 11 Sin asignar WPP
+
+ITEM 46:
+  SSR: WZ Wilmer Zabaleta [Template] pedido_despachado Sin asignar RECO WPP
+  CSR: WZ Wilmer Zabaleta [Template] pedido_despachado hace 1 día Sin asignar RECO WPP
+
+ITEM 47:
+  SSR: L LALALHA Deseas adquirir tu ELIXIR DEL SUENO? 1 Sin asignar
+  CSR: L LALALHA Deseas adquirir tu ELIXIR DEL SUENO? hace 1 día 1 Sin asignar
+
+ITEM 48:
+  SSR: JJ John jaime Restrepo Deseas adquirir tu ELIXIR DEL SUENO? 1 Sin asignar
+  CSR: JJ John jaime Restrepo Deseas adquirir tu ELIXIR DEL SUENO? hace 1 día 1 Sin asignar
+
+ITEM 49:
+  SSR: VD ventas de segunda [Template] pedido_llega_hoy 2 Sin asignar WPP
+  CSR: VD ventas de segunda [Template] pedido_llega_hoy hace 2 días 2 Sin asignar WPP
+
+ITEM 50:
+  SSR: GV German Villamarin Acevedo Quedamos pendientes a tus datos, o si tienes alguna pregunta acerca del producto no dudes en hacerla 2 Sin asignar
+  CSR: GV German Villamarin Acevedo Quedamos pendientes a tus datos, o si tienes alguna pregunta acerca del producto no dudes en hacerla hace 2 días 2 Sin asignar
+
+ITEM 51:
+  SSR: AM Alexander Mesa Berrio Por ahora no gracias 9 Sin asignar
+  CSR: AM Alexander Mesa Berrio Por ahora no gracias hace 2 días 9 Sin asignar
+
+ITEM 52:
+  SSR: SP Saul Perilla Rozo Ok estare pendiente 7 Sin asignar
+  CSR: SP Saul Perilla Rozo Ok estare pendiente hace 2 días 7 Sin asignar
+
+ITEM 53:
+  SSR: MO Maria Ospina No realizaron la entrega debo cancelar el pedido por que no hay quien reciba 1 Sin asignar WPP
+  CSR: MO Maria Ospina No realizaron la entrega debo cancelar el pedido por que no hay quien reciba hace 2 días 1 Sin asignar WPP
+
+ITEM 54:
+  SSR: AP Angelmira Paruma [Template] pedido_llega_hoy 6 Sin asignar WPP
+  CSR: AP Angelmira Paruma [Template] pedido_llega_hoy hace 2 días 6 Sin asignar WPP
+
+ITEM 55:
+  SSR: MF Marien Figueroa😘 Deseas adquirir tu ELIXIR DEL SUENO? 2 Sin asignar
+  CSR: MF Marien Figueroa😘 Deseas adquirir tu ELIXIR DEL SUENO? hace 2 días 2 Sin asignar
+
+ITEM 56:
+  SSR: LG Luis Guillermo Si 2 Sin asignar
+  CSR: LG Luis Guillermo Si hace 2 días 2 Sin asignar
+
+ITEM 57:
+  SSR: RP Rosa Pacheco Uparela [Template] pedido_despachado 6 Sin asignar WPP
+  CSR: RP Rosa Pacheco Uparela [Template] pedido_despachado hace 2 días 6 Sin asignar WPP
+
+ITEM 58:
+  SSR: JF Jhon Fabio Galvez Bermudez No conozco el producto Sin asignar
+  CSR: JF Jhon Fabio Galvez Bermudez No conozco el producto hace 2 días Sin asignar
+
+ITEM 59:
+  SSR: IS Ingrid Salazar [Template] pedido_despachado 2 Sin asignar WPP
+  CSR: IS Ingrid Salazar [Template] pedido_despachado hace 2 días 2 Sin asignar WPP

@@ -1,0 +1,238 @@
+{
+  "phase": "flow",
+  "app": "http://localhost:3020",
+  "ws": "a3843b3f-c337-4836-92b5-89c58bb98490",
+  "startedAt": "2026-06-11T03:31:15.627Z",
+  "conv": "Sandra",
+  "listStableMs": 2628,
+  "chatOpenMs": 9774,
+  "panelMs": 847,
+  "ordersMs": 3706,
+  "ordersCount": 0,
+  "evidence": [
+    {
+      "t": 5298,
+      "kind": "pageerror",
+      "data": {
+        "message": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match th"
+      }
+    },
+    {
+      "t": 6991,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "0022ad103ee7",
+        "ms": 590
+      }
+    },
+    {
+      "t": 6996,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "008344f6cfc3",
+        "ms": 777
+      }
+    },
+    {
+      "t": 7732,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 5f442c78 status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 8003,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 8544,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 9491,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "0022ad103ee7",
+        "ms": 453
+      }
+    },
+    {
+      "t": 10324,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "008344f6cfc3",
+        "ms": 845
+      }
+    },
+    {
+      "t": 11802,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 13434,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40c88a267619",
+        "ms": 4984
+      }
+    },
+    {
+      "t": 13477,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] conversation UPDATE 5f442c78-9b28-4c8c-9f27-ffd49ef7d4da {unread: 0, is_read: true}"
+      }
+    },
+    {
+      "t": 14116,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40ab5fcf1f53",
+        "ms": 443
+      }
+    },
+    {
+      "t": 14373,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 14730,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "00177118f9ac",
+        "ms": 620
+      }
+    },
+    {
+      "t": 16274,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40c88a267619",
+        "ms": 4654
+      }
+    },
+    {
+      "t": 16840,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "70ae8d3a4d6f",
+        "ms": 354
+      }
+    },
+    {
+      "t": 16935,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "402744e28fd1",
+        "ms": 1878
+      }
+    },
+    {
+      "t": 17544,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40ab5fcf1f53",
+        "ms": 229
+      }
+    },
+    {
+      "t": 17687,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "00177118f9ac",
+        "ms": 769
+      }
+    },
+    {
+      "t": 19450,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40b7e93d082d",
+        "ms": 1197
+      }
+    },
+    {
+      "t": 19523,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "402744e28fd1",
+        "ms": 1874
+      }
+    },
+    {
+      "t": 19962,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "604f9dd65265",
+        "ms": 442
+      }
+    },
+    {
+      "t": 20453,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40ab5fcf1f53",
+        "ms": 464
+      }
+    },
+    {
+      "t": 20856,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 21446,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 22012,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "604f9dd65265",
+        "ms": 549
+      }
+    }
+  ]
+}

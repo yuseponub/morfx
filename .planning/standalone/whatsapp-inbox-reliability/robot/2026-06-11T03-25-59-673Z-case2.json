@@ -1,0 +1,1146 @@
+{
+  "phase": "case2",
+  "app": "http://localhost:3020",
+  "ws": "a3843b3f-c337-4836-92b5-89c58bb98490",
+  "startedAt": "2026-06-11T03:25:12.704Z",
+  "evidence": [
+    {
+      "t": 1682,
+      "kind": "case2-truth",
+      "data": {
+        "5f442c78-9b28-4c8c-9f27-ffd49ef7d4da": {
+          "name": "Sandra",
+          "msgs": [
+            "[image]",
+            "Estas son las promociones que manejamos, ¿Cuál deseas adquirir? 😊",
+            "Cuál es el combo 2"
+          ]
+        },
+        "3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b": {
+          "name": "Luis bueno",
+          "msgs": [
+            "Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas ",
+            "Perfecto! Despacharemos tu pedido lo antes posible✅Una vez entreguemos el pedido",
+            "Si"
+          ]
+        },
+        "01a326e0-d300-445b-8a3e-13c73034c2e3": {
+          "name": "Ricardo Orozco",
+          "msgs": [
+            "Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas ",
+            "Perfecto! Despacharemos tu pedido lo antes posible✅Una vez entreguemos el pedido",
+            "Confirmo compra"
+          ]
+        },
+        "75787fb9-b2cd-44ea-9fad-f8ae81858da0": {
+          "name": "carlos mario stevenz",
+          "msgs": [
+            "Recuerda tener el efectivo listo el día que te llegue el pedido para que puedas ",
+            "Perfecto! Despacharemos tu pedido lo antes posible✅Una vez entreguemos el pedido",
+            "Confirmo"
+          ]
+        }
+      }
+    },
+    {
+      "t": 6153,
+      "kind": "pageerror",
+      "data": {
+        "message": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match th"
+      }
+    },
+    {
+      "t": 8350,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "0022ad103ee7",
+        "ms": 512
+      }
+    },
+    {
+      "t": 9255,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "008344f6cfc3",
+        "ms": 800
+      }
+    },
+    {
+      "t": 9895,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 5f442c78 status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 10162,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 10763,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 11642,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "0022ad103ee7",
+        "ms": 419
+      }
+    },
+    {
+      "t": 12405,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "008344f6cfc3",
+        "ms": 776
+      }
+    },
+    {
+      "t": 14169,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 15942,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40b7e93d082d",
+        "ms": 1973
+      }
+    },
+    {
+      "t": 16551,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] conversation UPDATE 5f442c78-9b28-4c8c-9f27-ffd49ef7d4da {unread: 0, is_read: true}"
+      }
+    },
+    {
+      "t": 16630,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40128939af73",
+        "ms": 2270
+      }
+    },
+    {
+      "t": 16892,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40ab5fcf1f53",
+        "ms": 428
+      }
+    },
+    {
+      "t": 17266,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "00177118f9ac",
+        "ms": 633
+      }
+    },
+    {
+      "t": 17453,
+      "kind": "case2-switch",
+      "data": {
+        "throttle": false,
+        "target": "Sandra",
+        "consistentAtMs": -1
+      }
+    },
+    {
+      "t": 17288,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 5f442c78 status: CLOSED "
+      }
+    },
+    {
+      "t": 17697,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40c88a267619",
+        "ms": 4370
+      }
+    },
+    {
+      "t": 17753,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40ab5fcf1f53",
+        "ms": 189
+      }
+    },
+    {
+      "t": 17839,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 3ae6a2ad status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 17874,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 18366,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 18624,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "402744e28fd1",
+        "ms": 2368
+      }
+    },
+    {
+      "t": 19840,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 19857,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 20738,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] conversation UPDATE 3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b {unread: 0, is_read: true}"
+      }
+    },
+    {
+      "t": 21608,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40128939af73",
+        "ms": 1876
+      }
+    },
+    {
+      "t": 21608,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "70ae8d3a4d6f",
+        "ms": 582
+      }
+    },
+    {
+      "t": 21735,
+      "kind": "case2-switch",
+      "data": {
+        "throttle": false,
+        "target": "Luis bueno",
+        "consistentAtMs": 5259
+      }
+    },
+    {
+      "t": 22606,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 3ae6a2ad status: CLOSED "
+      }
+    },
+    {
+      "t": 22681,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "402744e28fd1",
+        "ms": 2649
+      }
+    },
+    {
+      "t": 22834,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 01a326e0 status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 23697,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 24385,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da&_rsc=1pb9b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 24406,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=01a326e0-d300-445b-8a3e-13c73034c2e3&_rsc=1pb9b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 24442,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=01a326e0-d300-445b-8a3e-13c73034c2e3&_rsc=ffomd",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 25267,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 28460,
+      "kind": "pageerror",
+      "data": {
+        "message": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match th"
+      }
+    },
+    {
+      "t": 30362,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=01a326e0-d300-445b-8a3e-13c73034c2e3",
+        "action": "0022ad103ee7",
+        "ms": 683
+      }
+    },
+    {
+      "t": 31146,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=01a326e0-d300-445b-8a3e-13c73034c2e3",
+        "action": "008344f6cfc3",
+        "ms": 783
+      }
+    },
+    {
+      "t": 32044,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 32044,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 01a326e0 status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 32741,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=01a326e0-d300-445b-8a3e-13c73034c2e3",
+        "action": "40b7e93d082d",
+        "ms": 1565
+      }
+    },
+    {
+      "t": 34821,
+      "kind": "case2-switch",
+      "data": {
+        "throttle": false,
+        "target": "Ricardo Orozco",
+        "consistentAtMs": -1
+      }
+    },
+    {
+      "t": 35580,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 01a326e0 status: CLOSED "
+      }
+    },
+    {
+      "t": 35802,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 75787fb9 status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 36196,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=75787fb9-b2cd-44ea-9fad-f8ae81858da0",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 37001,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=75787fb9-b2cd-44ea-9fad-f8ae81858da0",
+        "action": "00177118f9ac",
+        "ms": 811
+      }
+    },
+    {
+      "t": 37131,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=01a326e0-d300-445b-8a3e-13c73034c2e3",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 38281,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=75787fb9-b2cd-44ea-9fad-f8ae81858da0",
+        "action": "70ae8d3a4d6f",
+        "ms": 373
+      }
+    },
+    {
+      "t": 38639,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=75787fb9-b2cd-44ea-9fad-f8ae81858da0",
+        "action": "0022ad103ee7",
+        "ms": 358
+      }
+    },
+    {
+      "t": 38786,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=75787fb9-b2cd-44ea-9fad-f8ae81858da0",
+        "action": "402744e28fd1",
+        "ms": 1923
+      }
+    },
+    {
+      "t": 39280,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=75787fb9-b2cd-44ea-9fad-f8ae81858da0",
+        "action": "008344f6cfc3",
+        "ms": 637
+      }
+    },
+    {
+      "t": 40023,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=75787fb9-b2cd-44ea-9fad-f8ae81858da0",
+        "action": "40ab5fcf1f53",
+        "ms": 99
+      }
+    },
+    {
+      "t": 40522,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=75787fb9-b2cd-44ea-9fad-f8ae81858da0",
+        "action": "40b7e93d082d",
+        "ms": 1222
+      }
+    },
+    {
+      "t": 40750,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=75787fb9-b2cd-44ea-9fad-f8ae81858da0",
+        "action": "00177118f9ac",
+        "ms": 741
+      }
+    },
+    {
+      "t": 41634,
+      "kind": "case2-switch",
+      "data": {
+        "throttle": false,
+        "target": "carlos mario stevenz",
+        "consistentAtMs": -1
+      }
+    },
+    {
+      "t": 42351,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 75787fb9 status: CLOSED "
+      }
+    },
+    {
+      "t": 42547,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 5f442c78 status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 42653,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=75787fb9-b2cd-44ea-9fad-f8ae81858da0",
+        "action": "402744e28fd1",
+        "ms": 1899
+      }
+    },
+    {
+      "t": 43884,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=75787fb9-b2cd-44ea-9fad-f8ae81858da0",
+        "action": "40c88a267619",
+        "ms": 4555
+      }
+    },
+    {
+      "t": 44498,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40b7e93d082d",
+        "ms": 1471
+      }
+    },
+    {
+      "t": 44557,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] conversation UPDATE 75787fb9-b2cd-44ea-9fad-f8ae81858da0 {unread: 0, is_read: true}"
+      }
+    },
+    {
+      "t": 44980,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=75787fb9-b2cd-44ea-9fad-f8ae81858da0",
+        "action": "70ae8d3a4d6f",
+        "ms": 419
+      }
+    },
+    {
+      "t": 45372,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=75787fb9-b2cd-44ea-9fad-f8ae81858da0",
+        "action": "40128939af73",
+        "ms": 1696
+      }
+    },
+    {
+      "t": 45874,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "402744e28fd1",
+        "ms": 1996
+      }
+    },
+    {
+      "t": 46626,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] conversation UPDATE 5f442c78-9b28-4c8c-9f27-ffd49ef7d4da {unread: 0, is_read: true}"
+      }
+    },
+    {
+      "t": 48477,
+      "kind": "case2-switch",
+      "data": {
+        "throttle": false,
+        "target": "Sandra",
+        "consistentAtMs": -1
+      }
+    },
+    {
+      "t": 48052,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 5f442c78 status: CLOSED "
+      }
+    },
+    {
+      "t": 48299,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 48384,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "402744e28fd1",
+        "ms": 2899
+      }
+    },
+    {
+      "t": 48409,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40c88a267619",
+        "ms": 6598
+      }
+    },
+    {
+      "t": 48614,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40128939af73",
+        "ms": 3371
+      }
+    },
+    {
+      "t": 48660,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 3ae6a2ad status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 49192,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=75787fb9-b2cd-44ea-9fad-f8ae81858da0",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 52707,
+      "kind": "case2-switch",
+      "data": {
+        "throttle": false,
+        "target": "Luis bueno",
+        "consistentAtMs": -1
+      }
+    },
+    {
+      "t": 52708,
+      "kind": "case2-mismatches",
+      "data": []
+    },
+    {
+      "t": 6256,
+      "kind": "pageerror",
+      "data": {
+        "message": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match th"
+      }
+    },
+    {
+      "t": 7764,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "0022ad103ee7",
+        "ms": 419
+      }
+    },
+    {
+      "t": 8050,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "008344f6cfc3",
+        "ms": 629
+      }
+    },
+    {
+      "t": 9505,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 5f442c78 status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 9826,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 10548,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "0022ad103ee7",
+        "ms": 424
+      }
+    },
+    {
+      "t": 10875,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40b7e93d082d",
+        "ms": 2802
+      }
+    },
+    {
+      "t": 11536,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "008344f6cfc3",
+        "ms": 657
+      }
+    },
+    {
+      "t": 13516,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40b7e93d082d",
+        "ms": 1949
+      }
+    },
+    {
+      "t": 14786,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] conversation UPDATE 5f442c78-9b28-4c8c-9f27-ffd49ef7d4da {unread: 0, is_read: true}"
+      }
+    },
+    {
+      "t": 15563,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40c88a267619",
+        "ms": 6320
+      }
+    },
+    {
+      "t": 15667,
+      "kind": "case2-switch",
+      "data": {
+        "throttle": true,
+        "target": "Sandra",
+        "consistentAtMs": -1
+      }
+    },
+    {
+      "t": 16436,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40ab5fcf1f53",
+        "ms": 538
+      }
+    },
+    {
+      "t": 16517,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "00177118f9ac",
+        "ms": 618
+      }
+    },
+    {
+      "t": 17129,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 5f442c78 status: CLOSED "
+      }
+    },
+    {
+      "t": 17199,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40128939af73",
+        "ms": 2445
+      }
+    },
+    {
+      "t": 17376,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 3ae6a2ad status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 17599,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 17870,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40ab5fcf1f53",
+        "ms": 420
+      }
+    },
+    {
+      "t": 18244,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "00177118f9ac",
+        "ms": 644
+      }
+    },
+    {
+      "t": 18496,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "402744e28fd1",
+        "ms": 1976
+      }
+    },
+    {
+      "t": 19191,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "40c88a267619",
+        "ms": 6406
+      }
+    },
+    {
+      "t": 19717,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b&_rsc=ffomd",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 19753,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "402744e28fd1",
+        "ms": 1837
+      }
+    },
+    {
+      "t": 20025,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 20312,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] conversation UPDATE 3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b {unread: 0, is_read: true}"
+      }
+    },
+    {
+      "t": 20907,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "70ae8d3a4d6f",
+        "ms": 437
+      }
+    },
+    {
+      "t": 21010,
+      "kind": "case2-switch",
+      "data": {
+        "throttle": true,
+        "target": "Luis bueno",
+        "consistentAtMs": 4544
+      }
+    },
+    {
+      "t": 21477,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 3ae6a2ad status: CLOSED "
+      }
+    },
+    {
+      "t": 21821,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 01a326e0 status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 22177,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=5f442c78-9b28-4c8c-9f27-ffd49ef7d4da",
+        "action": "402744e28fd1",
+        "ms": 2429
+      }
+    },
+    {
+      "t": 23056,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "40128939af73",
+        "ms": 3336
+      }
+    },
+    {
+      "t": 24765,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 24765,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=01a326e0-d300-445b-8a3e-13c73034c2e3&_rsc=ffomd",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 24765,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b&_rsc=1pb9b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 24765,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=01a326e0-d300-445b-8a3e-13c73034c2e3&_rsc=1pb9b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 24765,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 24765,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "Error loading orders: TypeError: network error"
+      }
+    },
+    {
+      "t": 27444,
+      "kind": "case2-switch",
+      "data": {
+        "throttle": true,
+        "target": "Ricardo Orozco",
+        "consistentAtMs": -1
+      }
+    },
+    {
+      "t": 32989,
+      "kind": "case2-switch",
+      "data": {
+        "throttle": true,
+        "target": "carlos mario stevenz",
+        "consistentAtMs": -1
+      }
+    },
+    {
+      "t": 38512,
+      "kind": "pageerror",
+      "data": {
+        "message": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match th"
+      }
+    },
+    {
+      "t": 39937,
+      "kind": "case2-switch",
+      "data": {
+        "throttle": true,
+        "target": "Sandra",
+        "consistentAtMs": -1
+      }
+    },
+    {
+      "t": 40048,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=01a326e0-d300-445b-8a3e-13c73034c2e3",
+        "action": "0022ad103ee7",
+        "ms": 615
+      }
+    },
+    {
+      "t": 41589,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=01a326e0-d300-445b-8a3e-13c73034c2e3",
+        "action": "008344f6cfc3",
+        "ms": 847
+      }
+    },
+    {
+      "t": 41749,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:messages] 3ae6a2ad status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 42202,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 42453,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 42740,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 43710,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "00177118f9ac",
+        "ms": 899
+      }
+    },
+    {
+      "t": 45617,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "402744e28fd1",
+        "ms": 1915
+      }
+    },
+    {
+      "t": 46034,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "70ae8d3a4d6f",
+        "ms": 416
+      }
+    },
+    {
+      "t": 46455,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp?c=3ae6a2ad-b3b1-486c-a9b6-605e9c5dca3b",
+        "action": "0022ad103ee7",
+        "ms": 419
+      }
+    },
+    {
+      "t": 46824,
+      "kind": "case2-switch",
+      "data": {
+        "throttle": true,
+        "target": "Luis bueno",
+        "consistentAtMs": -1
+      }
+    },
+    {
+      "t": 46824,
+      "kind": "case2-mismatches",
+      "data": []
+    }
+  ]
+}

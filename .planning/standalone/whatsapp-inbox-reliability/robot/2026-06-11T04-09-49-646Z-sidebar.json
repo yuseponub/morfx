@@ -1,0 +1,2486 @@
+{
+  "phase": "sidebar",
+  "app": "http://localhost:3020",
+  "ws": "a3843b3f-c337-4836-92b5-89c58bb98490",
+  "startedAt": "2026-06-11T04:06:19.300Z",
+  "summary": {
+    "/crm": {
+      "spaMs": [
+        1109,
+        1078
+      ],
+      "freshMs": [
+        4920,
+        4410
+      ]
+    },
+    "/whatsapp": {
+      "spaMs": [
+        3943,
+        3365
+      ],
+      "freshMs": [
+        5386,
+        5278
+      ]
+    },
+    "/tareas": {
+      "spaMs": [
+        11431,
+        10928
+      ],
+      "freshMs": [
+        1763,
+        1693
+      ]
+    },
+    "/confirmaciones": {
+      "spaMs": [
+        1060,
+        1031
+      ],
+      "freshMs": [
+        1640,
+        1412
+      ]
+    },
+    "/sms": {
+      "spaMs": [
+        2346,
+        2425
+      ],
+      "freshMs": [
+        2043,
+        1630
+      ]
+    },
+    "/automatizaciones": {
+      "spaMs": [
+        1696,
+        1751
+      ],
+      "freshMs": [
+        2333,
+        1990
+      ]
+    },
+    "/agentes": {
+      "spaMs": [
+        2868,
+        2761
+      ],
+      "freshMs": [
+        3232,
+        2883
+      ]
+    },
+    "/comandos": {
+      "spaMs": [
+        1175,
+        1212
+      ],
+      "freshMs": [
+        1864,
+        2048
+      ]
+    },
+    "/analytics": {
+      "spaMs": [
+        1906,
+        1933
+      ],
+      "freshMs": [
+        2255,
+        2198
+      ]
+    },
+    "/sandbox": {
+      "spaMs": [
+        1283,
+        1312
+      ],
+      "freshMs": [
+        2308,
+        1948
+      ]
+    },
+    "/settings/workspace/members": {
+      "spaMs": [
+        2055,
+        2133
+      ],
+      "freshMs": [
+        2151,
+        1932
+      ]
+    },
+    "/configuracion": {
+      "spaMs": [
+        391,
+        1051
+      ],
+      "freshMs": [
+        1200,
+        1236
+      ]
+    }
+  },
+  "evidence": [
+    {
+      "t": 6737,
+      "kind": "pageerror",
+      "data": {
+        "message": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match th"
+      }
+    },
+    {
+      "t": 8143,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "0022ad103ee7",
+        "ms": 500
+      }
+    },
+    {
+      "t": 8453,
+      "kind": "sidebar-links",
+      "data": [
+        {
+          "href": "/crm",
+          "label": "CRM"
+        },
+        {
+          "href": "/whatsapp",
+          "label": "WhatsApp"
+        },
+        {
+          "href": "/tareas",
+          "label": "Tareas"
+        },
+        {
+          "href": "/confirmaciones",
+          "label": "Confirmaciones"
+        },
+        {
+          "href": "/sms",
+          "label": "SMS"
+        },
+        {
+          "href": "/automatizaciones",
+          "label": "Automatizaciones"
+        },
+        {
+          "href": "/agentes",
+          "label": "Agentes"
+        },
+        {
+          "href": "/comandos",
+          "label": "Comandos"
+        },
+        {
+          "href": "/analytics",
+          "label": "Analytics"
+        },
+        {
+          "href": "/sandbox",
+          "label": "Sandbox"
+        },
+        {
+          "href": "/settings/workspace/members",
+          "label": "Equipo"
+        },
+        {
+          "href": "/configuracion",
+          "label": "Configuración"
+        }
+      ]
+    },
+    {
+      "t": 9071,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/crm?_rsc=116n0",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 9157,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "008344f6cfc3",
+        "ms": 807
+      }
+    },
+    {
+      "t": 10100,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 10229,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/crm",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 10632,
+      "kind": "server-action",
+      "data": {
+        "url": "/crm",
+        "action": "0022ad103ee7",
+        "ms": 453
+      }
+    },
+    {
+      "t": 11179,
+      "kind": "server-action",
+      "data": {
+        "url": "/crm",
+        "action": "008344f6cfc3",
+        "ms": 551
+      }
+    },
+    {
+      "t": 12704,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/crm",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 13392,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/crm",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 14742,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/crm",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 16787,
+      "kind": "server-action",
+      "data": {
+        "url": "/crm",
+        "action": "40c88a267619",
+        "ms": 4222
+      }
+    },
+    {
+      "t": 18679,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: CLOSED "
+      }
+    },
+    {
+      "t": 18743,
+      "kind": "server-action",
+      "data": {
+        "url": "/crm",
+        "action": "40c88a267619",
+        "ms": 4071
+      }
+    },
+    {
+      "t": 19360,
+      "kind": "nav-spa",
+      "data": {
+        "round": 0,
+        "href": "/crm",
+        "ms": 10907
+      }
+    },
+    {
+      "t": 21284,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?_rsc=4d7zi",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 22362,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/crm/pedidos?_rsc=1t913",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 22418,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/crm/pedidos?_rsc=1t913",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 23046,
+      "kind": "nav-spa",
+      "data": {
+        "round": 0,
+        "href": "/whatsapp",
+        "ms": 3686
+      }
+    },
+    {
+      "t": 23921,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 23948,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40b7e93d082d",
+        "ms": 1655
+      }
+    },
+    {
+      "t": 25906,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "%c%s%c Error fetching tasks: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   {code: PGRST200, details: Searched for a foreign key relationship between 't…n the schema 'public', but no "
+      }
+    },
+    {
+      "t": 27122,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/tareas",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 28113,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40c88a267619",
+        "ms": 4525
+      }
+    },
+    {
+      "t": 28862,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40b7e93d082d",
+        "ms": 1297
+      }
+    },
+    {
+      "t": 31655,
+      "kind": "server-action",
+      "data": {
+        "url": "/tareas",
+        "action": "40c88a267619",
+        "ms": 4453
+      }
+    },
+    {
+      "t": 33280,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40c88a267619",
+        "ms": 4470
+      }
+    },
+    {
+      "t": 53068,
+      "kind": "nav-spa",
+      "data": {
+        "round": 0,
+        "href": "/tareas",
+        "ms": 30021
+      }
+    },
+    {
+      "t": 55189,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: CLOSED "
+      }
+    },
+    {
+      "t": 55841,
+      "kind": "nav-spa",
+      "data": {
+        "round": 0,
+        "href": "/confirmaciones",
+        "ms": 2773
+      }
+    },
+    {
+      "t": 59632,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/sms?_rsc=1ym8k",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 60228,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/sms",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 60613,
+      "kind": "server-action",
+      "data": {
+        "url": "/sms",
+        "action": "60ed954ad1b7",
+        "ms": 338
+      }
+    },
+    {
+      "t": 60972,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/sms",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 61298,
+      "kind": "nav-spa",
+      "data": {
+        "round": 0,
+        "href": "/sms",
+        "ms": 5456
+      }
+    },
+    {
+      "t": 61416,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/sms",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 65524,
+      "kind": "nav-spa",
+      "data": {
+        "round": 0,
+        "href": "/automatizaciones",
+        "ms": 4226
+      }
+    },
+    {
+      "t": 69084,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/agentes?_rsc=1dmbr",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 69812,
+      "kind": "nav-spa",
+      "data": {
+        "round": 0,
+        "href": "/agentes",
+        "ms": 4287
+      }
+    },
+    {
+      "t": 72886,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/comandos",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 73278,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "40cd5dc34dd4",
+        "ms": 391
+      }
+    },
+    {
+      "t": 73590,
+      "kind": "nav-spa",
+      "data": {
+        "round": 0,
+        "href": "/comandos",
+        "ms": 3778
+      }
+    },
+    {
+      "t": 73643,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "00bc6d21f719",
+        "ms": 363
+      }
+    },
+    {
+      "t": 74839,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "40cd5dc34dd4",
+        "ms": 1194
+      }
+    },
+    {
+      "t": 76035,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/analytics?_rsc=1h9wa",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 77138,
+      "kind": "nav-spa",
+      "data": {
+        "round": 0,
+        "href": "/analytics",
+        "ms": 3548
+      }
+    },
+    {
+      "t": 80719,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/sandbox?_rsc=m3pxb",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 81505,
+      "kind": "server-action",
+      "data": {
+        "url": "/sandbox",
+        "action": "003c93981569",
+        "ms": 459
+      }
+    },
+    {
+      "t": 82215,
+      "kind": "nav-spa",
+      "data": {
+        "round": 0,
+        "href": "/sandbox",
+        "ms": 5077
+      }
+    },
+    {
+      "t": 82521,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/sandbox",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 86322,
+      "kind": "nav-spa",
+      "data": {
+        "round": 0,
+        "href": "/settings/workspace/members",
+        "ms": 4107
+      }
+    },
+    {
+      "t": 88045,
+      "kind": "nav-spa",
+      "data": {
+        "round": 0,
+        "href": "/configuracion",
+        "ms": 1723
+      }
+    },
+    {
+      "t": 89155,
+      "kind": "nav-spa",
+      "data": {
+        "round": 1,
+        "href": "/crm",
+        "ms": 1109
+      }
+    },
+    {
+      "t": 90782,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?_rsc=4d7zi",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 92191,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/crm/pedidos?_rsc=1t913",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 93099,
+      "kind": "nav-spa",
+      "data": {
+        "round": 1,
+        "href": "/whatsapp",
+        "ms": 3943
+      }
+    },
+    {
+      "t": 93888,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "40b7e93d082d",
+        "ms": 1997
+      }
+    },
+    {
+      "t": 94316,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "%c%s%c Error fetching tasks: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   {code: PGRST200, details: Searched for a foreign key relationship between 't…n the schema 'public', but no "
+      }
+    },
+    {
+      "t": 94318,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/tareas?_rsc=1lr7m",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 94482,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 95416,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/tareas",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 98286,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/tareas",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 99562,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/tareas",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 100209,
+      "kind": "server-action",
+      "data": {
+        "url": "/tareas",
+        "action": "40c88a267619",
+        "ms": 4576
+      }
+    },
+    {
+      "t": 103883,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: CLOSED "
+      }
+    },
+    {
+      "t": 103907,
+      "kind": "server-action",
+      "data": {
+        "url": "/tareas",
+        "action": "40c88a267619",
+        "ms": 4439
+      }
+    },
+    {
+      "t": 104531,
+      "kind": "nav-spa",
+      "data": {
+        "round": 1,
+        "href": "/tareas",
+        "ms": 11431
+      }
+    },
+    {
+      "t": 104910,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/confirmaciones?_rsc=euxk1",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 105591,
+      "kind": "nav-spa",
+      "data": {
+        "round": 1,
+        "href": "/confirmaciones",
+        "ms": 1060
+      }
+    },
+    {
+      "t": 106854,
+      "kind": "server-action",
+      "data": {
+        "url": "/sms",
+        "action": "40b48b9477f2",
+        "ms": 372
+      }
+    },
+    {
+      "t": 107177,
+      "kind": "server-action",
+      "data": {
+        "url": "/sms",
+        "action": "60ed954ad1b7",
+        "ms": 323
+      }
+    },
+    {
+      "t": 107536,
+      "kind": "server-action",
+      "data": {
+        "url": "/sms",
+        "action": "40b48b9477f2",
+        "ms": 357
+      }
+    },
+    {
+      "t": 107862,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/sms",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 107937,
+      "kind": "nav-spa",
+      "data": {
+        "round": 1,
+        "href": "/sms",
+        "ms": 2346
+      }
+    },
+    {
+      "t": 108950,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/automatizaciones?_rsc=gqazi",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 109633,
+      "kind": "nav-spa",
+      "data": {
+        "round": 1,
+        "href": "/automatizaciones",
+        "ms": 1696
+      }
+    },
+    {
+      "t": 111805,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/agentes?_rsc=1dmbr",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 112502,
+      "kind": "nav-spa",
+      "data": {
+        "round": 1,
+        "href": "/agentes",
+        "ms": 2868
+      }
+    },
+    {
+      "t": 112642,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/comandos?_rsc=s4j3y",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 113017,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "00bc6d21f719",
+        "ms": 314
+      }
+    },
+    {
+      "t": 113334,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "40cd5dc34dd4",
+        "ms": 317
+      }
+    },
+    {
+      "t": 113647,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "00bc6d21f719",
+        "ms": 312
+      }
+    },
+    {
+      "t": 113677,
+      "kind": "nav-spa",
+      "data": {
+        "round": 1,
+        "href": "/comandos",
+        "ms": 1175
+      }
+    },
+    {
+      "t": 113957,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "40cd5dc34dd4",
+        "ms": 311
+      }
+    },
+    {
+      "t": 114847,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/analytics?_rsc=1h9wa",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 115583,
+      "kind": "nav-spa",
+      "data": {
+        "round": 1,
+        "href": "/analytics",
+        "ms": 1906
+      }
+    },
+    {
+      "t": 115728,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/sandbox?_rsc=m3pxb",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 116211,
+      "kind": "server-action",
+      "data": {
+        "url": "/sandbox",
+        "action": "003c93981569",
+        "ms": 382
+      }
+    },
+    {
+      "t": 116523,
+      "kind": "server-action",
+      "data": {
+        "url": "/sandbox",
+        "action": "003c93981569",
+        "ms": 312
+      }
+    },
+    {
+      "t": 116867,
+      "kind": "nav-spa",
+      "data": {
+        "round": 1,
+        "href": "/sandbox",
+        "ms": 1283
+      }
+    },
+    {
+      "t": 118923,
+      "kind": "nav-spa",
+      "data": {
+        "round": 1,
+        "href": "/settings/workspace/members",
+        "ms": 2055
+      }
+    },
+    {
+      "t": 119314,
+      "kind": "nav-spa",
+      "data": {
+        "round": 1,
+        "href": "/configuracion",
+        "ms": 391
+      }
+    },
+    {
+      "t": 120393,
+      "kind": "nav-spa",
+      "data": {
+        "round": 2,
+        "href": "/crm",
+        "ms": 1078
+      }
+    },
+    {
+      "t": 122025,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp?_rsc=4d7zi",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 123061,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/crm/pedidos?_rsc=1t913",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 123139,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/crm/pedidos?_rsc=1t913",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 123758,
+      "kind": "nav-spa",
+      "data": {
+        "round": 2,
+        "href": "/whatsapp",
+        "ms": 3365
+      }
+    },
+    {
+      "t": 124376,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 124759,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "%c%s%c Error fetching tasks: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   {code: PGRST200, details: Searched for a foreign key relationship between 't…n the schema 'public', but no "
+      }
+    },
+    {
+      "t": 124760,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/tareas?_rsc=1lr7m",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 125538,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/tareas",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 126085,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 128556,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/tareas",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 129989,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/tareas",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 130386,
+      "kind": "server-action",
+      "data": {
+        "url": "/tareas",
+        "action": "40c88a267619",
+        "ms": 4593
+      }
+    },
+    {
+      "t": 134041,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: CLOSED "
+      }
+    },
+    {
+      "t": 134062,
+      "kind": "server-action",
+      "data": {
+        "url": "/tareas",
+        "action": "40c88a267619",
+        "ms": 4239
+      }
+    },
+    {
+      "t": 134686,
+      "kind": "nav-spa",
+      "data": {
+        "round": 2,
+        "href": "/tareas",
+        "ms": 10928
+      }
+    },
+    {
+      "t": 135046,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/confirmaciones?_rsc=euxk1",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 135717,
+      "kind": "nav-spa",
+      "data": {
+        "round": 2,
+        "href": "/confirmaciones",
+        "ms": 1031
+      }
+    },
+    {
+      "t": 137073,
+      "kind": "server-action",
+      "data": {
+        "url": "/sms",
+        "action": "40b48b9477f2",
+        "ms": 377
+      }
+    },
+    {
+      "t": 137385,
+      "kind": "server-action",
+      "data": {
+        "url": "/sms",
+        "action": "60ed954ad1b7",
+        "ms": 312
+      }
+    },
+    {
+      "t": 137762,
+      "kind": "server-action",
+      "data": {
+        "url": "/sms",
+        "action": "40b48b9477f2",
+        "ms": 375
+      }
+    },
+    {
+      "t": 138091,
+      "kind": "server-action",
+      "data": {
+        "url": "/sms",
+        "action": "60ed954ad1b7",
+        "ms": 328
+      }
+    },
+    {
+      "t": 138142,
+      "kind": "nav-spa",
+      "data": {
+        "round": 2,
+        "href": "/sms",
+        "ms": 2425
+      }
+    },
+    {
+      "t": 139222,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/automatizaciones?_rsc=gqazi",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 139893,
+      "kind": "nav-spa",
+      "data": {
+        "round": 2,
+        "href": "/automatizaciones",
+        "ms": 1751
+      }
+    },
+    {
+      "t": 141981,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/agentes?_rsc=1dmbr",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 142654,
+      "kind": "nav-spa",
+      "data": {
+        "round": 2,
+        "href": "/agentes",
+        "ms": 2761
+      }
+    },
+    {
+      "t": 143176,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "00bc6d21f719",
+        "ms": 345
+      }
+    },
+    {
+      "t": 143505,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "40cd5dc34dd4",
+        "ms": 324
+      }
+    },
+    {
+      "t": 143832,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "00bc6d21f719",
+        "ms": 329
+      }
+    },
+    {
+      "t": 143867,
+      "kind": "nav-spa",
+      "data": {
+        "round": 2,
+        "href": "/comandos",
+        "ms": 1212
+      }
+    },
+    {
+      "t": 144171,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "40cd5dc34dd4",
+        "ms": 338
+      }
+    },
+    {
+      "t": 145060,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/analytics?_rsc=1h9wa",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 145801,
+      "kind": "nav-spa",
+      "data": {
+        "round": 2,
+        "href": "/analytics",
+        "ms": 1933
+      }
+    },
+    {
+      "t": 145947,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/sandbox?_rsc=m3pxb",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 146455,
+      "kind": "server-action",
+      "data": {
+        "url": "/sandbox",
+        "action": "003c93981569",
+        "ms": 409
+      }
+    },
+    {
+      "t": 146791,
+      "kind": "server-action",
+      "data": {
+        "url": "/sandbox",
+        "action": "003c93981569",
+        "ms": 335
+      }
+    },
+    {
+      "t": 147113,
+      "kind": "nav-spa",
+      "data": {
+        "round": 2,
+        "href": "/sandbox",
+        "ms": 1312
+      }
+    },
+    {
+      "t": 149246,
+      "kind": "nav-spa",
+      "data": {
+        "round": 2,
+        "href": "/settings/workspace/members",
+        "ms": 2133
+      }
+    },
+    {
+      "t": 150297,
+      "kind": "nav-spa",
+      "data": {
+        "round": 2,
+        "href": "/configuracion",
+        "ms": 1051
+      }
+    },
+    {
+      "t": 155117,
+      "kind": "server-action",
+      "data": {
+        "url": "/crm/pedidos",
+        "action": "0022ad103ee7",
+        "ms": 363
+      }
+    },
+    {
+      "t": 155239,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 0,
+        "href": "/crm",
+        "dclMs": 4029,
+        "stableMs": 4920,
+        "navTiming": {
+          "ttfb": 4267,
+          "dcl": 4608,
+          "load": 4644,
+          "htmlBytes": 270509,
+          "decodedBytes": 3297157
+        },
+        "domStats": {
+          "nodes": 12779,
+          "htmlLen": 3311129
+        }
+      }
+    },
+    {
+      "t": 155856,
+      "kind": "server-action",
+      "data": {
+        "url": "/crm/pedidos",
+        "action": "008344f6cfc3",
+        "ms": 740
+      }
+    },
+    {
+      "t": 157651,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/crm/pedidos",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 159208,
+      "kind": "pageerror",
+      "data": {
+        "message": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match th"
+      }
+    },
+    {
+      "t": 159993,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "0022ad103ee7",
+        "ms": 332
+      }
+    },
+    {
+      "t": 160697,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 0,
+        "href": "/whatsapp",
+        "dclMs": 3268,
+        "stableMs": 5386,
+        "navTiming": {
+          "ttfb": 1717,
+          "dcl": 3266,
+          "load": 3267,
+          "htmlBytes": 199916,
+          "decodedBytes": 1892836
+        },
+        "domStats": {
+          "nodes": 12953,
+          "htmlLen": 1921497
+        }
+      }
+    },
+    {
+      "t": 160852,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 161564,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 161598,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 161598,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "Error fetching conversations: TypeError: Failed to fetch\n    at fetchServerAction (http://localhost:3020/_next/static/chunks/fd92d_next_dist_client_004360c4._.js:8817:23)"
+      }
+    },
+    {
+      "t": 161893,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "%c%s%c Error fetching tasks: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   {code: PGRST200, details: Searched for a foreign key relationship between 't…n the schema 'public', but no "
+      }
+    },
+    {
+      "t": 162423,
+      "kind": "server-action",
+      "data": {
+        "url": "/tareas",
+        "action": "0022ad103ee7",
+        "ms": 353
+      }
+    },
+    {
+      "t": 162464,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 0,
+        "href": "/tareas",
+        "dclMs": 1132,
+        "stableMs": 1763,
+        "navTiming": {
+          "ttfb": 892,
+          "dcl": 1129,
+          "load": 1273,
+          "htmlBytes": 19880,
+          "decodedBytes": 69648
+        },
+        "domStats": {
+          "nodes": 225,
+          "htmlLen": 87116
+        }
+      }
+    },
+    {
+      "t": 163065,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/tareas",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 164019,
+      "kind": "server-action",
+      "data": {
+        "url": "/confirmaciones",
+        "action": "0022ad103ee7",
+        "ms": 338
+      }
+    },
+    {
+      "t": 164109,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 0,
+        "href": "/confirmaciones",
+        "dclMs": 965,
+        "stableMs": 1640,
+        "navTiming": {
+          "ttfb": 892,
+          "dcl": 961,
+          "load": 1121,
+          "htmlBytes": 26643,
+          "decodedBytes": 101566
+        },
+        "domStats": {
+          "nodes": 267,
+          "htmlLen": 118956
+        }
+      }
+    },
+    {
+      "t": 164716,
+      "kind": "server-action",
+      "data": {
+        "url": "/confirmaciones",
+        "action": "008344f6cfc3",
+        "ms": 696
+      }
+    },
+    {
+      "t": 166110,
+      "kind": "server-action",
+      "data": {
+        "url": "/sms",
+        "action": "0022ad103ee7",
+        "ms": 353
+      }
+    },
+    {
+      "t": 166158,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 0,
+        "href": "/sms",
+        "dclMs": 1393,
+        "stableMs": 2043,
+        "navTiming": {
+          "ttfb": 1287,
+          "dcl": 1389,
+          "load": 1558,
+          "htmlBytes": 33673,
+          "decodedBytes": 128437
+        },
+        "domStats": {
+          "nodes": 337,
+          "htmlLen": 145888
+        }
+      }
+    },
+    {
+      "t": 166696,
+      "kind": "server-action",
+      "data": {
+        "url": "/sms",
+        "action": "008344f6cfc3",
+        "ms": 585
+      }
+    },
+    {
+      "t": 167292,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/sms",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 167691,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/sms",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 168494,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 0,
+        "href": "/automatizaciones",
+        "dclMs": 1594,
+        "stableMs": 2333,
+        "navTiming": {
+          "ttfb": 1523,
+          "dcl": 1592,
+          "load": 1766,
+          "htmlBytes": 25019,
+          "decodedBytes": 138525
+        },
+        "domStats": {
+          "nodes": 537,
+          "htmlLen": 156465
+        }
+      }
+    },
+    {
+      "t": 168635,
+      "kind": "server-action",
+      "data": {
+        "url": "/automatizaciones",
+        "action": "0022ad103ee7",
+        "ms": 463
+      }
+    },
+    {
+      "t": 169353,
+      "kind": "server-action",
+      "data": {
+        "url": "/automatizaciones",
+        "action": "008344f6cfc3",
+        "ms": 719
+      }
+    },
+    {
+      "t": 171603,
+      "kind": "server-action",
+      "data": {
+        "url": "/agentes",
+        "action": "0022ad103ee7",
+        "ms": 332
+      }
+    },
+    {
+      "t": 171732,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 0,
+        "href": "/agentes",
+        "dclMs": 2550,
+        "stableMs": 3232,
+        "navTiming": {
+          "ttfb": 2491,
+          "dcl": 2549,
+          "load": 2693,
+          "htmlBytes": 30682,
+          "decodedBytes": 120565
+        },
+        "domStats": {
+          "nodes": 374,
+          "htmlLen": 138013
+        }
+      }
+    },
+    {
+      "t": 172209,
+      "kind": "server-action",
+      "data": {
+        "url": "/agentes",
+        "action": "008344f6cfc3",
+        "ms": 606
+      }
+    },
+    {
+      "t": 173187,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "0022ad103ee7",
+        "ms": 330
+      }
+    },
+    {
+      "t": 173604,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 0,
+        "href": "/comandos",
+        "dclMs": 907,
+        "stableMs": 1864,
+        "navTiming": {
+          "ttfb": 810,
+          "dcl": 905,
+          "load": 1042,
+          "htmlBytes": 19416,
+          "decodedBytes": 88922
+        },
+        "domStats": {
+          "nodes": 302,
+          "htmlLen": 94864
+        }
+      }
+    },
+    {
+      "t": 173984,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "008344f6cfc3",
+        "ms": 799
+      }
+    },
+    {
+      "t": 174494,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "00bc6d21f719",
+        "ms": 508
+      }
+    },
+    {
+      "t": 174798,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/comandos",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 175578,
+      "kind": "server-action",
+      "data": {
+        "url": "/analytics",
+        "action": "0022ad103ee7",
+        "ms": 340
+      }
+    },
+    {
+      "t": 175864,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 0,
+        "href": "/analytics",
+        "dclMs": 1245,
+        "stableMs": 2255,
+        "navTiming": {
+          "ttfb": 1187,
+          "dcl": 1242,
+          "load": 1446,
+          "htmlBytes": 27715,
+          "decodedBytes": 105399
+        },
+        "domStats": {
+          "nodes": 378,
+          "htmlLen": 132871
+        }
+      }
+    },
+    {
+      "t": 176728,
+      "kind": "server-action",
+      "data": {
+        "url": "/analytics",
+        "action": "008344f6cfc3",
+        "ms": 1146
+      }
+    },
+    {
+      "t": 177732,
+      "kind": "server-action",
+      "data": {
+        "url": "/sandbox",
+        "action": "0022ad103ee7",
+        "ms": 344
+      }
+    },
+    {
+      "t": 178181,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 0,
+        "href": "/sandbox",
+        "dclMs": 1215,
+        "stableMs": 2308,
+        "navTiming": {
+          "ttfb": 1159,
+          "dcl": 1214,
+          "load": 1383,
+          "htmlBytes": 21255,
+          "decodedBytes": 99011
+        },
+        "domStats": {
+          "nodes": 379,
+          "htmlLen": 106905
+        }
+      }
+    },
+    {
+      "t": 178614,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/sandbox",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 178943,
+      "kind": "server-action",
+      "data": {
+        "url": "/sandbox",
+        "action": "003c93981569",
+        "ms": 329
+      }
+    },
+    {
+      "t": 179893,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` wh"
+      }
+    },
+    {
+      "t": 180274,
+      "kind": "server-action",
+      "data": {
+        "url": "/settings/workspace/members",
+        "action": "0022ad103ee7",
+        "ms": 359
+      }
+    },
+    {
+      "t": 180336,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 0,
+        "href": "/settings/workspace/members",
+        "dclMs": 1466,
+        "stableMs": 2151,
+        "navTiming": {
+          "ttfb": 1408,
+          "dcl": 1465,
+          "load": 1629,
+          "htmlBytes": 28647,
+          "decodedBytes": 112030
+        },
+        "domStats": {
+          "nodes": 292,
+          "htmlLen": 129468
+        }
+      }
+    },
+    {
+      "t": 180812,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/settings/workspace/members",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 180812,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "Error fetching automation failures: TypeError: Failed to fetch\n    at fetchServerAction (http://localhost:3020/_next/static/chunks/fd92d_next_dist_client_004360c4._.js:8817:23)"
+      }
+    },
+    {
+      "t": 181406,
+      "kind": "server-action",
+      "data": {
+        "url": "/configuracion",
+        "action": "0022ad103ee7",
+        "ms": 328
+      }
+    },
+    {
+      "t": 181539,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 0,
+        "href": "/configuracion",
+        "dclMs": 556,
+        "stableMs": 1200,
+        "navTiming": {
+          "ttfb": 470,
+          "dcl": 553,
+          "load": 674,
+          "htmlBytes": 29633,
+          "decodedBytes": 128602
+        },
+        "domStats": {
+          "nodes": 319,
+          "htmlLen": 146050
+        }
+      }
+    },
+    {
+      "t": 182131,
+      "kind": "server-action",
+      "data": {
+        "url": "/configuracion",
+        "action": "008344f6cfc3",
+        "ms": 724
+      }
+    },
+    {
+      "t": 185325,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` wh"
+      }
+    },
+    {
+      "t": 185666,
+      "kind": "server-action",
+      "data": {
+        "url": "/crm/pedidos",
+        "action": "0022ad103ee7",
+        "ms": 322
+      }
+    },
+    {
+      "t": 185969,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 1,
+        "href": "/crm",
+        "dclMs": 3569,
+        "stableMs": 4410,
+        "navTiming": {
+          "ttfb": 3784,
+          "dcl": 4209,
+          "load": 4210,
+          "htmlBytes": 270478,
+          "decodedBytes": 3297098
+        },
+        "domStats": {
+          "nodes": 12779,
+          "htmlLen": 3311070
+        }
+      }
+    },
+    {
+      "t": 186552,
+      "kind": "server-action",
+      "data": {
+        "url": "/crm/pedidos",
+        "action": "008344f6cfc3",
+        "ms": 886
+      }
+    },
+    {
+      "t": 187503,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` wh"
+      }
+    },
+    {
+      "t": 188312,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/crm/pedidos",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 189890,
+      "kind": "pageerror",
+      "data": {
+        "message": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match th"
+      }
+    },
+    {
+      "t": 190620,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "0022ad103ee7",
+        "ms": 330
+      }
+    },
+    {
+      "t": 191317,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 1,
+        "href": "/whatsapp",
+        "dclMs": 3252,
+        "stableMs": 5278,
+        "navTiming": {
+          "ttfb": 1708,
+          "dcl": 3251,
+          "load": 3252,
+          "htmlBytes": 199858,
+          "decodedBytes": 1891258
+        },
+        "domStats": {
+          "nodes": 12953,
+          "htmlLen": 1919919
+        }
+      }
+    },
+    {
+      "t": 191468,
+      "kind": "server-action",
+      "data": {
+        "url": "/whatsapp",
+        "action": "008344f6cfc3",
+        "ms": 876
+      }
+    },
+    {
+      "t": 192157,
+      "kind": "console",
+      "data": {
+        "type": "log",
+        "text": "[realtime:inbox] status: SUBSCRIBED "
+      }
+    },
+    {
+      "t": 192176,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/whatsapp",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 192176,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "Error fetching conversations: TypeError: Failed to fetch\n    at fetchServerAction (http://localhost:3020/_next/static/chunks/fd92d_next_dist_client_004360c4._.js:8817:23)"
+      }
+    },
+    {
+      "t": 192435,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "%c%s%c Error fetching tasks: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   {code: PGRST200, details: Searched for a foreign key relationship between 't…n the schema 'public', but no "
+      }
+    },
+    {
+      "t": 192567,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` wh"
+      }
+    },
+    {
+      "t": 192940,
+      "kind": "server-action",
+      "data": {
+        "url": "/tareas",
+        "action": "0022ad103ee7",
+        "ms": 359
+      }
+    },
+    {
+      "t": 193014,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 1,
+        "href": "/tareas",
+        "dclMs": 1050,
+        "stableMs": 1693,
+        "navTiming": {
+          "ttfb": 853,
+          "dcl": 1047,
+          "load": 1197,
+          "htmlBytes": 19864,
+          "decodedBytes": 69647
+        },
+        "domStats": {
+          "nodes": 225,
+          "htmlLen": 87115
+        }
+      }
+    },
+    {
+      "t": 193505,
+      "kind": "server-action",
+      "data": {
+        "url": "/tareas",
+        "action": "008344f6cfc3",
+        "ms": 565
+      }
+    },
+    {
+      "t": 193981,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` wh"
+      }
+    },
+    {
+      "t": 194335,
+      "kind": "server-action",
+      "data": {
+        "url": "/confirmaciones",
+        "action": "0022ad103ee7",
+        "ms": 336
+      }
+    },
+    {
+      "t": 194430,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 1,
+        "href": "/confirmaciones",
+        "dclMs": 737,
+        "stableMs": 1412,
+        "navTiming": {
+          "ttfb": 681,
+          "dcl": 736,
+          "load": 905,
+          "htmlBytes": 26658,
+          "decodedBytes": 101568
+        },
+        "domStats": {
+          "nodes": 267,
+          "htmlLen": 118958
+        }
+      }
+    },
+    {
+      "t": 195026,
+      "kind": "server-action",
+      "data": {
+        "url": "/confirmaciones",
+        "action": "008344f6cfc3",
+        "ms": 691
+      }
+    },
+    {
+      "t": 195986,
+      "kind": "server-action",
+      "data": {
+        "url": "/sms",
+        "action": "0022ad103ee7",
+        "ms": 343
+      }
+    },
+    {
+      "t": 196066,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 1,
+        "href": "/sms",
+        "dclMs": 947,
+        "stableMs": 1630,
+        "navTiming": {
+          "ttfb": 887,
+          "dcl": 945,
+          "load": 1116,
+          "htmlBytes": 33666,
+          "decodedBytes": 128705
+        },
+        "domStats": {
+          "nodes": 337,
+          "htmlLen": 146156
+        }
+      }
+    },
+    {
+      "t": 196755,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/sms",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 197119,
+      "kind": "server-action",
+      "data": {
+        "url": "/sms",
+        "action": "40b48b9477f2",
+        "ms": 385
+      }
+    },
+    {
+      "t": 197268,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/sms",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 197680,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` wh"
+      }
+    },
+    {
+      "t": 198060,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 1,
+        "href": "/automatizaciones",
+        "dclMs": 1256,
+        "stableMs": 1990,
+        "navTiming": {
+          "ttfb": 1193,
+          "dcl": 1254,
+          "load": 1441,
+          "htmlBytes": 25072,
+          "decodedBytes": 138579
+        },
+        "domStats": {
+          "nodes": 538,
+          "htmlLen": 156519
+        }
+      }
+    },
+    {
+      "t": 198190,
+      "kind": "server-action",
+      "data": {
+        "url": "/automatizaciones",
+        "action": "0022ad103ee7",
+        "ms": 455
+      }
+    },
+    {
+      "t": 198772,
+      "kind": "server-action",
+      "data": {
+        "url": "/automatizaciones",
+        "action": "008344f6cfc3",
+        "ms": 582
+      }
+    },
+    {
+      "t": 200846,
+      "kind": "server-action",
+      "data": {
+        "url": "/agentes",
+        "action": "0022ad103ee7",
+        "ms": 335
+      }
+    },
+    {
+      "t": 200948,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 1,
+        "href": "/agentes",
+        "dclMs": 2210,
+        "stableMs": 2883,
+        "navTiming": {
+          "ttfb": 2146,
+          "dcl": 2209,
+          "load": 2347,
+          "htmlBytes": 30715,
+          "decodedBytes": 120581
+        },
+        "domStats": {
+          "nodes": 374,
+          "htmlLen": 138029
+        }
+      }
+    },
+    {
+      "t": 201549,
+      "kind": "server-action",
+      "data": {
+        "url": "/agentes",
+        "action": "008344f6cfc3",
+        "ms": 703
+      }
+    },
+    {
+      "t": 202502,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "0022ad103ee7",
+        "ms": 447
+      }
+    },
+    {
+      "t": 203000,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 1,
+        "href": "/comandos",
+        "dclMs": 860,
+        "stableMs": 2048,
+        "navTiming": {
+          "ttfb": 794,
+          "dcl": 857,
+          "load": 1020,
+          "htmlBytes": 19429,
+          "decodedBytes": 88923
+        },
+        "domStats": {
+          "nodes": 302,
+          "htmlLen": 94865
+        }
+      }
+    },
+    {
+      "t": 203197,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "008344f6cfc3",
+        "ms": 694
+      }
+    },
+    {
+      "t": 203646,
+      "kind": "server-action",
+      "data": {
+        "url": "/comandos",
+        "action": "00bc6d21f719",
+        "ms": 447
+      }
+    },
+    {
+      "t": 204012,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/comandos",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 204919,
+      "kind": "server-action",
+      "data": {
+        "url": "/analytics",
+        "action": "0022ad103ee7",
+        "ms": 342
+      }
+    },
+    {
+      "t": 205204,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 1,
+        "href": "/analytics",
+        "dclMs": 1239,
+        "stableMs": 2198,
+        "navTiming": {
+          "ttfb": 1164,
+          "dcl": 1237,
+          "load": 1407,
+          "htmlBytes": 27718,
+          "decodedBytes": 105396
+        },
+        "domStats": {
+          "nodes": 378,
+          "htmlLen": 132868
+        }
+      }
+    },
+    {
+      "t": 205568,
+      "kind": "server-action",
+      "data": {
+        "url": "/analytics",
+        "action": "008344f6cfc3",
+        "ms": 648
+      }
+    },
+    {
+      "t": 206654,
+      "kind": "server-action",
+      "data": {
+        "url": "/sandbox",
+        "action": "0022ad103ee7",
+        "ms": 353
+      }
+    },
+    {
+      "t": 207156,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 1,
+        "href": "/sandbox",
+        "dclMs": 762,
+        "stableMs": 1948,
+        "navTiming": {
+          "ttfb": 680,
+          "dcl": 760,
+          "load": 946,
+          "htmlBytes": 21166,
+          "decodedBytes": 98993
+        },
+        "domStats": {
+          "nodes": 379,
+          "htmlLen": 106887
+        }
+      }
+    },
+    {
+      "t": 207340,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/sandbox",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 207887,
+      "kind": "server-action",
+      "data": {
+        "url": "/sandbox",
+        "action": "003c93981569",
+        "ms": 546
+      }
+    },
+    {
+      "t": 208674,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` wh"
+      }
+    },
+    {
+      "t": 209064,
+      "kind": "server-action",
+      "data": {
+        "url": "/settings/workspace/members",
+        "action": "0022ad103ee7",
+        "ms": 368
+      }
+    },
+    {
+      "t": 209093,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 1,
+        "href": "/settings/workspace/members",
+        "dclMs": 1248,
+        "stableMs": 1932,
+        "navTiming": {
+          "ttfb": 1194,
+          "dcl": 1247,
+          "load": 1439,
+          "htmlBytes": 28644,
+          "decodedBytes": 111985
+        },
+        "domStats": {
+          "nodes": 292,
+          "htmlLen": 129423
+        }
+      }
+    },
+    {
+      "t": 209601,
+      "kind": "requestfailed",
+      "data": {
+        "url": "http://localhost:3020/settings/workspace/members",
+        "err": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "t": 209601,
+      "kind": "console",
+      "data": {
+        "type": "error",
+        "text": "Error fetching automation failures: TypeError: Failed to fetch\n    at fetchServerAction (http://localhost:3020/_next/static/chunks/fd92d_next_dist_client_004360c4._.js:8817:23)"
+      }
+    },
+    {
+      "t": 210257,
+      "kind": "server-action",
+      "data": {
+        "url": "/configuracion",
+        "action": "0022ad103ee7",
+        "ms": 346
+      }
+    },
+    {
+      "t": 210334,
+      "kind": "nav-fresh",
+      "data": {
+        "round": 1,
+        "href": "/configuracion",
+        "dclMs": 558,
+        "stableMs": 1236,
+        "navTiming": {
+          "ttfb": 503,
+          "dcl": 557,
+          "load": 738,
+          "htmlBytes": 29646,
+          "decodedBytes": 128604
+        },
+        "domStats": {
+          "nodes": 319,
+          "htmlLen": 146052
+        }
+      }
+    }
+  ]
+}

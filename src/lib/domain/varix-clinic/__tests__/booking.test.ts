@@ -97,6 +97,9 @@ beforeEach(() => {
   patientInsertCalls = []
   apptInsertResults = [{ data: { id: 'appt-1' }, error: null }]
   apptInsertCalls = []
+  // Re-establecer la implementación por defecto (algunos tests la sobreescriben
+  // con mockImplementation; clearAllMocks NO restaura la implementación).
+  getVarixClinicClientMock.mockImplementation(() => makeClient())
 })
 
 describe('bookVarixAppointment — happy path (cédula nueva)', () => {

@@ -917,7 +917,7 @@ export function OrdersView({
     </>
   )
 
-  if (v3 && !isEmpty) {
+  if (v3) {
     return (
       <>
         {/* Topbar — eyebrow + h1 + count + Exportar / Crear pedido */}
@@ -1048,9 +1048,22 @@ export function OrdersView({
             </div>
           )}
 
-          {/* Content — Kanban (.board) or table.dict */}
+          {/* Content — empty state v3 (M-7) o Kanban (.board) / table.dict */}
           <div className="flex-1 min-h-0 overflow-auto">
-            {viewMode === 'kanban' ? (
+            {isEmpty ? (
+              <div className="kempty-v3">
+                <div className="ic" aria-hidden>◷</div>
+                <h3>Sin pedidos</h3>
+                <p>Crea tu primer pedido para comenzar a gestionar tus ventas.</p>
+                <button
+                  type="button"
+                  className="btn pri"
+                  onClick={() => setFormSheetOpen(true)}
+                >
+                  Crear pedido
+                </button>
+              </div>
+            ) : viewMode === 'kanban' ? (
               <KanbanBoard
                 stages={stages}
                 ordersByStage={ordersByStage}

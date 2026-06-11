@@ -24,6 +24,7 @@ import type {
   ProcessedMessage,
   TurnLedgerDims,
   V4AgentOutput,
+  SystemEvent,
 } from '@/lib/agents/somnio-v4/types'
 import type { CarryState } from './restart-context'
 
@@ -160,6 +161,17 @@ export type TurnResult =
       totalTokens: number
       /** True en el edge Path A 0-sends que defirió vía `_v3:pendingUserMessage` (D-18). */
       wasInterruptedWithZeroSends: boolean
+      /**
+       * True SOLO en el early-return de CKPT-6b Path B con pending vacío (prod-only): el output del
+       * turno NO se envió ni se commiteó (solo se enviaron los pending-templates de un turno previo).
+       * El `output` adjunto es el DESCARTADO de msg1 — NO debe propagarse `newMode`/`orderCreated`/
+       * `messages` al consumidor (webhook-processor:1053 ejecutaría un handoff fantasma de un turno
+       * no persistido). Los wrappers (mapResult) suprimen esos campos cuando está seteado.
+       *
+       * REGRESIÓN restaurada (M-01 review): el runner viejo retornaba `{ success:true, messages:[] }`
+       * SIN `newMode`/`orderCreated`; la reescritura exponía el output descartado completo.
+       */
+      outputDiscarded?: boolean
     }
   | {
       kind: 'zombie_exit'
@@ -198,6 +210,31 @@ export interface TurnCoreInput {
   lockIdentifier?: string | null
   /** JSON exacto que el webhook RPUSHeó como entrada propia del holder (crash-recovery D-16). */
   ownPendingEntryJson?: string | null
+  /**
+   * D-22 (somnio-v4-crm-subloop): cuando `true`, el core lo threadea al `V4AgentInput` para que el
+   * gate CRM corra el sub-loop con mutation-tools SIMULADAS (no DB write). El wrapper SANDBOX
+   * (`engine-v4.ts`) lo setea `true`; el runner PROD lo deja `undefined`/`false` → mutation-tools
+   * reales. Campo NEUTRAL (boolean, no tipo de canal — compatible con D-05). Default false.
+   *
+   * REGRESIÓN restaurada (CR-01 somnio-v4-consolidation review): el engine viejo pasaba
+   * `simulate: true` al V4AgentInput; la reescritura del Plan 11 lo dropeó → el gate CRM del sandbox
+   * ejecutaba mutation-tools REALES contra el workspace real. Restaurado threadeándolo por el core.
+   */
+  simulate?: boolean
+  /**
+   * Evento de sistema del path timer-simulado (sandbox retomas D-21). El core lo threadea al
+   * `V4AgentInput` para que `processMessage` despache a `processSystemEvent` cuando
+   * `type === 'timer_expired'` (en vez de entrar a comprehension con mensaje vacío). El wrapper
+   * SANDBOX lo provee desde `V4EngineInput.systemEvent`; el runner PROD no lo setea (los timers
+   * reales van por `agent-timers-v4.ts` → `processMessage` directo, sin runner). Campo NEUTRAL
+   * (struct `{ type, level }` de somnio-v4, no tipo de canal — compatible con D-05).
+   *
+   * REGRESIÓN restaurada (H-02 somnio-v4-consolidation review): el engine viejo pasaba
+   * `systemEvent: input.systemEvent` al agente; la reescritura del Plan 11 lo dropeó → la simulación
+   * de timers del sandbox quedó rota (turnos de timer entraban por `processUserMessage` con mensaje
+   * vacío). Restaurado threadeándolo por el core.
+   */
+  systemEvent?: SystemEvent
 }
 
 // ============================================================================

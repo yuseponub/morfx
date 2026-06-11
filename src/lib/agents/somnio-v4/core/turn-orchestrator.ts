@@ -177,6 +177,15 @@ export async function runTurn(
         // Vision context del path image-respond v4 (runner viejo :332). El adapter lo resuelve en
         // getSeedState desde EngineInput.visionContext; sandbox lo arma desde input.visionContext.
         visionContext: seed.visionContext,
+        // D-22 (CR-01 review): simulate threadeado desde TurnCoreInput → el gate CRM corre
+        // mutation-tools SIMULADAS cuando true (sandbox). Prod lo deja undefined → false → tools
+        // reales. El engine viejo (1af5c49c:283) pasaba `simulate: true`; el Plan 11 lo dropeó.
+        simulate: input.simulate ?? false,
+        // systemEvent threadeado desde TurnCoreInput (H-02 review) → processMessage despacha a
+        // processSystemEvent cuando type==='timer_expired' (sandbox retomas D-21). Prod no lo setea
+        // (timers reales van por agent-timers-v4.ts directo). El engine viejo (1af5c49c:271) lo
+        // pasaba; el Plan 11 lo dropeó → simulación de timers del sandbox rota.
+        systemEvent: input.systemEvent,
       }
 
       // ============================================================
@@ -365,6 +374,11 @@ export async function runTurn(
             continue
           }
           // Nada en cola → terminar: conservar lo enviado (este turno + iteraciones previas).
+          // M-01 (review): el `output` de msg1 fue DESCARTADO (no se envió ni se commiteó — solo
+          // los pending-templates del turno previo se enviaron arriba). `outputDiscarded: true`
+          // señala a los wrappers que NO propaguen newMode/orderCreated/messages del output
+          // descartado (restaura el shape del runner viejo: { success:true, messages:[] } sin
+          // newMode → evita un handoff fantasma en webhook-processor:1053).
           ctx.templatesSentCount = ctx.accumulatedSentContents.length + sentCount
           return {
             kind: 'completed',
@@ -374,6 +388,7 @@ export async function runTurn(
             allSentContents: [...ctx.accumulatedSentContents, ...sentMessageContents],
             totalTokens: ctx.totalTokensAcrossRestarts,
             wasInterruptedWithZeroSends: false,
+            outputDiscarded: true,
           }
         }
       }

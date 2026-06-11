@@ -43,7 +43,6 @@ import type {
 } from './core/types'
 import type { CarryState } from './core/restart-context'
 import type { SandboxState } from '@/lib/sandbox/types'
-import type { SystemEvent } from './types'
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -64,7 +63,9 @@ export interface CreateSandboxAdaptersArgs {
   history: { role: 'user' | 'assistant'; content: string }[]
   turnNumber: number
   workspaceId: string
-  systemEvent?: SystemEvent
+  // NOTA (H-02 review): `systemEvent` ya NO es param de este adapter. El path timer-simulado del
+  // sandbox (retomas D-21) se threadea por el CORE vía `TurnCoreInput.systemEvent` → V4AgentInput,
+  // no por los adapters. Quitar el param muerto (era L-01) mantiene el contrato del adapter limpio.
   /** Vision context del path image-respond v4 (presente solo en ese path). */
   visionContext?: { descripcion: string; categoria: string }
   /** Lock fields (null en el path legacy sin lock / fail-open). */
@@ -101,7 +102,6 @@ export function createSandboxAdapters(args: CreateSandboxAdaptersArgs): {
     history,
     turnNumber,
     workspaceId,
-    systemEvent,
     visionContext,
     lockHandle,
     lockChannel,

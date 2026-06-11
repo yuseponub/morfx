@@ -795,4 +795,49 @@ describe('SomnioV4Engine lock-lifecycle E1..E8 (Plan 04 D-04 + D-06 + D-14)', ()
     expect(iter2Input.intentsVistos).toEqual(['saludo'])
     expect(iter2Input.templatesEnviados).toEqual(['saludo_core'])
   })
+
+  // =========================================================================
+  // E11 (CR-01 review) — el sandbox DEBE threadear `simulate: true` al V4AgentInput.
+  // El engine viejo (1af5c49c:283) lo pasaba; la reescritura del Plan 11 lo dropeó →
+  // el gate CRM corría mutation-tools REALES contra el workspace real (D-22 invertido).
+  // Este assert cierra el blind spot del mock que el review identificó (las suites de
+  // paridad mockean el agente pero no asertaban los campos del V4AgentInput).
+  // =========================================================================
+  it('E11 CR-01: sandbox threads simulate=true into V4AgentInput (gate CRM corre simulado, D-22)', async () => {
+    agentMockFn.mockResolvedValueOnce(makeAgentOutputSuccess(['reply'], 100))
+
+    const engine = new SomnioV4Engine()
+    const input = await makeBaseInput()
+
+    await engine.processMessage(input)
+
+    expect(agentMockFn).toHaveBeenCalledTimes(1)
+    const agentInput = agentMockFn.mock.calls[0][0]
+    // D-22: simulate true → sub-loop/tools.ts construye createSimulatedMutationTools().
+    expect(agentInput.simulate).toBe(true)
+  })
+
+  // =========================================================================
+  // E12 (H-02 review) — el sandbox DEBE threadear `systemEvent` al V4AgentInput para
+  // que processMessage despache a processSystemEvent (path timer-simulado, retomas D-21).
+  // El engine viejo (1af5c49c:271) lo pasaba; la reescritura del Plan 11 lo dropeó →
+  // los turnos de timer entraban por processUserMessage con mensaje vacío.
+  // =========================================================================
+  it('E12 H-02: sandbox threads systemEvent into V4AgentInput (timer-simulado path, retomas D-21)', async () => {
+    agentMockFn.mockResolvedValueOnce(makeAgentOutputSuccess(['retoma reply'], 100))
+
+    const engine = new SomnioV4Engine()
+    const input = await makeBaseInput({
+      message: '',
+      systemEvent: { type: 'timer_expired', level: 3 },
+    })
+
+    await engine.processMessage(input)
+
+    expect(agentMockFn).toHaveBeenCalledTimes(1)
+    const agentInput = agentMockFn.mock.calls[0][0]
+    expect(agentInput.systemEvent).toEqual({ type: 'timer_expired', level: 3 })
+    // Doble garantía: simulate sigue presente junto al systemEvent (ambos por el core).
+    expect(agentInput.simulate).toBe(true)
+  })
 })

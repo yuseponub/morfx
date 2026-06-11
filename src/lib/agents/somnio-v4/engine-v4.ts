@@ -115,6 +115,14 @@ export class SomnioV4Engine {
       lockChannel: input.lockChannel,
       lockIdentifier: input.lockIdentifier,
       ownPendingEntryJson: input.ownPendingEntryJson,
+      // D-22 (CR-01 review): el sandbox corre el gate CRM con mutation-tools SIMULADAS (no DB write
+      // contra el workspace real). El core lo threadea al V4AgentInput. Restaura el `simulate: true`
+      // que el engine viejo pasaba (1af5c49c:283) y que el Plan 11 dropeó.
+      simulate: true,
+      // systemEvent (H-02 review): el path timer-simulado del sandbox (retomas D-21). El core lo
+      // threadea al V4AgentInput → processMessage despacha a processSystemEvent. Restaura el
+      // `systemEvent: input.systemEvent` que el engine viejo pasaba (1af5c49c:271).
+      systemEvent: input.systemEvent,
     }
 
     // ----------------------------------------------------------------
@@ -131,7 +139,9 @@ export class SomnioV4Engine {
       history: input.history,
       turnNumber: input.turnNumber,
       workspaceId: input.workspaceId,
-      systemEvent: input.systemEvent,
+      // systemEvent ya NO se pasa al adapter: se threadea por el core vía coreInput.systemEvent
+      // (H-02 review). El adapter no lo necesita (era param muerto — L-01). Va al V4AgentInput
+      // desde el core, no desde getSeedState.
       visionContext: input.visionContext,
       lockHandle: input.lockHandle,
       lockChannel: input.lockChannel,

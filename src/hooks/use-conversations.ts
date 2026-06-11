@@ -27,6 +27,11 @@
 //   does NOT cancel server actions; zombie fetches no longer land on /tareas)
 // - Realtime UPDATE for rows NOT in loaded pages: fetch-by-id + insert by sort
 //   when it belongs in the loaded window; ignore when below it (D-07)
+//
+// RECONCILIATION CONTRACT (standalone/whatsapp-inbox-reliability plan 06, F-4):
+// - Safety-net = page-1 softRefetch MERGE-BY-ID only (D-14) on a COALESCED
+//   timer: one fire per quiet window, events never re-arm it (D-15)
+// - orders realtime is surgical: only the affected contact refreshes (D-16)
 // ============================================================================
 
 import { useState, useEffect, useCallback, useRef } from 'react'
@@ -454,13 +459,16 @@ export function useConversations({
     loadOrders()
   }, [conversations, isLoading])
 
-  // Schedule a debounced safety-net page-1 soft refetch (10s after last
-  // surgical update). Ensures eventual consistency if any surgical update was
-  // incomplete. NOTE: merges page 1 by id — never replaces loaded pages.
-  // (Coalescing — fire-once without re-arming — is plan 06 / D-15.)
+  // Schedule a COALESCED safety-net page-1 soft refetch (D-15). One timer per
+  // quiet window: if a timer is already armed, events do NOT re-arm it — the
+  // old clear+re-arm version meant continuous Somnio traffic kept pushing the
+  // deadline so the "debounced" refetch ran ~always (the F-4 autorefresh
+  // storm). Fires at most once per 10s window, then disarms itself.
+  // NOTE: merges page 1 by id — never replaces loaded pages (D-14).
   const scheduleSafetyRefetch = useCallback(() => {
-    if (safetyRefetchTimer.current) clearTimeout(safetyRefetchTimer.current)
+    if (safetyRefetchTimer.current) return // already armed — do NOT re-arm (D-15 coalescing)
     safetyRefetchTimer.current = setTimeout(() => {
+      safetyRefetchTimer.current = null
       softRefetchPage1()
     }, 10_000)
   }, [softRefetchPage1])
@@ -661,7 +669,11 @@ export function useConversations({
           )
         }
       )
-      // ---- orders table: refresh order emojis on INSERT and UPDATE (stage changes) ----
+      // ---- orders table: SURGICAL per-contact refresh (D-16) ----
+      // An orders INSERT/UPDATE refreshes ONLY the affected contact's orders —
+      // never a full getOrdersForContacts re-run over the loaded window (that
+      // was the 4.5s storm: every stage change anywhere refetched ~50-150
+      // contacts' orders).
       .on(
         'postgres_changes',
         {
@@ -670,17 +682,19 @@ export function useConversations({
           table: 'orders',
           filter: `workspace_id=eq.${workspaceId}`,
         },
-        async () => {
-          // Use ref to get latest LOADED-PAGE contact IDs (D-09 — ≈50-150, not 1000)
-          const ids = contactIdsRef.current
-          if (ids.length === 0) return
-          const uniqueIds = [...new Set(ids)]
+        async (payload) => {
+          const contactId =
+            (payload.new as { contact_id?: string })?.contact_id ||
+            (payload.old as { contact_id?: string })?.contact_id
+          if (!contactId) return
+          // Only react if the contact is actually in the loaded window (D-09)
+          if (!contactIdsRef.current.includes(contactId)) return
           try {
-            const orders = await getOrdersForContacts(uniqueIds)
+            const orders = await getOrdersForContacts([contactId])
             if (!mountedRef.current) return // D-17 zombie guard
-            setOrdersByContact(orders)
+            setOrdersByContact(prev => new Map(prev).set(contactId, orders.get(contactId) ?? []))
           } catch (error) {
-            console.error('Error refreshing orders:', error)
+            console.error('Error refreshing orders for contact:', error)
           }
         }
       )
@@ -702,11 +716,17 @@ export function useConversations({
       })())
     })()
 
-    // Cleanup on unmount or workspaceId change only
+    // Cleanup on unmount or workspaceId change only.
+    // IMPORTANT: null the timer ref after clearing — with the coalescing
+    // early-return (D-15), a stale non-null ref would block every future
+    // schedule on remount/workspace change.
     return () => {
       cancelled = true
       if (channel) supabase.removeChannel(channel)
-      if (safetyRefetchTimer.current) clearTimeout(safetyRefetchTimer.current)
+      if (safetyRefetchTimer.current) {
+        clearTimeout(safetyRefetchTimer.current)
+        safetyRefetchTimer.current = null
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId])

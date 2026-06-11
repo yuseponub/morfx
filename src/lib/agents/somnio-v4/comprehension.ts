@@ -34,7 +34,7 @@
  *   - temperature=0 preservada (default Gemini para JSON-schema output).
  */
 
-import { generateText, Output } from 'ai'
+import { generateText, Output, jsonSchema } from 'ai'
 import { google } from '@ai-sdk/google'
 import { anthropic } from '@ai-sdk/anthropic'
 import { z } from 'zod'
@@ -43,6 +43,7 @@ import { MessageAnalysisSchema, type MessageAnalysis } from './comprehension-sch
 import { buildSystemPrompt } from './comprehension-prompt'
 import { V4_INTENTS } from './constants'
 import { callWithGeminiFallback } from './llm-fallback'
+import { stripNumericConstraints } from './sanitize-schema'
 
 const V4_INTENTS_SET = new Set<string>(V4_INTENTS)
 
@@ -57,12 +58,44 @@ const V4_INTENTS_SET = new Set<string>(V4_INTENTS)
 // (clampConfidence en parseAnalysis, que re-parsea contra MessageAnalysisSchema con min/max).
 // Gemini ignora los keywords → su branch usa MessageAnalysisSchema intacto (D-25 lockea
 // comprehension-schema.ts; este schema saneado vive LOCAL en comprehension.ts sin tocarlo).
+// M-03 (gemini-fallback-haiku review): el `.describe(...)` ES parte del prompt en structured
+// output → DEBE conservar la guía de calibración completa del schema original, solo quitando
+// .min(0).max(1) (los describes son legales para Anthropic; solo minimum/maximum/exclusiveMinimum
+// rompen con 400). Sin los anchors de calibración, el branch Haiku auto-reporta confidence sin
+// referencia → drift sistemático de intent_confidence vs Gemini, que alimenta el gate de
+// low-confidence (sub-loop/handoff). Texto copiado verbatim de comprehension-schema.ts:49-66.
+//
+// Este Zod typed se mantiene para inferencia de tipos y para los tests de paridad (que
+// introspeccionan su JSON Schema). El schema REAL enviado a Anthropic se deriva
+// ESTRUCTURALMENTE de MessageAnalysisSchema (M-04, abajo) para que ningún campo futuro con
+// bounds rompa el branch en silencio.
 export const MessageAnalysisSchemaSanitized = MessageAnalysisSchema.extend({
   intent: MessageAnalysisSchema.shape.intent.extend({
-    intent_confidence: z.number().describe('0..1 self-reported confidence'),
-    secondary_confidence: z.number().nullable().describe('0..1 o null'),
+    intent_confidence: z.number().describe(
+      '0..1 self-reported confidence en la clasificación PRIMARIA. ' +
+      '0.85+ = universal-claro (e.g., "cuanto cuesta"), ' +
+      '0.50-0.70 = context-dependent (e.g., "ok"), ' +
+      '<0.40 = sumidero / fallback / razonamiento_libre. ' +
+      'Reflect ambiguity at this turn IN ISOLATION (D-74) — do NOT use prior conversation phase to resolve.'
+    ),
+    secondary_confidence: z.number().nullable().describe(
+      '0..1 self-reported confidence en la clasificacion SECUNDARIA. ' +
+      'null si secondary === "ninguno". Misma calibracion template-fit que intent_confidence: ' +
+      '0.85+ = la respuesta automatica del secondary CUBRE la pregunta; ' +
+      '0.20-0.40 = NO CUBRE (caso especifico/sustancia/condicion); 0.45-0.65 = ambiguo.'
+    ),
   }),
 })
+
+// M-04 (gemini-fallback-haiku review): JSON Schema enviado a Anthropic, derivado
+// ESTRUCTURALMENTE del Zod typed (no por lista fija de campos). Se recorre el JSON Schema
+// completo y se eliminan minimum/maximum/exclusiveMinimum/exclusiveMaximum/multipleOf en
+// CUALQUIER nivel (stripNumericConstraints). Cualquier campo numérico futuro con bounds en
+// MessageAnalysisSchema queda cubierto automáticamente → nunca un 400 silencioso en el branch
+// Anthropic. Se parte de MessageAnalysisSchemaSanitized para preservar los describes M-03.
+const ANTHROPIC_COMPREHENSION_JSON_SCHEMA = jsonSchema<MessageAnalysis>(
+  stripNumericConstraints(z.toJSONSchema(MessageAnalysisSchemaSanitized)) as Record<string, unknown>,
+)
 
 // ============================================================================
 // Comprehension Function
@@ -140,7 +173,8 @@ export async function comprehend(
             model: anthropic('claude-haiku-4-5'), // D-02 — techo absoluto Haiku 4.5
             system: buildSystemPrompt(existingData, recentBotMessages),
             messages,
-            output: Output.object({ schema: MessageAnalysisSchemaSanitized }), // Pitfall #1
+            // M-04: JSON Schema saneado ESTRUCTURALMENTE (sin min/max en ningún nivel — Pitfall #1).
+            output: Output.object({ schema: ANTHROPIC_COMPREHENSION_JSON_SCHEMA }),
             // SIN providerOptions.google — Pitfall #7 (safetySettings es google-only)
           })
         ),

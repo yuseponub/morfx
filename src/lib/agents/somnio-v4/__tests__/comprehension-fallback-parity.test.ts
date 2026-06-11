@@ -22,6 +22,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { z } from 'zod'
 import { MessageAnalysisSchema } from '../comprehension-schema'
 import { MessageAnalysisSchemaSanitized, clampConfidence } from '../comprehension'
+import { stripNumericConstraints } from '../sanitize-schema'
 import { __resetBreakers } from '../llm-fallback'
 
 // ============================================================================
@@ -104,18 +105,49 @@ describe('comprehension fallback — schema saneado para Anthropic (Pitfall #1)'
     expect(original.success).toBe(false)
   })
 
-  it('el schema saneado NO emite keywords minimum/maximum en su JSON Schema', () => {
-    // Pitfall #1: Anthropic rechaza con 400 si el JSON Schema lleva minimum/maximum.
-    // Introspección: serializar el JSON Schema del campo intent_confidence saneado y
-    // verificar que no contiene esos keywords.
-    const jsonSchema = z.toJSONSchema(MessageAnalysisSchemaSanitized)
-    const serialized = JSON.stringify(jsonSchema)
-    // El schema original SÍ los lleva (control); el saneado NO en intent_confidence/secondary_confidence.
-    // Verificamos que el conteo de "maximum" en el saneado es menor que en el original.
+  it('M-04 — el JSON Schema saneado ESTRUCTURALMENTE NO emite NINGÚN constraint numérico', () => {
+    // Pitfall #1: Anthropic rechaza con 400 si el JSON Schema lleva minimum/maximum/exclusive*.
+    // M-04: la sanitización es estructural (stripNumericConstraints recorre todo el árbol), no
+    // por lista fija de 2 campos. El assert se endurece de `< original` a `=== 0`: el schema que
+    // realmente se envía a Anthropic NO debe contener ningún keyword de constraint numérico.
+    const stripped = stripNumericConstraints(z.toJSONSchema(MessageAnalysisSchemaSanitized))
+    const serialized = JSON.stringify(stripped)
+
+    // Control: el schema ORIGINAL sí los lleva (confirma que el strip hace algo).
     const originalSerialized = JSON.stringify(z.toJSONSchema(MessageAnalysisSchema))
-    const countMaxSanitized = (serialized.match(/"maximum"/g) ?? []).length
-    const countMaxOriginal = (originalSerialized.match(/"maximum"/g) ?? []).length
-    expect(countMaxSanitized).toBeLessThan(countMaxOriginal)
+    expect((originalSerialized.match(/"maximum"/g) ?? []).length).toBeGreaterThan(0)
+
+    // El saneado estructural: CERO constraints numéricos en TODO el árbol.
+    expect((serialized.match(/"maximum"/g) ?? []).length).toBe(0)
+    expect((serialized.match(/"minimum"/g) ?? []).length).toBe(0)
+    expect((serialized.match(/"exclusiveMinimum"/g) ?? []).length).toBe(0)
+    expect((serialized.match(/"exclusiveMaximum"/g) ?? []).length).toBe(0)
+    expect((serialized.match(/"multipleOf"/g) ?? []).length).toBe(0)
+  })
+
+  it('M-04 — un campo FUTURO con bounds queda saneado automáticamente (no lista fija)', () => {
+    // Simula la evolución del schema base: un campo nuevo con .min/.max/.int se agrega.
+    // La sanitización estructural debe removerlo SIN tocar la lista de campos conocidos.
+    const futureSchema = z.object({
+      existing_field: z.string().describe('campo previo'),
+      new_score: z.number().int().min(0).max(100).describe('campo numérico futuro con bounds'),
+      nested: z.object({
+        deep_ratio: z.number().min(0).max(1),
+      }),
+    })
+    const stripped = stripNumericConstraints(z.toJSONSchema(futureSchema))
+    const serialized = JSON.stringify(stripped)
+
+    // El schema original SÍ lleva bounds del campo futuro.
+    expect((JSON.stringify(z.toJSONSchema(futureSchema)).match(/"maximum"/g) ?? []).length).toBeGreaterThan(0)
+
+    // Tras el strip estructural: cero bounds — incluido el campo anidado profundo.
+    expect((serialized.match(/"maximum"/g) ?? []).length).toBe(0)
+    expect((serialized.match(/"minimum"/g) ?? []).length).toBe(0)
+    expect((serialized.match(/"multipleOf"/g) ?? []).length).toBe(0)
+    // Pero preserva los describes (M-03) y la estructura.
+    expect(serialized).toContain('campo numérico futuro con bounds')
+    expect(serialized).toContain('campo previo')
   })
 })
 

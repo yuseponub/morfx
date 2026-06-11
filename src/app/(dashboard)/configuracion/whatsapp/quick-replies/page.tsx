@@ -2,6 +2,7 @@ import { getQuickReplies } from '@/app/actions/quick-replies'
 import { QuickReplyList } from './components/quick-reply-list'
 import { QuickReplyForm } from './components/quick-reply-form'
 import { Button } from '@/components/ui/button'
+import { ConfigBackLink } from '@/components/layout/config-back-link'
 import { Plus } from 'lucide-react'
 import {
   Dialog,
@@ -17,6 +18,9 @@ export default async function QuickRepliesPage() {
   return (
     <div className="flex-1 overflow-auto">
       <div className="container py-6 px-6">
+        <div className="mb-4">
+          <ConfigBackLink href="/configuracion/whatsapp" label="Volver a WhatsApp" />
+        </div>
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">Respuestas Rapidas</h1>

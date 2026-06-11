@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { ConfigBackLink } from '@/components/layout/config-back-link'
 import { FileText, Users, MessageSquare, DollarSign, Sparkles } from 'lucide-react'
 
 const settings = [
@@ -39,6 +40,9 @@ export default function WhatsAppSettingsPage() {
   return (
     <div className="flex-1 overflow-auto">
       <div className="container py-6 px-6">
+        <div className="mb-4">
+          <ConfigBackLink href="/configuracion" label="Volver a Configuración" />
+        </div>
         <h1 className="text-2xl font-bold mb-6">Configuracion de WhatsApp</h1>
         <div className="grid gap-4 md:grid-cols-2">
           {settings.map((setting) => (

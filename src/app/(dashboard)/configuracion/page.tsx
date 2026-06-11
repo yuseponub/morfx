@@ -143,6 +143,7 @@ export default async function ConfiguracionHubPage() {
                         <td className="entry">
                           <Link
                             href={href}
+                            className="hover:underline"
                             style={{
                               color: 'var(--ink-1)',
                               textDecoration: 'none',

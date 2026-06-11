@@ -14,6 +14,7 @@ import {
   type SpendingStatus,
 } from '@/app/actions/usage'
 import { Loader2 } from 'lucide-react'
+import { ConfigBackLink } from '@/components/layout/config-back-link'
 
 export default function CostosPage() {
   const [period, setPeriod] = useState<Period>('month')
@@ -60,6 +61,9 @@ export default function CostosPage() {
   return (
     <div className="flex-1 overflow-auto">
       <div className="container py-6 px-6">
+        <div className="mb-4">
+          <ConfigBackLink href="/configuracion/whatsapp" label="Volver a WhatsApp" />
+        </div>
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">Costos y Uso</h1>

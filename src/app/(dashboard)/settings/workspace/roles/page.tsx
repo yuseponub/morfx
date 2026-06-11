@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getUserWorkspaces } from '@/app/actions/workspace'
 import { PermissionMatrix } from '@/components/workspace/permission-matrix'
+import { ConfigBackLink } from '@/components/layout/config-back-link'
 
 export default async function RolesPage() {
   const supabase = await createClient()
@@ -27,6 +28,7 @@ export default async function RolesPage() {
 
   return (
     <div className="space-y-6">
+      <ConfigBackLink href="/configuracion" label="Volver a Configuración" />
       <div>
         <h1 className="text-2xl font-bold">Roles y permisos</h1>
         <p className="text-muted-foreground">

@@ -1,5 +1,6 @@
 import { getTaskTypes } from '@/app/actions/tasks'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { ConfigBackLink } from '@/components/layout/config-back-link'
 import { TaskTypesManager } from './components/task-types-manager'
 
 export default async function TareasConfigPage() {
@@ -7,6 +8,7 @@ export default async function TareasConfigPage() {
 
   return (
     <div className="container py-6 space-y-8 max-w-4xl">
+      <ConfigBackLink href="/configuracion" label="Volver a Configuración" />
       <div>
         <h1 className="text-2xl font-bold">Configuracion de Tareas</h1>
         <p className="text-muted-foreground">

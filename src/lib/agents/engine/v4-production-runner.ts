@@ -1,43 +1,35 @@
 /**
- * V4 Production Runner — Thin I/O Runner for Somnio Sales Agent v4 (standalone: somnio-sales-v4-runtime-wiring, D-13)
+ * V4 Production Runner — WRAPPER DELGADO del core de turno v4 (somnio-v4-consolidation Plan 10, D-04).
  *
- * ⚠️ INTERRUPCIÓN: este runner es el lado PRODUCCIÓN del sistema de interrupción.
- * El mecanismo (Path A/B, dropOwnEntry, carryState, restart loop) DEBE ir alineado
- * con el lado sandbox (`somnio-v4/engine-v4.ts`) aunque el código no sea idéntico.
- * Antes de tocar la lógica de interrupción acá, leé el contrato de paridad:
- * `src/lib/agents/somnio-v4/INTERRUPTION-PARITY.md`.
+ * ⚠️ INTERRUPCIÓN: el MECANISMO de interrupción (Path A/B, dropOwnEntry, carryState, restart loop,
+ * heartbeat, finally-release) YA NO vive aquí — vive en `somnio-v4/core/turn-orchestrator.ts`
+ * (`runTurn`). Este archivo es el lado PRODUCCIÓN del core: implementa los `TurnCoreAdapters` con
+ * los efectos de entorno reales (DB vía SessionManager, WhatsApp vía V4MessagingAdapter, Inngest
+ * timers) + mapea `TurnResult` → `EngineOutput`. El contrato de paridad sigue vigente:
+ * `src/lib/agents/somnio-v4/INTERRUPTION-PARITY.md` (prod y sandbox corren el MISMO runTurn).
  *
- * Equivalent to UnifiedEngine but for the v4 agent pipeline.
- * Uses the SAME production adapters (Storage, Timer, Messaging, Orders, Debug).
+ * D-04 (la dirección): el runner de producción ERA la fuente de verdad del mecanismo; el Plan 09 lo
+ * extrajo verbatim al core. Este Plan 10 lo reescribe como primer consumidor → si las suites de
+ * caracterización del runner siguen verdes, el core reproduce producción byte-equivalente.
  *
- * D-13 razón: clon mecánico de v3-production-runner.ts. Cuando v3 muera, simplemente
- * se borra `v3-production-runner.ts` y queda v4 limpio. Cero refactor a v3 = cero
- * riesgo a Somnio prod durante desarrollo (Regla 6).
+ * Capabilities prod implementadas como métodos del adapter (B1-B11 del Divergence Map):
+ * - B1 getSeedState: fetch sesión per-iteración + extracción `_v3:` keys + carryState aplicado.
+ * - B2/D-18 getLegacyPendingMessage/savePathARollback: crash-recovery `_v3:pendingUserMessage`.
+ * - B3 getPendingTemplates/savePendingTemplates/clearPendingTemplates: storage adapter.
+ * - B4 preloadOnce: preloadedData + `_v3:agent_module` marker (idempotente).
+ * - B5 filterOutbound: NoRepetitionFilter gated `USE_NO_REPETITION_V4` + registry + minifrases.
+ * - B7 commitTurn: post-send completo (saveState + ledger emit + templates_enviados + updateMode +
+ *   timer signals + addTurn user/assistant + handoff).
+ * - B8 recordDebug: debug adapter (recordIntent/recordTokens/recordClassification/...).
+ * - B9 VersionConflictError retry (máx 3): EN EL WRAPPER alrededor del core (el core no lo conoce).
+ * - B11 EngineOutput + agent_routed: mapeo del TurnResult al shape de producción + evento.
  *
- * Key differences from V3ProductionRunner:
- * - V4 runner SOLO atiende `somnio-sales-v4` (no godentist / godentist-fb-ig /
- *   somnio-recompra / somnio-pw-confirmation — esas siguen en v3-production-runner.ts).
- * - Default agentModule = 'somnio-v4' (vs v3 default).
+ * Lo que NO se implementa: beforeAgentInvoke / onResultReady (sandbox-only — su ausencia salta esas
+ * ramas del core, paridad exacta).
+ *
+ * Key differences from V3ProductionRunner (sin cambios vs HEAD):
+ * - V4 runner SOLO atiende `somnio-sales-v4` (no godentist / recompra / pw-confirmation).
  * - VAL tag side-effect (godentist-only) eliminado — v4 no atiende godentist.
- *
- * Key similarities (preserved from v3):
- * - Same EngineInput / EngineOutput / EngineAdapters / EngineConfig contract.
- * - `_v3:` namespace keys in datos_capturados preservados (DB compat — v4 reads same
- *   keys for parity. Si v3 sessions se cierran al flip — D-38 padre — v4 arranca con
- *   sessions nuevas y los keys nuevos son irrelevantes).
- * - Path A / Path B interruption handling clonado verbatim.
- * - NoRepetitionFilter wiring con flag `USE_NO_REPETITION_V4` (D-16 — flag separado
- *   de v3 prod, default OFF). Filter aplica a TODOS los templates emitidos en el turn
- *   (response-track + sub-loop template_match merged en `output.templates`) — D-17.
- *
- * Interruption handling (mirrors sandbox Path A / Path B):
- * - Path A (0 templates sent): restart turn with combined effectiveMessage in
- *   the SAME lambda via outer `while (shouldRestart)` loop (Standalone
- *   debounce-v2-interrupt-reprocess D-04 + R-01). The legacy CKPT-7.1 edge case
- *   (`wasInterruptedWithZeroSends`) preserves the save-pending-and-return
- *   behavior — see Pitfall 5 in standalone RESEARCH.md.
- * - Path B (1+ templates sent): save only actually-sent IDs to templates_enviados,
- *   save unsent as pending_templates for next turn to send first
  */
 
 import { getCollector } from '@/lib/observability'
@@ -48,22 +40,19 @@ import type {
   EngineConfig,
   EngineAdapters,
 } from './types'
-import type { V4AgentInput, V4AgentOutput, ProcessedMessage, TurnLedgerDims } from '../somnio-v4/types'
+import type { V4AgentOutput, ProcessedMessage, TurnLedgerDims } from '../somnio-v4/types'
 
-// Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.3) —
-// REVISION W3: channel/identifier come from input.lockChannel + input.lockIdentifier
-// (populated by Plan 03 webhook → event.data). The runner does NOT introduce a
-// Supabase conversations-table lookup (NO createAdminClient added here).
-// D-06 (Plan 07): el skip-gate + lostLock throw de CKPT-0/6a/6b está factorizado
-// en runCheckpointGate (specifier absoluto — el runner vive fuera de somnio-v4/).
-import { runCheckpointGate } from '@/lib/agents/somnio-v4/core/checkpoint-gate'
-// D-03 (Plan 08): los acumuladores cross-iteración + el drain de los 7 sites Path A/B
-// viven en core/restart-context + core/drain (consolidación con el engine sandbox).
-import { createRestartContext } from '@/lib/agents/somnio-v4/core/restart-context'
-import { drainPendingAndCombine } from '@/lib/agents/somnio-v4/core/drain'
-import { releaseLockIfOwner, startHeartbeat } from '@/lib/agents/interruption-system-v2/lock'
-import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
-import { LostLockError } from '../engine-adapters/production/v4-messaging-adapter'
+// El MECANISMO único de turno v4 (restart loop + Path A/B + heartbeat + finally) vive en el core
+// (D-04 Plan 09). El runner lo CONSUME con adapters de producción (Plan 10).
+import { runTurn } from '@/lib/agents/somnio-v4/core/turn-orchestrator'
+import type {
+  TurnCoreAdapters,
+  TurnCoreInput,
+  TurnResult,
+  CoreSeedState,
+  CommittedTurn,
+} from '@/lib/agents/somnio-v4/core/types'
+import type { CarryState } from '@/lib/agents/somnio-v4/core/restart-context'
 
 const MAX_VERSION_CONFLICT_RETRIES = 3
 
@@ -79,182 +68,123 @@ export class V4ProductionRunner {
   /**
    * Process a customer message through the v4 agent pipeline.
    *
-   * This method is a thin I/O runner — it fetches data via adapters, delegates all
-   * business logic to v4 processMessage(), and routes output back through adapters.
+   * Wrapper delgado: threading de lock fields desde EngineInput + construcción de los
+   * `TurnCoreAdapters` de producción + retry de VersionConflictError (B9) alrededor de `runTurn` +
+   * mapeo del `TurnResult` neutral al `EngineOutput` (B11). El mecanismo de turno vive en el core.
    */
   async processMessage(input: EngineInput, retryCount = 0): Promise<EngineOutput> {
-    // ================================================================
-    // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.3)
-    //
-    // D-09 layer 1+2 lifecycle scaffolding. Runs in the main async flow,
-    // NOT inside step.run (RESEARCH Pitfall 2 — heartbeats inside step.run
-    // don't extend the live lock because Inngest replays cache the step
-    // output and don't re-execute the callback).
-    //
-    // REVISION W3: channel + identifier come from input.lockChannel +
-    // input.lockIdentifier (sourced from webhook event.data via Plan 03).
-    // The runner does NOT query the conversations table — preserving
-    // Regla 3 wrapper purity (no createAdminClient added).
-    // ================================================================
-    const startMs = Date.now()
-    const lockCtx = input.lockHandle && input.lockChannel && input.lockIdentifier
-      ? { channel: input.lockChannel, identifier: input.lockIdentifier }
-      : null
-
-    // Defensive: lockHandle present but channel/identifier missing should be
-    // impossible since Plan 03 always populates all three or none. Fail loud
-    // so the contract violation is visible.
-    if (input.lockHandle && !lockCtx) {
-      throw new Error(
-        '[interruption-v2] lockHandle present but lockChannel/lockIdentifier missing — webhook contract violated',
-      )
+    // ----------------------------------------------------------------
+    // Input neutral del core (derivado de EngineInput — SIN tipos de WhatsApp). El THROW
+    // defensivo del contrato del webhook (A1) vive ahora en el core (runTurn).
+    // ----------------------------------------------------------------
+    const coreInput: TurnCoreInput = {
+      message: input.message,
+      conversationId: input.conversationId,
+      contactId: input.contactId,
+      workspaceId: this.config.workspaceId,
+      phoneNumber: input.phoneNumber,
+      messageTimestamp: input.messageTimestamp,
+      lockHandle: input.lockHandle,
+      lockChannel: input.lockChannel,
+      lockIdentifier: input.lockIdentifier,
+      ownPendingEntryJson: input.ownPendingEntryJson,
     }
 
-    let stopHeartbeat: (() => void) | null = null
-    if (input.lockHandle) {
-      stopHeartbeat = startHeartbeat(input.lockHandle)
+    const prodAdapters = this.buildProdAdapters(input)
+
+    // ----------------------------------------------------------------
+    // B9 — retry de VersionConflictError (máx 3) EN EL WRAPPER, alrededor del core. El core NO
+    // conoce VersionConflictError (es un error de la capa de persistencia prod). El re-entry usa el
+    // MISMO lockHandle: releaseLockIfOwner es owner-checked (Lua) → el release doble del finally del
+    // core es un no-op safe (T-cons-14). Idéntico al comportamiento del runner viejo (:1124).
+    // ----------------------------------------------------------------
+    let result: TurnResult
+    try {
+      result = await runTurn(coreInput, prodAdapters)
+    } catch (error) {
+      if (error instanceof VersionConflictError && retryCount < MAX_VERSION_CONFLICT_RETRIES) {
+        console.warn(`[V4-RUNNER] Version conflict, retrying (${retryCount + 1}/${MAX_VERSION_CONFLICT_RETRIES})`)
+        return this.processMessage(input, retryCount + 1)
+      }
+      // Cualquier otro throw que escape del core (no debería: el core captura todo en su try/catch
+      // y devuelve kind:'error'). Defensivo — mismo contrato prod success:false (C5).
+      const errorMessage = error instanceof Error
+        ? `${error.message}\n${error.stack?.split('\n').slice(0, 3).join('\n')}`
+        : 'Unknown error'
+      console.error('[V4-RUNNER] CRASH (escaped core):', errorMessage)
+      return {
+        success: false,
+        messages: [],
+        error: { code: 'V4_ENGINE_ERROR', message: errorMessage },
+      }
     }
 
-    // ============================================================
-    // D-03 (somnio-v4-consolidation Plan 08): los acumuladores cross-iteración
-    // del restart loop (totalTokensAcrossRestarts, restartIteration,
-    // effectiveMessage, templatesSentCount, carryState, accumulatedSentContents,
-    // ownEntryUuid + dropOwnEntry) viven ahora en un struct ÚNICO RestartContext
-    // (createRestartContext) compartido con el engine sandbox. Antes eran ~7
-    // variables locales duplicadas byte-por-byte en ambos lados (el bug del
-    // 2026-05-28 se arregló DOS veces). Ahora se tocan en UN solo lugar.
-    //
-    // Notas conservadas del comportamiento (sin cambios):
-    //   - effectiveMessage: null en iter 1 (legacy v3 path), non-null tras restart.
-    //   - ownEntryUuid: el webhook RPUSHea el mensaje propio del HOLDER en la
-    //     pending list (crash-recovery D-16); todos los Path A drain sites disparan
-    //     ANTES del primer send → se EXCLUYE por entry_uuid (sino se combina consigo
-    //     mismo: "msg1\nmsg1…", el "hola" fantasma).
-    //   - carryState/carrySource (Pitfall 6 — DUAL): Path B desde CKPT-6b arrastra
-    //     del SEED (output de msg1 NO se envió); Path B desde send-loop arrastra del
-    //     OUTPUT (msg1 parcialmente enviado). El caller setea carrySource; el drain
-    //     no la toca.
-    //   - accumulatedSentContents: todo lo que el cliente vio across iteraciones.
-    // ============================================================
-    const ctx = createRestartContext(input.ownPendingEntryJson)
+    // ----------------------------------------------------------------
+    // B11 — mapeo TurnResult neutral → EngineOutput (shape de producción). Divergencia intencional
+    // del error prod (success:false) vs sandbox (success:true) — C5; el runner mapea su lado.
+    // ----------------------------------------------------------------
+    return this.mapResult(result, input)
+  }
 
-    try {
-    try {
-      // ============================================================
-      // Standalone: debounce-v2-interrupt-reprocess restart loop (D-04 + R-01).
-      // Wraps the entire turn body so any Path A interrupt at
-      // CKPT-0/1/2/3/4/5/6a/6b drains pending, combines into
-      // effectiveMessage, and re-runs the turn in the SAME lambda with the
-      // SAME lock (heartbeat keeps it alive — Pitfall 6: outside loop).
-      //
-      // CKPT-7.N (send-loop per-template) does NOT restart (D-05) — once
-      // we've sent ≥1 template, restarting would re-send what the customer
-      // already saw. The existing send-loop branch and
-      // wasInterruptedWithZeroSends block are PRESERVED for the rare
-      // CKPT-7.1 first-byte abort case (Pitfall 5).
-      // ============================================================
-      while (ctx.shouldRestart) {
-        ctx.shouldRestart = false
+  // ==================================================================
+  // Adapters de producción (B1-B11) — closures sobre this.adapters / this.config.
+  // ==================================================================
 
-      // 1. Get session via storage adapter
+  private buildProdAdapters(input: EngineInput): TurnCoreAdapters {
+    const adapters = this.adapters
+    const config = this.config
+
+    // Resolución de sesión + estado-semilla per-iteración (B1). Se memoiza el agent_module write
+    // (B4) y se cachea la sesión resuelta para que commitTurn/preloadOnce vean el mismo id.
+    let resolvedVersion = 0
+    let resolvedCurrentMode = ''
+    // Timer onCustomerMessage: cancela timers activos UNA vez por invocación de processMessage
+    // (el cliente envió un mensaje). Idempotente — cancelar timers una sola vez es correcto aunque
+    // el restart loop itere. Se dispara en getSeedState (siempre corre ≥1 vez, antes del agente +
+    // del send) para cubrir también los turnos que commitean con 0 templates (ej: handoff).
+    let customerTimerCancelled = false
+    // B2 (D-18): el mensaje pendiente legacy se lee en getSeedState (necesita la sesión) y se
+    // expone al core vía getLegacyPendingMessage (que NO recibe la sesión).
+    let legacyPendingMessage: string | undefined
+
+    const getSeedState = async (carry?: CarryState | null): Promise<CoreSeedState> => {
+      // B1: fetch sesión per-iteración (prod lee DB fresh).
       const session = input.sessionId
-        ? await this.adapters.storage.getSession(input.sessionId)
-        : await this.adapters.storage.getOrCreateSession(input.conversationId, input.contactId)
+        ? await adapters.storage.getSession(input.sessionId)
+        : await adapters.storage.getOrCreateSession(input.conversationId, input.contactId)
 
-      // 1b. Set sessionId on V4 timer adapter (needs session for Inngest events)
-      if ('setSessionId' in this.adapters.timer && typeof (this.adapters.timer as any).setSessionId === 'function') {
-        (this.adapters.timer as any).setSessionId(session.id)
+      resolvedVersion = session.version
+      resolvedCurrentMode = session.current_mode
+
+      // Timer cancellation (runner viejo :436) — una vez por processMessage, antes del agente.
+      if (!customerTimerCancelled && adapters.timer.onCustomerMessage) {
+        customerTimerCancelled = true
+        await adapters.timer.onCustomerMessage(session.id, input.conversationId, input.message)
       }
 
-      // ============================================================
-      // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.3)
-      // CKPT-0 — post-session-resolution, pre-everything-else
-      // (RESEARCH line 845).
-      //
-      // At this point nothing has been sent yet, so Path A (no sends)
-      // is the only possible branch on interrupt. We read the pending
-      // list (which includes followers' messages + the holder's own
-      // entry, RPUSHed by webhook D-16) and emit:
-      //   - msg_aborted_path_a_combined (we're aborting before any send)
-      //   - pending_list_combined (telemetry: how many entries + chars)
-      // ============================================================
-      {
-        // D-06 (Plan 07): skip-gate + lostLock throw factorizados en
-        // runCheckpointGate (SIN interruptEmit — este site emite en su drain).
-        // La colocación CKPT-0 y el drain/restart NO se mueven.
-        const ck0 = await runCheckpointGate({
-          ckptId: 'ckpt_0_post_acquire',
-          lockHandle: input.lockHandle,
-          workspaceId: this.config.workspaceId,
-          lockChannel: lockCtx?.channel,
-          lockIdentifier: lockCtx?.identifier,
-        })
-        if (typeof ck0 === 'object' && lockCtx) {
-          // ============================================================
-          // Standalone: debounce-v2-interrupt-reprocess (D-04 + R-01).
-          // Path A interrupt at CKPT-0 — restart turn con effectiveMessage
-          // combinado en vez de persistir+retornar en silencio. Pitfall 7:
-          // priorMsg = effectiveMessage ?? input.message (drain ANTES del
-          // combine legacy _v3:pendingUserMessage de abajo — NO reordenar).
-          // Pitfall 8: NO saveState durante iteraciones del restart.
-          // D-03 (Plan 08): el drain (dropOwnEntry+readAndClearPending+
-          // clearInterrupt+emit×2+combine cronológico+shouldRestart) está
-          // consolidado en drainPendingAndCombine.
-          // ============================================================
-          await drainPendingAndCombine({
-            ctx,
-            lockCtx: { workspaceId: this.config.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
-            atStep: 'ckpt_0_post_acquire',
-            priorMsg: ctx.effectiveMessage ?? input.message,
-            mode: 'path_a',
-          })
-          continue
-        }
+      // 1b. Set sessionId on V4 timer adapter (needs session for Inngest events).
+      if ('setSessionId' in adapters.timer && typeof (adapters.timer as { setSessionId?: unknown }).setSessionId === 'function') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (adapters.timer as any).setSessionId(session.id)
       }
 
-      // CRASH-RECOVERY LEGACY `_v3:pendingUserMessage` (D-18 somnio-v4-consolidation — CONSERVAR):
-      // - Por qué existe: cubre el edge de interrupt con pending-list de Redis VACÍA y 0 sends
-      //   (lambda murió tras consumir el mensaje pero antes de enviar nada) — el mensaje del usuario
-      //   se persiste en session_state y se re-combina en la siguiente iteración.
-      // - ORDEN CRÍTICO (Pitfall 7): el drain de CKPT-0 usa `effectiveMessage ?? input.message` ANTES
-      //   de este combine. Reordenar causaría combine doble en interrupt-en-CKPT-0 con pending presente.
-      // - Es funcional, NO código muerto. Borrable cuando v3 muera (D-38 / cosecha S-7).
-      //
-      // 1c. Detect pending message from previous 0-send interruption (Path A accumulation)
-      //
-      // R-03 (debounce-v2-interrupt-reprocess): on iter 1 of the restart
-      // loop, `effectiveMessage` is null → fall back to legacy v3 path
-      // (combine with `_v3:pendingUserMessage` from session state — used by
-      // the Pitfall 5 wasInterruptedWithZeroSends edge case and by the
-      // first-call-after-cold-start scenario). On restart iterations
-      // (effectiveMessage non-null), use the in-memory combined string
-      // (Pitfall 8: no DB write across iterations).
+      // B2 (D-18 crash-recovery): leer `_v3:pendingUserMessage` (lo combina el core DESPUÉS del
+      // seed, orden Pitfall 7 — aquí solo se lee y se expone vía getLegacyPendingMessage).
       const currentDatos = session.state.datos_capturados ?? {}
-      const pendingUserMessage = currentDatos['_v3:pendingUserMessage'] as string | undefined
-      const turnEffectiveMessage: string = ctx.effectiveMessage
-        ?? (pendingUserMessage ? `${pendingUserMessage}\n${input.message}` : input.message)
+      legacyPendingMessage = currentDatos['_v3:pendingUserMessage'] as string | undefined
 
-      if (pendingUserMessage) {
-        console.log(`[V4-RUNNER] Path A accumulation: combining pending="${pendingUserMessage}" + new="${input.message}"`)
-      }
-
-      // 2. Get history (production reads from DB)
+      // Historia: production lee de DB si no viene en el input.
       const history = input.history.length > 0
         ? input.history
-        : await this.adapters.storage.getHistory(session.id)
+        : await adapters.storage.getHistory(session.id)
 
-      console.log(`[V4-RUNNER] msg="${turnEffectiveMessage}" sessionId=${session.id} historyLen=${history.length}`)
-
-      // 3. Build V4AgentInput from session state
       const turnNumber = input.turnNumber ?? (history.length + 1)
 
-      // Snapshot pre-process state for potential Path A rollback
-      const inputIntentsVistos = [...(session.state.intents_vistos ?? [])]
+      // Snapshot del estado de la sesión (sin el pending message — el pipeline no debe verlo).
       const inputDatosCapturados = { ...currentDatos }
-      // Remove pending message from datos so pipeline doesn't see it
       delete inputDatosCapturados['_v3:pendingUserMessage']
 
-      // Read acciones_ejecutadas: prefer dedicated column (new), fallback to _v3: key in datos_capturados
+      // acciones_ejecutadas: preferir la columna dedicada; fallback al `_v3:` key legacy.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const rawState = session.state as any
       const sessionAccionesEjecutadas = rawState.acciones_ejecutadas ??
@@ -265,35 +195,18 @@ export class V4ProductionRunner {
           } catch { return [] }
         })()
 
-      // somnio-v4-turn-ledger Plan 04 (Task 1): restaurar dims persistidas del turno
-      // previo desde la columna `turn_ledger_dims` (Plan 02). Default graceful para
-      // sesiones legacy sin la columna o con `{}` (D-16). El carryState de un reprocess
-      // Path B lo override más abajo (P3).
+      // turn_ledger_dims persistidas del turno previo (default graceful para sesiones legacy).
       const sessionTurnLedgerDims: TurnLedgerDims =
         (rawState.turn_ledger_dims as TurnLedgerDims | undefined) ?? { atendido: [], crmActions: [] }
 
-      // V4 expects intentsVistos as string[], production stores IntentRecord[]
-      // Extract just the intent names
-      const sessionIntentsVistos: string[] = inputIntentsVistos.map(
-        (r: { intent: string } | string) => typeof r === 'string' ? r : r.intent
+      // intents_vistos: producción almacena IntentRecord[]; v4 espera string[].
+      const sessionIntentsVistos: string[] = (session.state.intents_vistos ?? []).map(
+        (r: { intent: string } | string) => typeof r === 'string' ? r : r.intent,
       )
 
-      // Seed = session-derived state by default. On a Path B reprocess (bug
-      // 2026-05-28) `carryState` overrides it so the reprocess iteration knows the
-      // saludo/templates were already sent (no re-greet, no re-send). On Path A
-      // combine carryState stays null → original session state, by design.
-      const seed: {
-        intentsVistos: string[]
-        templatesEnviados: string[]
-        datosCapturados: Record<string, string>
-        packSeleccionado: string | null
-        accionesEjecutadas: unknown[]
-        currentMode: string
-        // somnio-v4-turn-ledger Plan 04 (Task 1): dims del turno previo (P3 — el
-        // reprocess Path B hereda del output previo vía carryState; aquí default
-        // desde la sesión).
-        turnLedgerDims: TurnLedgerDims
-      } = ctx.carryState ?? {
+      // Seed = carryState (Path B reprocess) ?? estado derivado de la sesión (patrón del runner
+      // viejo :296). El carry lo computó el core en la iteración previa desde seed/output.
+      const seed = carry ?? {
         intentsVistos: sessionIntentsVistos,
         templatesEnviados: session.state.templates_enviados ?? [],
         datosCapturados: inputDatosCapturados,
@@ -302,878 +215,358 @@ export class V4ProductionRunner {
         currentMode: session.current_mode,
         turnLedgerDims: sessionTurnLedgerDims,
       }
-      // Used by the no-repetition filter + final state-save union. Points at the
-      // seed so a Path B reprocess carries iter-1's already-sent IDs forward
-      // (filter won't re-send them; final save records the full set).
-      const inputTemplatesEnviados = seed.templatesEnviados
 
-      const v4Input: V4AgentInput = {
-        message: turnEffectiveMessage,
-        history,
+      return {
+        sessionId: session.id,
         currentMode: seed.currentMode,
         intentsVistos: seed.intentsVistos,
         templatesEnviados: seed.templatesEnviados,
         datosCapturados: seed.datosCapturados,
         packSeleccionado: seed.packSeleccionado,
-        // seed.accionesEjecutadas es unknown[] (carryState lo arrastra así para evitar
-        // import cross-módulo); en runtime es AccionRegistrada[]. Cast explícito —
-        // error pre-existente al Plan 04 (línea ~350 en HEAD), formalizado aquí al
-        // threadear dims sin introducir nuevos errores de tipo.
-        accionesEjecutadas: seed.accionesEjecutadas as V4AgentInput['accionesEjecutadas'],
-        // somnio-v4-turn-ledger Plan 04 (Task 1): dims restauradas → el agente las
-        // recibe para coherencia del turno (passthrough en interrupt/error, D-07).
+        accionesEjecutadas: seed.accionesEjecutadas,
         turnLedgerDims: seed.turnLedgerDims,
+        history,
         turnNumber,
-        workspaceId: this.config.workspaceId,
-        sessionId: session.id,
-        // systemEvent: undefined — only for timers, not user messages
-        // standalone v4-media-audio-image (Plan 04): thread vision context from
-        // EngineInput → V4AgentInput. Only populated on v4 image-respond path.
         visionContext: input.visionContext,
       }
+    }
 
-      // 3b. Preload data + agent_module marker for new sessions
-      // Idempotent guard: `_v3:preloaded` marker inside datos_capturados. Previous
-      // `session.version === 0` guard never fired because SessionManager.createSession
-      // inserts rows with version=1 (DB default is also 1), so preload silently never ran.
-      //
-      // Both markers live INSIDE `datos_capturados` (jsonb) because session_state has no
-      // dedicated top-level columns for them — writing `{'_v3:agent_module': ...}` at
-      // the top level would try to target a column that doesn't exist and Supabase
-      // rejects the UPDATE ("Failed to update session state").
-      //
-      // NOTE: `_v3:` namespace keys preservados intencionalmente (DB compat — v4 lee los
-      // mismos keys). Cuando v3 sessions se cierran al flip (D-38 padre), v4 arranca con
-      // sessions nuevas y la convención queda como artefacto histórico inofensivo.
-      const alreadyPreloaded = session.state.datos_capturados?.['_v3:preloaded'] === 'true'
-      const agentModuleAlreadyStored = session.state.datos_capturados?.['_v3:agent_module'] !== undefined
-      const shouldWriteAgentModule = this.config.agentModule && this.config.agentModule !== 'somnio-v4' && !agentModuleAlreadyStored
+    // B7 — commit del turno (post-send completo): saveState + ledger emit + templates_enviados +
+    // updateMode + timer signals + addTurn user/assistant + handoff. Solo PATH B (turno
+    // commiteado) — el core llama commitTurn únicamente cuando NO fue wasInterruptedWithZeroSends.
+    const commitTurn = async (turn: CommittedTurn): Promise<void> => {
+      const { sessionId, turnNumber, output, effectiveMessage, actuallySentIds, inputTemplatesEnviados, allSentContents, totalTokens } = turn
 
-      if ((this.config.preloadedData && Object.keys(this.config.preloadedData).length > 0 && !alreadyPreloaded) || shouldWriteAgentModule) {
-        const merged: Record<string, string> = {
-          ...session.state.datos_capturados,
+      // Save state (excluding templates_enviados, handled below). Persiste turn_ledger_dims
+      // del turno (Plan 04 Task 1). Default vacío si el output legacy/mock las omite.
+      await adapters.storage.saveState(sessionId, {
+        datos_capturados: output.datosCapturados,
+        intents_vistos: output.intentsVistos,
+        pack_seleccionado: output.packSeleccionado,
+        acciones_ejecutadas: output.accionesEjecutadas,
+        turn_ledger_dims: output.turnLedgerDims ?? { atendido: [], crmActions: [] },
+      })
+
+      // Emit del ledger COMPLETO a agent_observability_events (Plan 04 Task 3). Almacén analítico
+      // cross-sesión SEPARADO del blob per-sesión. Solo PATH B. Emit en el runner (que tiene el
+      // collector) — commitTurn queda puro sin I/O en state.ts.
+      {
+        const collector = getCollector()
+        const ledgerDims = output.turnLedgerDims ?? { atendido: [], crmActions: [] }
+        if (collector) {
+          for (const a of ledgerDims.atendido) {
+            if (a.kind === 'kb_topic') {
+              collector.recordEvent('pipeline_decision', 'kb_topic_registered', {
+                agent: config.agentModule ?? 'somnio-v4',
+                sessionId,
+                topic: a.topic,
+                confidence: a.confidence,
+                turno: a.turno,
+              })
+            }
+          }
+          for (const ca of ledgerDims.crmActions) {
+            collector.recordEvent('pipeline_decision', 'crm_action_recorded', {
+              agent: config.agentModule ?? 'somnio-v4',
+              sessionId,
+              tool: ca.tool,
+              result: ca.result,
+              origen: ca.origen,
+              ...(ca.code ? { code: ca.code } : {}),
+            })
+          }
+          if (output.turnLedgerSummary) {
+            collector.recordEvent('pipeline_decision', 'turn_ledger_committed', {
+              agent: config.agentModule ?? 'somnio-v4',
+              sessionId,
+              intent: output.turnLedgerSummary.intent,
+              confidence: output.turnLedgerSummary.confidence,
+              modeTransition: output.turnLedgerSummary.modeTransition ?? null,
+              messagesSent: output.turnLedgerSummary.messagesSent,
+            })
+          }
         }
-        if (this.config.preloadedData && !alreadyPreloaded) {
-          Object.assign(merged, this.config.preloadedData)
-          merged['_v3:preloaded'] = 'true'
-          Object.assign(v4Input.datosCapturados, this.config.preloadedData)
+      }
+
+      // Save templates_enviados con SOLO los IDs realmente enviados.
+      if (actuallySentIds.length > 0) {
+        const updatedTemplatesEnviados = [...inputTemplatesEnviados, ...actuallySentIds]
+        await adapters.storage.saveState(sessionId, {
+          templates_enviados: updatedTemplatesEnviados,
+        })
+        console.log(`[V4-RUNNER] templates_enviados: +${actuallySentIds.length} (total: ${updatedTemplatesEnviados.length})`)
+      }
+
+      getCollector()?.recordEvent('pipeline_decision', 'state_committed', {
+        sessionId,
+        messagesSent: allSentContents.length,
+        templatesSent: actuallySentIds.length,
+        newMode: output.newMode,
+        // D-06 / Pitfall 6: orderCreated viene de output.crmResult (el sub-loop ejecutó la mutación).
+        orderCreated: output.crmResult?.success ?? false,
+      })
+
+      // Update mode (con optimistic locking).
+      if (output.newMode && output.newMode !== resolvedCurrentMode) {
+        await adapters.storage.updateMode(sessionId, resolvedVersion, output.newMode)
+      }
+
+      // Timer signals (solo en turnos commiteados) — V4 usa emitSignals() directo.
+      if (output.timerSignals.length > 0 && 'emitSignals' in adapters.timer) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (adapters.timer as any).emitSignals(output.timerSignals)
+      }
+
+      // User turn.
+      await adapters.storage.addTurn({
+        sessionId,
+        turnNumber,
+        role: 'user',
+        content: effectiveMessage,
+        intentDetected: output.intentInfo?.intent,
+        confidence: output.intentInfo?.confidence,
+        tokensUsed: totalTokens,
+      })
+
+      // Add intent seen.
+      if (output.intentInfo?.intent) {
+        await adapters.storage.addIntentSeen(sessionId, output.intentInfo.intent)
+      }
+
+      // Handoff.
+      if (output.newMode === 'handoff') {
+        await adapters.storage.handoff(sessionId, resolvedVersion)
+        if (adapters.storage.clearPendingTemplates) {
+          await adapters.storage.clearPendingTemplates(sessionId)
         }
-        if (shouldWriteAgentModule) {
-          merged['_v3:agent_module'] = this.config.agentModule!
+      }
+
+      // Orders — D-06 big-bang: el bloque del orders-adapter createOrder fue ELIMINADO. El pedido
+      // ya se ejecutó DENTRO del sub-loop GROUNDED (runCrmGate); el runner solo LEE output.crmResult.
+
+      // Assistant turn recording (post-send) — full set across restart iterations.
+      const assistantContent = allSentContents
+        .filter(m => m.trim().length > 0)
+        .join('\n')
+      if (assistantContent.trim()) {
+        try {
+          await adapters.storage.addTurn({
+            sessionId,
+            turnNumber: turnNumber + 1,
+            role: 'assistant',
+            content: assistantContent,
+          })
+          console.log(`[V4-RUNNER] Assistant turn saved (${assistantContent.length} chars)`)
+        } catch (turnError) {
+          console.error('[V4-RUNNER] Failed to save assistant turn:', turnError)
         }
-        await this.adapters.storage.saveState(session.id, { datos_capturados: merged })
+      }
+    }
+
+    // B5 — no-repetición (prod-only): filtra templates ya-enviados antes del send. Gated por
+    // USE_NO_REPETITION_V4 (D-16 — flag separado v4, default OFF). rag:* siempre pasa (R4-B).
+    const filterOutbound = async (
+      templatesToSend: ProcessedMessage[],
+      fctx: { sessionId: string; conversationId: string; intent: string; inputTemplatesEnviados: string[] },
+    ): Promise<ProcessedMessage[]> => {
+      if (process.env.USE_NO_REPETITION_V4 !== 'true') return templatesToSend
+      const { NoRepetitionFilter } = await import('../somnio/no-repetition-filter')
+      const { buildOutboundRegistry } = await import('../somnio/outbound-registry')
+
+      const registry = await buildOutboundRegistry(
+        fctx.conversationId,
+        fctx.sessionId,
+        fctx.inputTemplatesEnviados,
+      )
+
+      const { generateMinifrases } = await import('../somnio/minifrase-generator')
+      await generateMinifrases(registry)
+
+      const noRepFilter = new NoRepetitionFilter(config.workspaceId)
+
+      const blockForFilter = templatesToSend.map(t => ({
+        templateId: t.templateId,
+        content: t.content,
+        contentType: t.contentType as 'texto' | 'template' | 'imagen',
+        priority: t.priority,
+        intent: fctx.intent,
+        orden: 0,
+        isNew: true,
+        delaySeconds: 0,
+      }))
+
+      const filterResult = await noRepFilter.filterBlock(
+        blockForFilter,
+        registry,
+        fctx.inputTemplatesEnviados,
+      )
+
+      const survivingIds = new Set(filterResult.surviving.map(s => s.templateId))
+      // R4-B: rag:* messages are unique generative content; never filter them out.
+      const filtered = templatesToSend.filter(t => t.templateId.startsWith('rag:') || survivingIds.has(t.templateId))
+
+      if (filterResult.filtered.length > 0) {
         console.log(
-          `[V4-RUNNER] Preload/agent_module write: preloaded=${!alreadyPreloaded && !!this.config.preloadedData} agentModule=${shouldWriteAgentModule ? this.config.agentModule : 'skip'}`
+          `[V4-RUNNER] No-rep filter: ${filterResult.filtered.length} filtered, ${filterResult.surviving.length} surviving`,
         )
       }
+      return filtered
+    }
 
-      // 4. Call processMessage — route directly to somnio-v4 (V4 runner solo atiende somnio-sales-v4 — Regla 6)
-      let output: V4AgentOutput
-      const { processMessage } = await import('../somnio-v4')
-      output = await processMessage(v4Input)
+    // B4 — preload + agent_module marker para sesiones nuevas (idempotente).
+    const preloadOnce = async (sessionId: string): Promise<void> => {
+      // El estado fresco para los guards se lee de la sesión ya resuelta en getSeedState. Re-fetch
+      // mínimo para no asumir staleness (idempotente vía los markers `_v3:preloaded`/`_v3:agent_module`).
+      const session = await adapters.storage.getSession(sessionId)
+      const alreadyPreloaded = session.state.datos_capturados?.['_v3:preloaded'] === 'true'
+      const agentModuleAlreadyStored = session.state.datos_capturados?.['_v3:agent_module'] !== undefined
+      const shouldWriteAgentModule = config.agentModule && config.agentModule !== 'somnio-v4' && !agentModuleAlreadyStored
 
-      // R-05 (debounce-v2-interrupt-reprocess): accumulate per-call tokens
-      // across restart iterations. The final return uses
-      // `totalTokensAcrossRestarts` (NOT `output.totalTokens`) as the single
-      // source of truth for cost accounting (Pitfall 2).
-      ctx.totalTokensAcrossRestarts += (output.totalTokens ?? 0)
-
-      // ============================================================
-      // R-04 + Pitfall 7 (debounce-v2-interrupt-reprocess): detect Path A
-      // interrupt surfaced by the agent's V4AgentOutput.errorMessage.
-      // Sources of the discriminator prefix `interrupted_at_ckpt_`:
-      //   - in-agent CKPT-1 (post-comprehension) — somnio-v4-agent.ts ~L142
-      //   - in-agent CKPT-2 (post-state-machine) — somnio-v4-agent.ts ~L340
-      //   - sub-loop CKPT-3/4/5 propagated today via the slot resolver path
-      //     (`resolveLowSlot`), which surfaces the `interrupted_at_ckpt_*`
-      //     discriminator inline. (El antiguo mapper de outcome del agente fue
-      //     borrado en somnio-v4-consolidation Plan 02; el mecanismo discriminator
-      //     sigue vivo vía el slot resolver.)
-      // String prefix is the discriminator (NOT a typed boolean — see R-04:
-      // greppable in Vercel logs).
-      // ============================================================
       if (
-        output.success === false &&
-        typeof output.errorMessage === 'string' &&
-        output.errorMessage.startsWith('interrupted_at_ckpt_')
+        (config.preloadedData && Object.keys(config.preloadedData).length > 0 && !alreadyPreloaded) ||
+        shouldWriteAgentModule
       ) {
-        if (!lockCtx) {
-          // Should be impossible (agent only emits this discriminator when
-          // invoked under a lock), but if it happens we fall through to
-          // error handling rather than corrupting state.
-          throw new Error(`[V4-RUNNER] agent emitted ${output.errorMessage} but lockCtx is null`)
+        const merged: Record<string, string> = { ...session.state.datos_capturados }
+        if (config.preloadedData && !alreadyPreloaded) {
+          Object.assign(merged, config.preloadedData)
+          merged['_v3:preloaded'] = 'true'
         }
-        // D-03 (Plan 08): drain consolidado. at_step = el discriminator
-        // (output.errorMessage), priorMsg = turnEffectiveMessage.
-        await drainPendingAndCombine({
-          ctx,
-          lockCtx: { workspaceId: this.config.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
-          atStep: output.errorMessage,
-          priorMsg: turnEffectiveMessage,
-          mode: 'path_a',
-        })
-        continue
+        if (shouldWriteAgentModule) {
+          merged['_v3:agent_module'] = config.agentModule!
+        }
+        await adapters.storage.saveState(sessionId, { datos_capturados: merged })
+        console.log(
+          `[V4-RUNNER] Preload/agent_module write: preloaded=${!alreadyPreloaded && !!config.preloadedData} agentModule=${shouldWriteAgentModule ? config.agentModule : 'skip'}`,
+        )
       }
+    }
 
-      getCollector()?.recordEvent('pipeline_decision', 'agent_routed', {
-        agentModule: this.config.agentModule ?? 'somnio-v4',
-        sessionId: session.id,
-        success: output.success,
-        action: output.salesTrackInfo?.accion ?? 'none',
-        messageCount: output.messages.length,
-        templateCount: output.templates?.length ?? 0,
-      })
-
-      // 4b. (V3-only) GoDentist VAL tag side-effect — eliminado en V4 runner.
-      //     V4 runner NO atiende godentist / godentist-fb-ig (siguen en V3 runner).
-      //     Si en el futuro un agente atendido por V4 requiere side-effect análogo,
-      //     se añadirá explícitamente — D-13 mandata duplicación 100% sin shared helpers.
-
-      // 5. Route output to adapters
-      // NOTE: State save is DEFERRED until after messaging to support Path A rollback.
-
-      // 5f. Timer — cancel active timers (customer sent a message, always do this)
-      if (this.adapters.timer.onCustomerMessage) {
-        await this.adapters.timer.onCustomerMessage(session.id, input.conversationId, input.message)
-      }
-
-      // 5g. Orders — D-06 big-bang (standalone somnio-v4-crm-subloop Plan 06): el
-      // runner ya NO crea el pedido. El gate CRM (runCrmGate) lo hace DENTRO del
-      // sub-loop GROUNDED y reporta el resultado en output.crmResult (Pitfall 6).
-      // El bloque del orders-adapter createOrder fue eliminado; los consumidores
-      // (state_committed.orderCreated + EngineOutput.orderCreated/orderId/contactId)
-      // se re-cablean a output.crmResult mas abajo.
-
-      // ================================================================
-      // 5h. MESSAGING — send templates with interruption handling
-      // ================================================================
-      let messagesSent = 0
-      let sentMessageContents: string[] = []
-      const actuallySentIds: string[] = []
-      let wasInterruptedWithZeroSends = false
-
-      // ============================================================
-      // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.3)
-      // CKPT-6a — pre-send-loop (pending-templates Path B resume path)
-      // (RESEARCH line 846).
-      //
-      // We're about to send pending templates from a previous interrupted
-      // turn. No templates have been sent in THIS turn yet, but pending
-      // templates from a prior turn count as "sent" for Path A/B purposes
-      // — if interrupt detected now, Path A (no NEW sends in this turn but
-      // previous turn already partially sent). The pending list also gets
-      // accumulated by the heading checkpoint detection.
-      // ============================================================
-      {
-        // D-06 (Plan 07): gate factorizado; opts hasSentAnything:false y
-        // lostLockLabel _pending_templates preservados byte-exacto; drain intacto.
-        const ck6a = await runCheckpointGate({
-          ckptId: 'ckpt_6_pre_send_loop',
-          lockHandle: input.lockHandle,
-          workspaceId: this.config.workspaceId,
-          lockChannel: lockCtx?.channel,
-          lockIdentifier: lockCtx?.identifier,
-          opts: { hasSentAnything: false },
-          lostLockLabel: 'ckpt_6_pre_send_loop_pending_templates',
-        })
-        if (typeof ck6a === 'object' && lockCtx) {
-          // ============================================================
-          // Standalone: debounce-v2-interrupt-reprocess (D-04 + R-01).
-          // Path A interrupt at CKPT-6a (pending-templates pre-send) — restart.
-          // D-03 (Plan 08): drain consolidado; templates_sent_before_abort:0
-          // preservado vía pathBEmitExtra. Pitfall 8: NO saveState entre iters.
-          // ============================================================
-          await drainPendingAndCombine({
-            ctx,
-            lockCtx: { workspaceId: this.config.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
-            atStep: 'ckpt_6_pre_send_loop_pending_templates',
-            priorMsg: turnEffectiveMessage,
-            mode: 'path_a',
-            pathBEmitExtra: { templates_sent_before_abort: 0 },
-          })
-          continue
-        }
-      }
-
-      // 5h-pre. Load and send pending templates from previous interrupted block (Path B)
-      if (this.adapters.storage.getPendingTemplates) {
-        try {
-          const pending = await this.adapters.storage.getPendingTemplates(session.id)
-          if (pending && pending.length > 0) {
-            console.log(`[V4-RUNNER] Sending ${pending.length} pending templates from interrupted block`)
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const pendingAsProcessed: ProcessedMessage[] = pending.map((p: any) => ({
-              templateId: p.templateId,
-              content: p.content,
-              contentType: (p.contentType === 'template' ? 'texto' : p.contentType) as 'texto' | 'imagen',
-              priority: p.priority ?? 'CORE',
-              delayMs: 0,
-            }))
-
-            const pendingSendResult = await this.adapters.messaging.send({
-              sessionId: session.id,
-              conversationId: input.conversationId,
-              messages: pendingAsProcessed.map(t => t.content),
-              templates: pendingAsProcessed.map(t => ({
-                id: t.templateId,
-                content: t.content,
-                contentType: t.contentType,
-                delaySeconds: 0,
-              })),
-              workspaceId: this.config.workspaceId,
-              contactId: input.contactId,
-              phoneNumber: input.phoneNumber,
-              triggerTimestamp: input.messageTimestamp,
-            })
-
-            const pendingSentIds = pendingAsProcessed
-              .slice(0, pendingSendResult.messagesSent)
-              .map(t => t.templateId)
-              .filter((id): id is string => id != null && id.length > 0)
-            actuallySentIds.push(...pendingSentIds)
-
-            messagesSent += pendingSendResult.messagesSent
-            sentMessageContents.push(
-              ...pendingAsProcessed.slice(0, pendingSendResult.messagesSent).map(t => t.content)
-            )
-
-            if (pendingSendResult.interrupted) {
-              const sentIdx = pendingSendResult.interruptedAtIndex ?? pendingSendResult.messagesSent
-              const stillPending = pendingAsProcessed.slice(sentIdx)
-              if (stillPending.length > 0 && this.adapters.storage.savePendingTemplates) {
-                await this.adapters.storage.savePendingTemplates(session.id, stillPending as any)
-              }
-            } else if (this.adapters.storage.clearPendingTemplates) {
-              await this.adapters.storage.clearPendingTemplates(session.id)
-            }
-          }
-        } catch (pendingError) {
-          console.error('[V4-RUNNER] Failed to send pending templates (fail-open):', pendingError)
-          if (this.adapters.storage.clearPendingTemplates) {
-            await this.adapters.storage.clearPendingTemplates(session.id)
-          }
-        }
-      }
-
-      // ============================================================
-      // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.3)
-      // CKPT-6b — pre-send-loop (main send block)
-      // (RESEARCH line 846).
-      //
-      // If pending templates from a prior turn were sent above, then
-      // actuallySentIds.length > 0 → Path B (we already sent something).
-      // Otherwise Path A (nothing sent in this turn).
-      // ============================================================
-      {
-        // D-06 (Plan 07): gate factorizado; opts hasSentAnything dinámico y
-        // lostLockLabel _main preservados byte-exacto; Path A/B intactos.
-        const ck6b = await runCheckpointGate({
-          ckptId: 'ckpt_6_pre_send_loop',
-          lockHandle: input.lockHandle,
-          workspaceId: this.config.workspaceId,
-          lockChannel: lockCtx?.channel,
-          lockIdentifier: lockCtx?.identifier,
-          opts: { hasSentAnything: actuallySentIds.length > 0 },
-          lostLockLabel: 'ckpt_6_pre_send_loop_main',
-        })
-        if (typeof ck6b === 'object' && lockCtx) {
-          const sentCount = actuallySentIds.length
-          const lockArgs = { workspaceId: this.config.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier }
-          if (sentCount === 0) {
-            // ============================================================
-            // Standalone: debounce-v2-interrupt-reprocess (D-01 + D-05).
-            // Path A — restart. D-03 (Plan 08): drain consolidado;
-            // templates_sent_before_abort:0 vía pathBEmitExtra. Pitfall 8: NO
-            // saveState durante iteraciones del restart.
-            // ============================================================
-            await drainPendingAndCombine({
-              ctx,
-              lockCtx: lockArgs,
-              atStep: 'ckpt_6_pre_send_loop_main',
-              priorMsg: turnEffectiveMessage,
-              mode: 'path_a',
-              pathBEmitExtra: { templates_sent_before_abort: 0 },
-            })
-            continue
-          }
-          // Path B (bug 2026-05-28 — clean reprocess): prior-turn pending
-          // templates were just (re)sent and the customer interrupted. Discard
-          // THIS turn's msg1 output (not yet sent — 5h-main runs after this) and
-          // answer the new message(s) clean in-lambda. If nothing is queued,
-          // finish (keep what was sent). D-03 (Plan 08): drain consolidado en
-          // mode 'path_b_solo' (emite msg_aborted_path_b_solo + condicional
-          // pending_list_combined + setea effectiveMessage sin prior). El
-          // carryState lo setea AQUÍ (Pitfall 6 — fuente SEED: msg1's output NO
-          // se envió, solo los templates del turno previo).
-          const drainB = await drainPendingAndCombine({
-            ctx,
-            lockCtx: lockArgs,
-            atStep: 'ckpt_6_pre_send_loop_main',
-            priorMsg: turnEffectiveMessage,
-            mode: 'path_b_solo',
-            pathBEmitExtra: { templates_sent_before_abort: sentCount },
-          })
-          if (drainB.pendingCount > 0) {
-            // msg1's output was NOT sent (only the prior-turn pending templates
-            // were) → carry the SESSION state forward (not msg1's output) so the
-            // reprocess does not mark msg1's intents as seen. carrySource='seed'.
-            ctx.carrySource = 'seed'
-            ctx.accumulatedSentContents.push(...sentMessageContents)
-            ctx.carryState = {
-              intentsVistos: seed.intentsVistos,
-              templatesEnviados: [...inputTemplatesEnviados, ...actuallySentIds],
-              datosCapturados: seed.datosCapturados,
-              packSeleccionado: seed.packSeleccionado,
-              accionesEjecutadas: seed.accionesEjecutadas,
-              currentMode: seed.currentMode,
-              // somnio-v4-turn-ledger Plan 04 (P3): msg1's output NO se envió (solo
-              // los templates pendientes del turno previo) → arrastrar las dims de la
-              // SESIÓN (seed), no las del output de msg1.
-              turnLedgerDims: seed.turnLedgerDims,
-            }
-            continue
-          }
-          // Nothing queued → finish: keep what was sent (this + prior iterations).
-          ctx.templatesSentCount = ctx.accumulatedSentContents.length + sentCount
-          return {
-            success: true,
-            messages: [],
-            sessionId: session.id,
-            messagesSent: ctx.accumulatedSentContents.length + sentCount,
-            tokensUsed: ctx.totalTokensAcrossRestarts,
-          }
-        }
-      }
-
-      // 5h-main. Send new templates from this turn's pipeline output
-      if (output.templates && output.templates.length > 0) {
-        let templatesToSend: ProcessedMessage[] = output.templates
-
-        // No-repetition filter (if USE_NO_REPETITION_V4=true)
-        // D-16: flag separado v4 (no compartir con v3 prod). Default OFF — activa SOLO
-        //       cuando futuro standalone decida turn ON el filter en v4. Plan 06.
-        // D-17: filter aplica a TODOS los templates emitidos en el turn (response-track +
-        //       outputs sub-loop template_match merged en `output.templates`).
-        if (process.env.USE_NO_REPETITION_V4 === 'true') {
-          try {
-            const { NoRepetitionFilter } = await import('../somnio/no-repetition-filter')
-            const { buildOutboundRegistry } = await import('../somnio/outbound-registry')
-
-            const registry = await buildOutboundRegistry(
-              input.conversationId,
-              session.id,
-              inputTemplatesEnviados,
-            )
-
-            const { generateMinifrases } = await import('../somnio/minifrase-generator')
-            await generateMinifrases(registry)
-
-            const noRepFilter = new NoRepetitionFilter(this.config.workspaceId)
-
-            const blockForFilter = templatesToSend.map(t => ({
-              templateId: t.templateId,
-              content: t.content,
-              contentType: t.contentType as 'texto' | 'template' | 'imagen',
-              priority: t.priority,
-              intent: output.intentInfo?.intent ?? 'unknown',
-              orden: 0,
-              isNew: true,
-              delaySeconds: 0,
-            }))
-
-            const filterResult = await noRepFilter.filterBlock(
-              blockForFilter,
-              registry,
-              inputTemplatesEnviados,
-            )
-
-            const survivingIds = new Set(filterResult.surviving.map(s => s.templateId))
-            // R4-B: rag:* messages are unique generative content; never filter them out.
-            // The no-rep filter cannot meaningfully deduplicate generative text (it has no prior
-            // templateId to compare against), so rag:* always passes through order-preservingly.
-            templatesToSend = templatesToSend.filter(t => t.templateId.startsWith('rag:') || survivingIds.has(t.templateId))
-
-            if (filterResult.filtered.length > 0) {
-              console.log(
-                `[V4-RUNNER] No-rep filter: ${filterResult.filtered.length} filtered, ${filterResult.surviving.length} surviving`
-              )
-            }
-          } catch (noRepError) {
-            console.error('[V4-RUNNER] No-rep filter crashed, sending full block (fail-open):', noRepError)
-            templatesToSend = output.templates
-          }
-        }
-
-        if (templatesToSend.length > 0) {
-          const sendResult = await this.adapters.messaging.send({
-            sessionId: session.id,
-            conversationId: input.conversationId,
-            messages: templatesToSend.map(t => t.content),
-            templates: templatesToSend.map(t => ({
-              id: t.templateId,
-              content: t.content,
-              contentType: t.contentType,
-              delaySeconds: 0,
-            })),
-            intent: output.intentInfo?.intent,
-            workspaceId: this.config.workspaceId,
-            contactId: input.contactId,
-            phoneNumber: input.phoneNumber,
-            triggerTimestamp: input.messageTimestamp,
-          })
-
-          messagesSent += sendResult.messagesSent
-          sentMessageContents.push(
-            ...templatesToSend.slice(0, sendResult.messagesSent).map(t => t.content)
-          )
-
-          const sentIds = templatesToSend
-            .slice(0, sendResult.messagesSent)
-            .map(t => t.templateId)
-            // T-7: rag:* pseudo-ids must never enter templates_enviados. The canonical RAG record
-            // is the turn ledger (atendido[{kind:'kb_topic'}]), not the template-dedup store.
-            // Filtering here covers all three persist sites (724, 892, 1076) since they all
-            // consume actuallySentIds — single-point fix.
-            .filter((id): id is string => id != null && id.length > 0 && !id.startsWith('rag:'))
-          actuallySentIds.push(...sentIds)
-
-          // Interruption handling (bug 2026-05-28 — clean in-lambda reprocess).
-          // The customer interrupted mid-send. Instead of deferring the new
-          // message to the next inbound (which orphans it if the customer goes
-          // silent), we answer it in THIS lambda. Two cases:
-          //   - 0 sent this turn  → Path A: nothing delivered, so recombine
-          //     priorMsg + new message(s) and re-run from the top.
-          //   - ≥1 sent this turn → Path B: the customer redirected, so DISCARD
-          //     the rest of msg1's response and answer the new message(s) clean,
-          //     carrying state forward (no re-greet, no re-send of sent IDs).
-          // The pending list is drained whole + the while loop re-runs on any new
-          // interrupt, so N piled-up messages + cascades are handled structurally.
-          if (sendResult.interrupted && lockCtx) {
-            // Customer redirected → discard any leftover msg1 templates.
-            if (this.adapters.storage.clearPendingTemplates) {
-              await this.adapters.storage.clearPendingTemplates(session.id)
-            }
-            // D-03 (Plan 08): drain consolidado. El MODO depende de cuánto se
-            // envió: 0 enviados → Path A (recombinar prior + new); ≥1 enviado →
-            // Path B (descartar resto de msg1, contestar solo lo nuevo). El at_step
-            // 'send_loop_ckpt7' NO es un CheckpointId (vive en el send-adapter); el
-            // drain lo emite verbatim. drainPendingAndCombine excluye la own-entry,
-            // consume el interrupt, emite los eventos y setea effectiveMessage/
-            // shouldRestart/restartIteration (Path B solo si hay pending).
-            const sendMode = sendResult.messagesSent === 0 ? 'path_a' : 'path_b_solo'
-            const drainSL = await drainPendingAndCombine({
-              ctx,
-              lockCtx: { workspaceId: this.config.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
-              atStep: 'send_loop_ckpt7',
-              priorMsg: turnEffectiveMessage,
-              mode: sendMode,
-              pathBEmitExtra: sendMode === 'path_a'
-                ? { templates_sent_before_abort: 0 }
-                : { templates_sent_before_abort: sendResult.messagesSent },
-            })
-
-            if (drainSL.pendingCount > 0) {
-              if (sendMode === 'path_b_solo') {
-                // Path B: ≥1 delivered → answer the NEW message(s) clean.
-                // Preserve what the customer already saw + carry state forward so
-                // the reprocess does not re-greet or re-send already-sent IDs.
-                // carrySource='output' (Pitfall 6 — msg1's output SÍ se envió ≥1).
-                ctx.carrySource = 'output'
-                ctx.accumulatedSentContents.push(...sentMessageContents)
-                ctx.carryState = {
-                  intentsVistos: output.intentsVistos,
-                  templatesEnviados: [...inputTemplatesEnviados, ...actuallySentIds],
-                  datosCapturados: output.datosCapturados,
-                  packSeleccionado: output.packSeleccionado as string | null,
-                  accionesEjecutadas: output.accionesEjecutadas,
-                  currentMode: output.newMode ?? seed.currentMode,
-                  // somnio-v4-turn-ledger Plan 04 (P3): msg1's output SÍ se envió (≥1
-                  // template) → heredar las dims del output de msg1 para que el
-                  // reprocess no re-registre los efectos de atendido/crmActions.
-                  turnLedgerDims: output.turnLedgerDims,
-                }
-              }
-              console.log(`[V4-RUNNER] send-loop interrupt: ${sendResult.messagesSent} sent, reprocessing ${drainSL.pendingCount} new message(s)`)
-            } else if (sendResult.messagesSent === 0) {
-              // Interrupt fired but nothing queued + nothing sent → fall back to
-              // the legacy cross-lambda defer (next inbound combines via R-03).
-              // D-18: parte del crash-recovery _v3:pendingUserMessage — ver comentario en el site de lectura/combine
-              wasInterruptedWithZeroSends = true
-              getCollector()?.recordEvent('pipeline_decision', 'interruption_path_a', {
-                sessionId: session.id,
-                pendingMessage: input.message.substring(0, 100),
-              })
-            }
-            // (≥1 sent + empty pending → nothing new to answer: finish normally;
-            //  leftover msg1 templates already discarded above.)
-          } else if (sendResult.interrupted) {
-            // No lock (fail-open / pre-v4 path): preserve legacy defer behavior.
-            if (sendResult.messagesSent === 0) {
-              wasInterruptedWithZeroSends = true
-              getCollector()?.recordEvent('pipeline_decision', 'interruption_path_a', {
-                sessionId: session.id,
-                pendingMessage: input.message.substring(0, 100),
-              })
-            } else {
-              const sentIndex = sendResult.interruptedAtIndex ?? sendResult.messagesSent
-              const unsent = templatesToSend.slice(sentIndex)
-              if (unsent.length > 0 && this.adapters.storage.savePendingTemplates) {
-                await this.adapters.storage.savePendingTemplates(session.id, unsent)
-              }
-            }
-          } else {
-            // No interruption — clear stale pending
-            if (this.adapters.storage.clearPendingTemplates) {
-              await this.adapters.storage.clearPendingTemplates(session.id)
-            }
-          }
-        }
-      } else if (output.messages.length > 0 && (!output.templates || output.templates.length === 0)) {
-        // D-14 (somnio-v4-consolidation): el viejo branch fallback enviaba
-        // `output.messages` sin templates — pero el messaging adapter (parent)
-        // DROPEA todo send sin templates desde el passthrough `rag:*`, así que
-        // ese send nunca llegaba a nada y el push a `sentMessageContents`
-        // registraba texto JAMÁS enviado (bug G-3). Reemplazado por un warning
-        // observable: si esto ocurre, queremos VERLO, no fallar en silencio.
-        getCollector()?.recordEvent('pipeline_decision', 'v4_messages_without_templates', {
-          sessionId: session.id,
-          messageCount: output.messages.length,
-          preview: output.messages[0]?.slice(0, 120) ?? '',
-        })
-        console.warn('[V4-RUNNER] output.messages sin templates — nunca debería ocurrir (post rag:* passthrough)')
-      }
-
-      // Bug 2026-05-28: a send-loop interrupt with queued message(s) set
-      // `shouldRestart` above → jump to the next iteration to answer them
-      // WITHOUT running the post-send state save for this (aborted) iteration.
-      // Pitfall 8: no DB write across restart iterations; carryState +
-      // accumulatedSentContents hold the in-memory continuity.
-      if (ctx.shouldRestart) continue
-
-      // Everything the customer saw across restart iterations (bug 2026-05-28):
-      // prior iterations' sends (Path B reprocess) + this final iteration's sends.
-      // Used for the assistant-turn record + the return payload so they reflect
-      // the full conversation, not just the last iteration.
-      const allSentContents = [...ctx.accumulatedSentContents, ...sentMessageContents]
-      const totalMessagesSent = ctx.accumulatedSentContents.length + messagesSent
-
-      // ================================================================
-      // 5-post. POST-SEND: State save + turns (Path A vs Path B decision)
-      // ================================================================
-
-      // ============================================================
-      // wasInterruptedWithZeroSends now fires only for the residual case: an
-      // interrupt was detected at the first-byte send but the pending list was
-      // EMPTY (nothing queued to answer) — fall back to the legacy cross-lambda
-      // defer (`_v3:pendingUserMessage`) so the next inbound combines via the
-      // R-03 iter-1 path. The common interrupt cases (a queued message exists)
-      // restart in-lambda above and never reach this block (bug 2026-05-28).
-      // ============================================================
-      if (wasInterruptedWithZeroSends) {
-        // D-18: parte del crash-recovery _v3:pendingUserMessage — ver comentario en el site de lectura/combine
-        // PATH A (CKPT-7.1 edge case): Rollback intents_vistos, save pending
-        // message, skip turns. The next inbound's lambda combines via R-03
-        // iter-1 legacy path.
-        await this.adapters.storage.saveState(session.id, {
-          intents_vistos: inputIntentsVistos,
-          datos_capturados: {
-            ...inputDatosCapturados,
-            '_v3:pendingUserMessage': input.message,
-          },
-          // Keep other fields from pipeline (pack, acciones) — harmless and avoids data loss
-          pack_seleccionado: output.packSeleccionado,
-          acciones_ejecutadas: output.accionesEjecutadas,
-        })
-        // Clear pending_templates on Path A (no partial send to resume)
-        if (this.adapters.storage.clearPendingTemplates) {
-          await this.adapters.storage.clearPendingTemplates(session.id)
-        }
-        console.log(`[V4-RUNNER] Path A: state rolled back, pending="${input.message}"`)
-      } else {
-        // PATH B / Normal: Save full state + turns
-
-        // Save state (excluding templates_enviados, handled below)
-        // somnio-v4-turn-ledger Plan 04 (Task 1): persistir el subset del ledger del
-        // turno en la columna `turn_ledger_dims` (Plan 02). SOLO en PATH B (turno
-        // commiteado). En PATH A (wasInterruptedWithZeroSends) NO se persisten las
-        // dims — el turno se descarta (P6).
-        await this.adapters.storage.saveState(session.id, {
-          datos_capturados: output.datosCapturados,
-          intents_vistos: output.intentsVistos,
-          pack_seleccionado: output.packSeleccionado,
-          acciones_ejecutadas: output.accionesEjecutadas,
-          // Default vacío si el output legacy/mock omite las dims (contrato: commitTurn
-          // siempre las produce; el default solo cubre robustez).
-          turn_ledger_dims: output.turnLedgerDims ?? { atendido: [], crmActions: [] },
-        })
-
-        // ============================================================
-        // somnio-v4-turn-ledger Plan 04 (Task 3, D-13/D-17b): emitir el ledger
-        // COMPLETO a agent_observability_events. Almacén analítico cross-sesión
-        // SEPARADO del blob per-sesión (turn_ledger_dims). Aquí se CONSUMEN los
-        // campos del TurnLedger que NO se persisten (modeTransition/confidence/
-        // messagesSent) — ninguno queda fantasma. SOLO en PATH B (turno commiteado;
-        // Path A descarta el turno, no emite). Emit en el runner (que tiene el
-        // collector) — commitTurn queda puro sin I/O (state.ts sin side-effects).
-        // ============================================================
-        {
-          const collector = getCollector()
-          // Defensive: turnLedgerDims es requerido por contrato (commitTurn siempre lo
-          // produce), pero un output legacy/mock podría omitirlo → default vacío para
-          // no crashear el turno completo en el emit (Rule 2 robustez).
-          const ledgerDims = output.turnLedgerDims ?? { atendido: [], crmActions: [] }
-          if (collector) {
-            // 1 evento por cada kb_topic atendido (metadata queryable; NO el texto
-            // completo — ya truncado en el blob; aquí solo topic/confidence/turno).
-            for (const a of ledgerDims.atendido) {
-              if (a.kind === 'kb_topic') {
-                collector.recordEvent('pipeline_decision', 'kb_topic_registered', {
-                  agent: this.config.agentModule ?? 'somnio-v4',
-                  sessionId: session.id,
-                  topic: a.topic,
-                  confidence: a.confidence,
-                  turno: a.turno,
-                })
-              }
-            }
-            // 1 evento por cada acción CRM registrada (args redactados — observabilidad
-            // CRM completa diferida al standalone #2, D-08; aquí tool/result/origen/code).
-            for (const ca of ledgerDims.crmActions) {
-              collector.recordEvent('pipeline_decision', 'crm_action_recorded', {
-                agent: this.config.agentModule ?? 'somnio-v4',
-                sessionId: session.id,
-                tool: ca.tool,
-                result: ca.result,
-                origen: ca.origen,
-                ...(ca.code ? { code: ca.code } : {}),
-              })
-            }
-            // 1 evento summary del turno: modeTransition + confidence + messagesSent +
-            // intent (D-17b — los campos del ledger COMPLETO que NO se persisten).
-            // turnLedgerSummary lo expone el AGENTE (fuente de verdad) desde el mismo
-            // TurnLedger — el runner NO recalcula. Undefined en interrupt/error (turno
-            // descartado) → no emite (no llega aquí en PATH B normal de todos modos).
-            if (output.turnLedgerSummary) {
-              collector.recordEvent('pipeline_decision', 'turn_ledger_committed', {
-                agent: this.config.agentModule ?? 'somnio-v4',
-                sessionId: session.id,
-                intent: output.turnLedgerSummary.intent,
-                confidence: output.turnLedgerSummary.confidence,
-                modeTransition: output.turnLedgerSummary.modeTransition ?? null,
-                messagesSent: output.turnLedgerSummary.messagesSent,
-              })
-            }
-          }
-        }
-
-        // Save templates_enviados with ONLY actually-sent IDs
-        if (actuallySentIds.length > 0) {
-          const updatedTemplatesEnviados = [...inputTemplatesEnviados, ...actuallySentIds]
-          await this.adapters.storage.saveState(session.id, {
-            templates_enviados: updatedTemplatesEnviados,
-          })
-          console.log(`[V4-RUNNER] templates_enviados: +${actuallySentIds.length} (total: ${updatedTemplatesEnviados.length})`)
-        }
-
-        getCollector()?.recordEvent('pipeline_decision', 'state_committed', {
-          sessionId: session.id,
-          messagesSent,
-          templatesSent: actuallySentIds.length,
-          newMode: output.newMode,
-          // D-06 / Pitfall 6: re-cableado del orderResult eliminado a output.crmResult.
-          orderCreated: output.crmResult?.success ?? false,
-        })
-
-        // Update mode (with optimistic locking)
-        if (output.newMode && output.newMode !== session.current_mode) {
-          await this.adapters.storage.updateMode(session.id, session.version, output.newMode)
-        }
-
-        // Timer signals (only on committed turns) — V4 uses emitSignals() directly
-        if (output.timerSignals.length > 0 && 'emitSignals' in this.adapters.timer) {
-          await (this.adapters.timer as any).emitSignals(output.timerSignals)
-        }
-
-        // User turn
-        await this.adapters.storage.addTurn({
-          sessionId: session.id,
-          turnNumber,
-          role: 'user',
-          content: turnEffectiveMessage,
-          intentDetected: output.intentInfo?.intent,
-          confidence: output.intentInfo?.confidence,
-          // Pitfall 2 (debounce-v2-interrupt-reprocess): accumulator across
-          // restart iterations — captures total agent work for this lambda
-          // invocation, not just the last iteration's per-call tokens.
-          tokensUsed: ctx.totalTokensAcrossRestarts,
-        })
-
-        // Add intent seen
-        if (output.intentInfo?.intent) {
-          await this.adapters.storage.addIntentSeen(session.id, output.intentInfo.intent)
-        }
-
-        // Handoff
-        if (output.newMode === 'handoff') {
-          await this.adapters.storage.handoff(session.id, session.version)
-          if (this.adapters.storage.clearPendingTemplates) {
-            await this.adapters.storage.clearPendingTemplates(session.id)
-          }
-        }
-
-        // Orders — D-06 big-bang (standalone somnio-v4-crm-subloop Plan 06): el
-        // bloque del orders-adapter createOrder fue ELIMINADO. El pedido (createOrder
-        // cascaron / updateOrder pack / moveOrderToStage CONFIRMADO) ya se ejecuto
-        // DENTRO del sub-loop GROUNDED via el gate CRM (runCrmGate en somnio-v4-agent),
-        // con triple idempotencia (S1) + guards (idempotency/CAS/whitelist). El runner
-        // solo LEE output.crmResult (Pitfall 6) — no muta. shouldCreateOrder/orderData
-        // quedan @deprecated y el runner los ignora.
-
-        // Assistant turn recording (post-send) — full set across restart
-        // iterations so a Path B reprocess records msg1's partial reply + the
-        // interrupting message's reply (bug 2026-05-28).
-        const assistantContent = allSentContents
-          .filter(m => m.trim().length > 0)
-          .join('\n')
-        if (assistantContent.trim()) {
-          try {
-            await this.adapters.storage.addTurn({
-              sessionId: session.id,
-              turnNumber: turnNumber + 1,
-              role: 'assistant',
-              content: assistantContent,
-            })
-            console.log(`[V4-RUNNER] Assistant turn saved (${assistantContent.length} chars)`)
-          } catch (turnError) {
-            console.error('[V4-RUNNER] Failed to save assistant turn:', turnError)
-          }
-        }
-      }
-
-      // 5j. Debug adapter — always record (even on Path A, useful for diagnostics)
-      this.adapters.debug.recordIntent(output.intentInfo)
-      this.adapters.debug.recordTokens({
+    // B8 — debug adapter (prod log). Always record (incl. Path A).
+    const recordDebug = (args: { output: V4AgentOutput; turnNumber: number; totalTokens: number }): void => {
+      const { output, turnNumber, totalTokens } = args
+      adapters.debug.recordIntent(output.intentInfo)
+      adapters.debug.recordTokens({
         turnNumber,
-        // Pitfall 2 (debounce-v2-interrupt-reprocess): accumulator across
-        // restart iterations.
-        tokensUsed: ctx.totalTokensAcrossRestarts,
+        tokensUsed: totalTokens,
         timestamp: new Date().toISOString(),
       })
-      if (output.classificationInfo) this.adapters.debug.recordClassification(output.classificationInfo)
-      if (output.salesTrackInfo) this.adapters.debug.recordOrchestration(output.salesTrackInfo)
-      this.adapters.debug.recordTimerSignals(output.timerSignals)
+      if (output.classificationInfo) adapters.debug.recordClassification(output.classificationInfo)
+      if (output.salesTrackInfo) adapters.debug.recordOrchestration(output.salesTrackInfo)
+      adapters.debug.recordTimerSignals(output.timerSignals)
+    }
 
-      // Update outer counter for finally-block lock_released_normal payload —
-      // total across restart iterations (bug 2026-05-28).
-      ctx.templatesSentCount = totalMessagesSent
+    // B2 (D-18) — savePathARollback: persiste el mensaje pendiente + cancela timers en el edge
+    // Path A 0-sends (CKPT-7.1). El próximo inbound lo re-combina vía getLegacyPendingMessage.
+    const savePathARollback = async (turn: {
+      sessionId: string
+      message: string
+      intentsVistos: string[]
+      datosCapturados: Record<string, string>
+      packSeleccionado: string | null
+      accionesEjecutadas: unknown[]
+    }): Promise<void> => {
+      await adapters.storage.saveState(turn.sessionId, {
+        intents_vistos: turn.intentsVistos,
+        datos_capturados: {
+          ...turn.datosCapturados,
+          '_v3:pendingUserMessage': turn.message,
+        },
+        pack_seleccionado: turn.packSeleccionado,
+        acciones_ejecutadas: turn.accionesEjecutadas,
+      })
+      console.log(`[V4-RUNNER] Path A: state rolled back, pending="${turn.message}"`)
+    }
 
-      // 6. Return EngineOutput compatible with webhook-processor
+    // send — delega al messaging adapter de prod (V4MessagingAdapter hace CKPT-7.N internamente).
+    const send: TurnCoreAdapters['send'] = async (block) => {
+      return adapters.messaging.send({
+        sessionId: block.sessionId,
+        conversationId: block.conversationId,
+        messages: block.messages,
+        templates: block.templates,
+        intent: block.intent,
+        workspaceId: block.workspaceId,
+        contactId: block.contactId,
+        phoneNumber: block.phoneNumber,
+        triggerTimestamp: block.triggerTimestamp,
+      })
+    }
+
+    return {
+      // OBLIGATORIOS
+      send,
+      getSeedState,
+      // OPCIONALES prod-only
+      commitTurn,
+      getPendingTemplates: adapters.storage.getPendingTemplates
+        ? (sessionId: string) => adapters.storage.getPendingTemplates!(sessionId)
+        : undefined,
+      savePendingTemplates: adapters.storage.savePendingTemplates
+        ? (sessionId: string, templates: unknown[]) => adapters.storage.savePendingTemplates!(sessionId, templates)
+        : undefined,
+      clearPendingTemplates: adapters.storage.clearPendingTemplates
+        ? (sessionId: string) => adapters.storage.clearPendingTemplates!(sessionId)
+        : undefined,
+      getLegacyPendingMessage: () => legacyPendingMessage,
+      savePathARollback,
+      filterOutbound,
+      preloadOnce,
+      recordDebug,
+      // sandbox-only (beforeAgentInvoke / onResultReady) — NO implementados (prod no los necesita).
+    }
+  }
+
+  // ==================================================================
+  // B11 — mapeo TurnResult neutral → EngineOutput (shape de producción).
+  // ==================================================================
+
+  private mapResult(result: TurnResult, input: EngineInput): EngineOutput {
+    if (result.kind === 'zombie_exit') {
+      // D-15 zombie defense: el send-adapter detectó que esta lambda ya no posee el lock.
       return {
-        success: output.success,
-        messages: output.messages,
-        newMode: wasInterruptedWithZeroSends ? undefined : output.newMode,
-        // Pitfall 2 (debounce-v2-interrupt-reprocess): single source of truth
-        // for cost accounting across restart iterations — accumulator instead
-        // of per-call output.totalTokens.
-        tokensUsed: ctx.totalTokensAcrossRestarts,
-        sessionId: session.id,
-        messagesSent: totalMessagesSent,
-        response: allSentContents.join('\n'),
-        // D-06 / Pitfall 6: re-cableado del orderResult eliminado a output.crmResult
-        // (el sub-loop ejecuto la mutacion; el runner solo reporta el resultado).
-        orderCreated: output.crmResult?.success,
-        orderId: output.crmResult?.orderId,
-        contactId: output.crmResult?.contactId ?? input.contactId,
-        error: output.success ? undefined : {
-          code: 'V4_AGENT_ERROR',
-          message: 'V4 agent processing failed',
+        success: false,
+        messages: [],
+        error: {
+          code: 'V4_ZOMBIE_LAMBDA_EXIT',
+          message: result.message,
         },
       }
-      }  // end while (shouldRestart)
+    }
 
-      // Defensive — exhaustiveness: every code path inside while must return
-      // or set shouldRestart=true. Reaching here means a bug.
-      // eslint-disable-next-line no-unreachable
-      throw new Error('[V4-RUNNER] restart loop exited without return — invariant violation')
-    } catch (error) {
-      // ============================================================
-      // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.3)
-      // LostLockError handling — D-15 zombie defense.
-      //
-      // V4MessagingAdapter throws LostLockError when its checkpoint
-      // ('ckpt_7_pre_template') detects this lambda no longer owns
-      // the lock. Propagate that signal as a clean failure (don't
-      // retry — another holder owns the lock, retrying would race).
-      // ============================================================
-      if (error instanceof LostLockError) {
-        emitLockEvent('zombie_lambda_exit', {
-          my_uuid: input.lockHandle?.holderUuid ?? 'unknown',
-          current_holder_uuid: 'unknown',  // Don't read lock value — racy.
-          at_step: error.ckptId,
-        })
-        return {
-          success: false,
-          messages: [],
-          error: {
-            code: 'V4_ZOMBIE_LAMBDA_EXIT',
-            message: error.message,
-          },
-        }
-      }
-
-      if (error instanceof VersionConflictError && retryCount < MAX_VERSION_CONFLICT_RETRIES) {
-        console.warn(`[V4-RUNNER] Version conflict, retrying (${retryCount + 1}/${MAX_VERSION_CONFLICT_RETRIES})`)
-        return this.processMessage(input, retryCount + 1)
-      }
-
-      const errorMessage = error instanceof Error
-        ? `${error.message}\n${(error as Error).stack?.split('\n').slice(0, 3).join('\n')}`
-        : 'Unknown error'
-      console.error('[V4-RUNNER] CRASH:', errorMessage)
-
+    if (result.kind === 'error') {
+      // Contrato prod C5: error → success:false (divergencia intencional vs sandbox success:true).
       return {
         success: false,
         messages: [],
         error: {
           code: 'V4_ENGINE_ERROR',
-          message: errorMessage,
+          message: result.message,
         },
       }
     }
-    } finally {
-      // ============================================================
-      // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.3)
-      // D-09 layer 1+2 cleanup:
-      //   - Layer 2: stop the heartbeat interval (prevents zombie keys)
-      //   - Layer 1: release the lock atomically if we still own it
-      //
-      // Both gated on input.lockHandle — pre-v4 / fail-open callers
-      // skip both ops entirely. Order matters: stop heartbeat BEFORE
-      // release (otherwise the heartbeat could fire one last renewal
-      // between our DEL and the next holder's SET NX, leaving a
-      // brief inconsistent state).
-      // ============================================================
-      if (stopHeartbeat) stopHeartbeat()
-      if (input.lockHandle) {
-        try {
-          const released = await releaseLockIfOwner(input.lockHandle)
-          if (released) {
-            emitLockEvent('lock_released_normal', {
-              holder_uuid: input.lockHandle.holderUuid,
-              duration_ms: Date.now() - startMs,
-              templates_sent: ctx.templatesSentCount,
-            })
-          }
-        } catch (releaseError) {
-          // Fail-open: if Upstash is unreachable at release time, the
-          // lock TTL (45s) will reap it naturally + the cron sweep
-          // (Plan 06) is the backstop. Don't throw out of finally.
-          emitLockEvent('redis_unavailable_fallback_failed', {
-            error_message: releaseError instanceof Error ? releaseError.message : String(releaseError),
-            at_step: 'release_lock_in_finally',
-          })
-        }
-      }
+
+    // kind === 'completed'
+    // B11 — el evento `agent_routed` lo emite el CORE dentro del loop (post-agent-invoke), NO el
+    // wrapper: emitirlo aquí de nuevo sería un doble-emit (regresión de observabilidad). El runner
+    // viejo lo emitía una sola vez por invocación del agente; el core conserva esa cardinalidad.
+    const output: V4AgentOutput = result.output
+
+    return {
+      success: output.success,
+      messages: output.messages,
+      newMode: result.wasInterruptedWithZeroSends ? undefined : output.newMode,
+      tokensUsed: result.totalTokens,
+      sessionId: result.sessionId,
+      messagesSent: result.templatesSentCount,
+      response: result.allSentContents.join('\n'),
+      // D-06 / Pitfall 6: re-cableado del orderResult eliminado a output.crmResult.
+      orderCreated: output.crmResult?.success,
+      orderId: output.crmResult?.orderId,
+      contactId: output.crmResult?.contactId ?? input.contactId,
+      error: output.success ? undefined : {
+        code: 'V4_AGENT_ERROR',
+        message: 'V4 agent processing failed',
+      },
     }
   }
 }

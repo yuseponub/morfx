@@ -119,7 +119,10 @@ export async function runTurn(
       }
 
       // --- B1: getSeedState() per-iteración. Prod fetch DB fresh; sandbox input.state memoria. ---
-      const seed = await adapters.getSeedState()
+      // ctx.carryState (Path B reprocess) se pasa al builder, que lo aplica encima del seed
+      // derivado de la sesión (patrón carryState ?? sessionDerived del runner :296). El core lo
+      // setea pero NO lo re-lee — el builder es quien conoce el shape (prod DB vs sandbox).
+      const seed = await adapters.getSeedState(ctx.carryState)
 
       // ============================================================
       // B2 (D-18 crash-recovery `_v3:pendingUserMessage`) — DESPUÉS del seed (orden Pitfall 7).
@@ -171,6 +174,9 @@ export async function runTurn(
         lockHandle: input.lockHandle ?? null,
         lockChannel: input.lockChannel ?? null,
         lockIdentifier: input.lockIdentifier ?? null,
+        // Vision context del path image-respond v4 (runner viejo :332). El adapter lo resuelve en
+        // getSeedState desde EngineInput.visionContext; sandbox lo arma desde input.visionContext.
+        visionContext: seed.visionContext,
       }
 
       // ============================================================

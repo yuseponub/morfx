@@ -25,6 +25,7 @@ import type {
   TurnLedgerDims,
   V4AgentOutput,
 } from '@/lib/agents/somnio-v4/types'
+import type { CarryState } from './restart-context'
 
 // ============================================================================
 // CoreSeedState — el estado-semilla del turno (per-iteración, B1)
@@ -58,6 +59,13 @@ export interface CoreSeedState {
   history: { role: 'user' | 'assistant'; content: string }[]
   /** Número de turno (prod: deriva de history.length; sandbox: input.turnNumber). */
   turnNumber: number
+  /**
+   * Vision context del path image-respond v4 (media-gate → vision_respond). Presente SOLO en ese
+   * path; ausente en texto/audio/sticker. Campo neutral (descripcion + categoria, NO tipos de
+   * WhatsApp). El core lo threadea al V4AgentInput tal cual lo hacía el runner (:332). Plan 10:
+   * regresión introducida por la extracción del Plan 09 (el runner viejo lo pasaba; el core no).
+   */
+  visionContext?: { descripcion: string; categoria: string }
 }
 
 // ============================================================================
@@ -216,8 +224,14 @@ export interface TurnCoreAdapters {
    * Resuelve el estado-semilla del turno por-iteración (B1). Prod: fetch sesión fresh de DB +
    * extracción de `_v3:` keys; sandbox: `input.state` de memoria. Llamado DENTRO del loop, después
    * de CKPT-0 y antes del combine legacy (orden Pitfall 7).
+   *
+   * `carry` (Plan 10): el carryState que el core seteó en la iteración previa de un reprocess
+   * Path B (null en iter 1 / Path A). El builder lo APLICA encima del estado-semilla derivado de
+   * la sesión — patrón `carryState ?? sessionDerived` del runner viejo (:296). Sin esto el
+   * reprocess Path B re-saludaría / re-enviaría (el core setea carryState pero NO lo re-lee — lo
+   * delega al builder, que es quien conoce el shape del seed: prod DB vs sandbox SandboxState).
    */
-  getSeedState(): Promise<CoreSeedState>
+  getSeedState(carry?: CarryState | null): Promise<CoreSeedState>
 
   // ---- OPCIONALES prod-only ----
 

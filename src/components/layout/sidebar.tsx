@@ -3,9 +3,10 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, MessageSquare, MessageSquareText, Settings, Users, LogOut, ListTodo, BarChart3, Bot, Zap, Sparkles, Terminal, CalendarCheck, TrendingUp, FlaskConical } from 'lucide-react'
+import { Building2, MessageSquare, MessageSquareText, Settings, Users, LogOut, ListTodo, BarChart3, Bot, Zap, Sparkles, Terminal, CalendarCheck, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { firstGrapheme } from '@/lib/utils/initials'
+import { navCategoriesV2, CAT_SLUG, filterNavItem, type NavItem } from './nav-items'
 import {
   Tooltip,
   TooltipContent,
@@ -29,26 +30,6 @@ import type { WorkspaceWithRole } from '@/lib/types/database'
 type SidebarUser = {
   id: string
   email?: string | null
-}
-
-type NavItem = {
-  href: string
-  label: string
-  icon: typeof Building2
-  badgeType?: 'tasks' | 'automations'
-  adminOnly?: boolean
-  /**
-   * Optional gate based on workspaces.settings JSONB.
-   * Format: '<namespace>.<key>', e.g. 'conversation_metrics.enabled'.
-   * The item is hidden unless settings[namespace][key] is truthy.
-   * Unlike `adminOnly`, this gate applies to ALL users of the workspace.
-   */
-  settingsKey?: string
-  subLink?: {
-    href: string
-    label: string
-    icon: typeof Building2
-  }
 }
 
 const navItems: NavItem[] = [
@@ -131,67 +112,6 @@ const navItems: NavItem[] = [
   },
 ]
 
-/**
- * Sidebar v2 categories — Propuesta B (D-RETRO-04).
- *
- * 14 items across 4 categorías. Shares the same filtering semantics
- * as `navItems` (adminOnly, settingsKey, hidden_modules). Items link
- * to routes that already exist in the codebase (verified 2026-04-23
- * against `src/app/(dashboard)/*`).
- *
- * Used ONLY when `v2=true`. The legacy flat `navItems[]` above keeps
- * the flag-off render byte-identical (Regla 6 fail-closed).
- */
-type SidebarCategoryV2 = {
-  label: string
-  items: NavItem[]
-}
-
-/**
- * Vivificación v3 (2026-06): slug de sección para colorear bullets e iconos
- * del sidebar v3 vía `.sb-sec.{op,auto,ana,adm}` → `--sec-c` (globals.css,
- * bloque VIVIFICACIÓN). Solo lo consume la rama v3 — v2/legacy intactas.
- */
-const CAT_SLUG: Record<string, string> = {
-  'Operación': 'op', 'Automatización': 'auto', 'Análisis': 'ana', 'Admin': 'adm',
-}
-
-const navCategoriesV2: SidebarCategoryV2[] = [
-  {
-    label: 'Operación',
-    items: [
-      { href: '/crm', label: 'CRM', icon: Building2 },
-      { href: '/whatsapp', label: 'WhatsApp', icon: MessageSquare },
-      { href: '/tareas', label: 'Tareas', icon: ListTodo, badgeType: 'tasks' },
-      { href: '/confirmaciones', label: 'Confirmaciones', icon: CalendarCheck },
-      { href: '/sms', label: 'SMS', icon: MessageSquareText },
-    ],
-  },
-  {
-    label: 'Automatización',
-    items: [
-      { href: '/automatizaciones', label: 'Automatizaciones', icon: Zap, badgeType: 'automations' },
-      { href: '/agentes', label: 'Agentes', icon: Bot },
-      { href: '/comandos', label: 'Comandos', icon: Terminal, adminOnly: true },
-    ],
-  },
-  {
-    label: 'Análisis',
-    items: [
-      { href: '/analytics', label: 'Analytics', icon: BarChart3, adminOnly: true },
-      { href: '/metricas', label: 'Metricas', icon: TrendingUp, settingsKey: 'conversation_metrics.enabled' },
-    ],
-  },
-  {
-    label: 'Admin',
-    items: [
-      { href: '/sandbox', label: 'Sandbox', icon: FlaskConical },
-      { href: '/settings/workspace/members', label: 'Equipo', icon: Users },
-      { href: '/configuracion', label: 'Configuración', icon: Settings },
-    ],
-  },
-]
-
 interface SidebarProps {
   workspaces?: WorkspaceWithRole[]
   currentWorkspace?: WorkspaceWithRole | null
@@ -231,16 +151,9 @@ export function Sidebar({ workspaces = [], currentWorkspace, user, v2 = false, v
   const isManager = userRole === 'owner' || userRole === 'admin'
   const settings = currentWorkspace?.settings as Record<string, unknown> | null | undefined
   const hiddenModules = settings?.hidden_modules as string[] | undefined
-  const filteredNavItems = navItems.filter(item => {
-    if (item.adminOnly && !isManager) return false
-    if (hiddenModules?.includes(item.href)) return false
-    if (item.settingsKey) {
-      const [ns, key] = item.settingsKey.split('.')
-      const nsObj = settings?.[ns] as Record<string, unknown> | undefined
-      if (!nsObj?.[key]) return false
-    }
-    return true
-  })
+  const filteredNavItems = navItems.filter(item =>
+    filterNavItem(item, { isManager, hiddenModules, settings }),
+  )
 
   // =========================================================================
   // Editorial v3 branch — sidebar editorial (ui-redesign-editorial-shell, D-02).
@@ -252,16 +165,8 @@ export function Sidebar({ workspaces = [], currentWorkspace, user, v2 = false, v
   // (Regla 6). NO ThemeToggle here (D-07 — toggle lives in the topbars).
   // =========================================================================
   if (v3) {
-    const filterItem = (item: NavItem): boolean => {
-      if (item.adminOnly && !isManager) return false
-      if (hiddenModules?.includes(item.href)) return false
-      if (item.settingsKey) {
-        const [ns, key] = item.settingsKey.split('.')
-        const nsObj = settings?.[ns] as Record<string, unknown> | undefined
-        if (!nsObj?.[key]) return false
-      }
-      return true
-    }
+    const filterItem = (item: NavItem): boolean =>
+      filterNavItem(item, { isManager, hiddenModules, settings })
 
     const workspaceSubline = currentWorkspace?.name
       ? `${currentWorkspace.name} · CRM`
@@ -428,16 +333,8 @@ export function Sidebar({ workspaces = [], currentWorkspace, user, v2 = false, v
   // branch below remains BYTE-IDENTICAL to HEAD pre-plan when v2=false.
   // =========================================================================
   if (v2) {
-    const filterItem = (item: NavItem): boolean => {
-      if (item.adminOnly && !isManager) return false
-      if (hiddenModules?.includes(item.href)) return false
-      if (item.settingsKey) {
-        const [ns, key] = item.settingsKey.split('.')
-        const nsObj = settings?.[ns] as Record<string, unknown> | undefined
-        if (!nsObj?.[key]) return false
-      }
-      return true
-    }
+    const filterItem = (item: NavItem): boolean =>
+      filterNavItem(item, { isManager, hiddenModules, settings })
 
     const workspaceSubline = currentWorkspace?.name
       ? `${currentWorkspace.name} · CRM`

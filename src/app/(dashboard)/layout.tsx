@@ -86,7 +86,7 @@ export default async function DashboardLayout({
               del flex row. */}
           {isEditorialV3 && (
             <div className="md:hidden fixed top-3 left-3 z-50">
-              <MobileNav v3 />
+              <MobileNav v3 currentWorkspace={currentWorkspace} />
             </div>
           )}
           <Sidebar

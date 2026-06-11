@@ -199,6 +199,129 @@ export function KanbanCard({
           <span className="val">{formatCurrency(order.total_value)}</span>
         </div>
 
+        {/* Duplicate error badge — Standalone crm-duplicate-order-products-integrity (C-4) */}
+        {/* Misma lógica/handlers que la rama legacy (duplicateError, isClearing, */}
+        {/* handleResolveDuplicateError compartidos), idioma editorial v3. */}
+        {/* P-8/P-9: stopPropagation en TODOS los interactives para no entrar drag mode. */}
+        {duplicateError && (
+          <div
+            className="err"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="err-trigger"
+                  aria-label="Pedido sin productos — error al duplicar"
+                >
+                  <AlertTriangleIcon className="h-3 w-3" />
+                  <span>Sin productos</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                className="w-80 p-0"
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <div className="p-3 border-b">
+                  <p className="text-sm font-medium flex items-center gap-1.5">
+                    <AlertTriangleIcon className="h-4 w-4 text-destructive" />
+                    Productos no se copiaron al duplicar
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {formatRelativeTime(duplicateError.failedAt)}
+                  </p>
+                </div>
+                <div className="p-3 border-b space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <code className="text-[10px] bg-muted px-1 py-0.5 rounded">
+                      {duplicateError.errorCode}
+                    </code>
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-3">
+                    {duplicateError.errorMessage.length > 80
+                      ? duplicateError.errorMessage.slice(0, 80) + '…'
+                      : duplicateError.errorMessage}
+                  </p>
+                </div>
+                <div className="p-3 border-b">
+                  <p className="text-xs font-medium mb-1.5">
+                    Productos que el origen tenia:
+                  </p>
+                  <ul className="space-y-1">
+                    {duplicateError.attemptedProducts.map((p, i) => (
+                      <li
+                        key={`${p.sku}-${i}`}
+                        className="text-xs text-muted-foreground flex justify-between gap-2"
+                      >
+                        <span className="truncate">
+                          {p.quantity}× {p.title}
+                        </span>
+                        <span className="shrink-0 font-mono">
+                          {formatCurrency(p.unit_price)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="p-3 border-b">
+                  <Link
+                    href={`/crm/pedidos/${duplicateError.sourceOrderId}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    Ver pedido origen →
+                  </Link>
+                </div>
+                <div className="p-3 flex justify-end">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7"
+                        disabled={isClearing}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Marcar resuelto
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Marcar como resuelto?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esto eliminara la marca de error del pedido. Asegurate de
+                          haber agregado los productos correctos antes de continuar.
+                          La accion no se puede deshacer (pero puedes volver a
+                          editar productos del pedido normalmente).
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
+                          Cancelar
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleResolveDuplicateError()
+                          }}
+                          disabled={isClearing}
+                        >
+                          Marcar resuelto
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+
         {/* Product line with ▢ mark */}
         {productLine && (
           <div className="prod">
@@ -210,6 +333,15 @@ export function KanbanCard({
         {/* Tags — MxTag pills (P/W → indigo, RECO → indigo, C → success) */}
         {order.tags.length > 0 && (
           <div className="tags">{renderEditorialOrderTags(order.tags)}</div>
+        )}
+
+        {/* Tracking (M-5) — número de guía + carrier con marca editorial */}
+        {order.tracking_number && (
+          <div className="track">
+            <TruckIcon className="h-3 w-3" />
+            <span className="mono">{order.tracking_number}</span>
+            {order.carrier && <span className="car">{order.carrier}</span>}
+          </div>
         )}
 
         {/* Foot: hairline row — mono date + ↻/○ icon marks + recompra/WhatsApp + city */}

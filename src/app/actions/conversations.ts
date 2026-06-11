@@ -300,7 +300,10 @@ export async function markAsRead(id: string): Promise<ActionResult> {
     return { error: 'Error al marcar como leido' }
   }
 
-  revalidatePath('/whatsapp')
+  // D-13 (whatsapp-inbox-reliability F-3): read-state mutations do NOT invalidate routes.
+  // markAsRead reconciles via optimistic local update (markAsReadLocally) + realtime UPDATE.
+  // revalidatePath here forced a full /whatsapp RSC re-render (re-fetch of ~1000 rows) on every click.
+  // archive/unarchive KEEP revalidatePath — they change the visible set.
   return { success: true, data: undefined }
 }
 

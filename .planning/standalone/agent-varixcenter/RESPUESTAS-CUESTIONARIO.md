@@ -70,7 +70,28 @@ Extraídos del docx "MENSAJE PARA CUANDO PREGUNTAN VALORACION". Son la base de `
 
 ---
 
-## FALTANTES — lo que hay que pedir/resolver antes de diseñar
+## FALTANTES — ✅ TODOS RESUELTOS (2026-06-11, segunda ronda)
+
+| # | Pregunta | Respuesta |
+|---|----------|-----------|
+| 1 | A3 horarios | ✅ Sí, correctos |
+| 2 | A7 EPS "totalmente particular" | ✅ Sí |
+| 3 | A9 lista de servicios propuesta | ✅ Sí |
+| 4 | Precio ECOR/endoláser | **"Se determina en valoración"** — el bot NO da el rango |
+| 5 | C6 preguntas médicas | ✅ Sí ("lo determina el Dr. en la valoración") |
+| 6 | Doctores para valoraciones | **Los 2** (agendas fusionadas, cliente no elige) |
+| 7 | Duración slot valoración | **20 minutos** |
+| 8 | varix-clinic en producción | **Sí, en prod** |
+| 9 | ¿Bot crea el patient? | **Sí** (nombre + cédula + teléfono) |
+| 10 | B4 recordatorio | **Manual con el equipo** (fuera de scope del bot) |
+| 11 | Tag VAL + pipeline CRM | **Sí** (detalles de pipeline en plan-phase) |
+
+→ Diseño derivado: `DISENO-COMPLETO.md` (D-01..D-15) + `PLANTILLAS.md` (~44 templates, 5 opciones de saludo).
+→ Pendiente del cliente: escoger 1 saludo de las 5 opciones + 2 notas de wording en PLANTILLAS.md.
+
+---
+
+## (histórico) FALTANTES originales — lo que había que pedir/resolver antes de diseñar
 
 ### Para la clínica (5 confirmaciones rápidas, 1 línea cada una)
 

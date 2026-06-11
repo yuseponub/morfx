@@ -1,61 +1,49 @@
 /**
- * Somnio v4 Engine - Minimal Sandbox Runner
+ * Somnio v4 Engine — WRAPPER SANDBOX del core de turno v4 (somnio-v4-consolidation Plan 11, D-04/D-05).
  *
- * ⚠️ INTERRUPCIÓN: este engine es el lado SANDBOX del sistema de interrupción.
- * El mecanismo (Path A/B, dropOwnEntry, carryState, restart loop) DEBE ir alineado
- * con el lado producción (`engine/v4-production-runner.ts`) aunque el código no sea
- * idéntico. Antes de tocar la lógica de interrupción acá, leé el contrato de paridad:
- * `src/lib/agents/somnio-v4/INTERRUPTION-PARITY.md`.
+ * ⚠️ INTERRUPCIÓN: el MECANISMO de interrupción (Path A/B, dropOwnEntry, carryState, restart loop,
+ * heartbeat, finally-release) YA NO vive aquí — vive en `core/turn-orchestrator.ts` (`runTurn`), el
+ * MISMO core que corre producción (`engine/v4-production-runner.ts`). Tras este plan la paridad
+ * prod↔sandbox es POR CONSTRUCCIÓN: ambos lados corren el mismo `runTurn` parametrizado solo por
+ * `TurnCoreAdapters`. El bug del 2026-05-28 (fix doble dropOwnEntry/carryState) es estructuralmente
+ * imposible — el mecanismo es código único. Contrato de paridad: `INTERRUPTION-PARITY.md` (su
+ * reducción a "solo diferencias de adapters" es el Plan 12).
  *
- * Thin engine for sandbox-only v4 agent testing.
- * Handles bidirectional mapping: SandboxState <-> V4AgentInput
- * via `_v3:` prefixed keys in datosCapturados (preservados por compatibilidad
- * con sessions productivas — D-19 mantiene namespace; sessions v3 que se
- * cierren al flip pasan a v4 sin re-mapear keys legacy).
+ * Este archivo es el lado SANDBOX del core: construye los `TurnCoreAdapters` de memoria
+ * (`createSandboxAdapters` — send sintético NDJSON + estado en memoria + timing simulado +
+ * onResultReady write a Redis) + mapea `TurnResult` → `V4EngineOutput` (build SandboxState + DebugTurn).
  *
- * Standalone: somnio-sales-v4-runtime-wiring / Plan 03.
- * Cloned mecánicamente desde somnio-v3/engine-v3.ts (D-13 — duplicado 100%).
+ * Capabilities sandbox (Divergence Map C1-C6) — el adapter absorbe el loop sintético CKPT-7.N + pacing
+ * + onMessage; el wrapper queda con el mapeo de frontera:
+ * - C2: build de SandboxState desde output + limpieza de keys `_v3:` stale.
+ * - C3: build de DebugTurn completo (intent/tokens/orchestration con `shouldCreateOrder: false`
+ *   literal/salesTrack/responseTrack/subLoop/timerSignals).
+ * - C5: contrato de error sandbox INTENCIONAL (`success: true` + `[Error v4] ...`) — NO unificar con
+ *   prod (`success: false`) o se rompe el route/UI.
  *
- * Diferencias intencionales con engine-v3:
- * - import processMessage desde './somnio-v4-agent' (NO somnio-v3)
- * - V4EngineInput / V4EngineOutput types
- * - DebugTurn extendido con campos opcionales subLoopReason / kbHits /
- *   nuncaDecirMatches / threshold (D-20). El sub-loop expone esa metadata
- *   solo via observability events; cuando V4AgentOutput la suba al top-level
- *   (Plan 06+), el wrapper los mapea aquí. Mientras tanto los campos quedan
- *   undefined y la UI renderiza condicional.
- * - KB real (D-22) — workspaceId propagado al agent que internamente queries
- *   Supabase prod (workspace Somnio).
- * - Retomas simuladas (D-21) — systemEvent propagado igual que v3.
- * - debugTurn.tokens.models[].model = 'gemini-2.5-flash' (B-2 fix +
- *   D-30 — swap at clone time; refleja el provider real que Plan 05 wirea
- *   para comprehension donde nace `output.totalTokens`). Cero TODO comments.
+ * Diferencias intencionales con producción (NO son divergencias de mecanismo — ver INTERRUPTION-PARITY §3):
+ * - El sandbox NO envía a WhatsApp; el send-adapter recoge en memoria + stream NDJSON al browser.
+ * - El sandbox NO persiste a DB; devuelve el estado en memoria (SandboxState).
+ * - El sandbox SIMULA el timing de prod (`simulateProdTimingMs`) para abrir la ventana de interrupción.
+ * - El sandbox NO implementa CKPT-6a/crash-recovery/no-repetición (prod-only — el core salta esas
+ *   ramas porque el adapter no las implementa = paridad actual exacta, D-07).
+ *
+ * Firma pública intacta: `SomnioV4Engine.processMessage(input: V4EngineInput): Promise<V4EngineOutput>`
+ * — el route (`app/api/sandbox/process/route.ts`) NO se toca.
  */
 
-import { processMessage } from './somnio-v4-agent'
 import type { SandboxState, DebugTurn } from '@/lib/sandbox/types'
 import type { PackSelection } from '@/lib/agents/types'
 import type { SystemEvent } from './types'
-
-// Standalone: debounce-v2-sandbox-integration / Plan 01 (D-04 + D-05 + D-06 + D-15).
-// Wire shipped interruption-system-v2 primitives into the sandbox engine.
-// Module is IMPORTED ONLY — never modified (D-15).
-// D-06 (Plan 07): skip-gate + lostLock throw de CKPT-0/6/7.N factorizados en
-// runCheckpointGate (specifier relativo — interno a somnio-v4).
-import { runCheckpointGate } from './core/checkpoint-gate'
-// D-03 (Plan 08): acumuladores cross-iteración + drain de los 5 sites consolidados
-// en core/restart-context + core/drain (mismo core que el runner de producción).
-import { createRestartContext } from './core/restart-context'
-import { drainPendingAndCombine } from './core/drain'
-import {
-  releaseLockIfOwner,
-  startHeartbeat,
-  type LockHandle,
-  type LockChannel,
-} from '@/lib/agents/interruption-system-v2/lock'
-import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
+import type { V4AgentOutput } from './types'
+import type { LockHandle, LockChannel } from '@/lib/agents/interruption-system-v2/lock'
 import { redis } from '@/lib/agents/interruption-system-v2/redis-client'
-import { LostLockError } from '@/lib/agents/engine-adapters/production/v4-messaging-adapter'
+
+// El MECANISMO único de turno v4 (restart loop + Path A/B + heartbeat + finally) vive en el core
+// (D-04 Plan 09). El engine lo CONSUME con adapters de memoria (Plan 11).
+import { runTurn } from './core/turn-orchestrator'
+import type { TurnCoreInput, TurnResult } from './core/types'
+import { createSandboxAdapters, type SandboxResultPayload } from './sandbox-adapters'
 
 export interface V4EngineInput {
   message: string
@@ -67,70 +55,39 @@ export interface V4EngineInput {
   // Standalone: debounce-v2-sandbox-integration / Plan 01 (D-04 + D-15).
   // All 5 fields OPTIONAL — pre-this-standalone callers (existing tests, dev workflows
   // that bypass the sandbox lock branch) continue to work without modification.
-  // When null/undefined, the engine skip-guards every checkpoint + heartbeat + release
-  // (sandbox keeps the same behavior as before this standalone).
-  // Plan 02 (sandbox/process/route.ts v4 branch) is the FIRST caller that populates these.
+  // When null/undefined, the core skip-guards every checkpoint + heartbeat + release
+  // (sandbox keeps the same behavior as before the lock standalone).
   lockHandle?: LockHandle | null
   lockChannel?: LockChannel | null  // 'whatsapp' | 'facebook' | 'instagram' — sandbox uses 'whatsapp' per D-02 Option C
   lockIdentifier?: string | null   // sandbox uses `sandbox-{sandboxSessionId}` per D-02 Option C
   ownPendingEntryJson?: string | null
   sandboxSessionId?: string         // for Pitfall 5 sandbox-result:{id} write before finally release
   /**
-   * When > 0 AND lockHandle is non-null, the engine inserts ARTIFICIAL DELAYS to
+   * When > 0 AND lockHandle is non-null, the sandbox adapters insert ARTIFICIAL DELAYS to
    * simulate production timing inside the lock-hold window:
-   *
-   *   1. After CKPT-0 (post-acquire) succeeds, sleep `simulateProdTimingMs` ms
-   *      BEFORE invoking the agent's processMessage. This represents the
-   *      production LLM "thinking" time and gives msg2 a window to arrive
-   *      as FOLLOWER → be detected at CKPT-6 (pre-send-loop) → Path A combined
-   *      restart.
-   *
-   *   2. Between CKPT-7.N iterations (per-template), sleep proportional to
-   *      message length. This represents the production template-send pacing
-   *      and gives msg2 a window to arrive during the send loop → be detected
-   *      at the next CKPT-7.N iteration → Path B abort.
-   *
-   * Without these delays the engine completes in microseconds and Path A / B
-   * cannot be triggered from the sandbox UI (the user cannot click "send" fast
-   * enough to overlap a 3-second lock hold).
-   *
-   * Default 0 (no simulation — backward compatible with existing tests and
-   * non-sandbox callers).
-   *
-   * Added post-`debounce-v2-sandbox-integration` smoke discovery 2026-05-27:
-   * users reported that "the system does not interrupt even after 6+ seconds"
-   * because the sandbox engine returns before the second message can land.
+   *   1. `beforeAgentInvoke` (iteration 0): sleep `simulateProdTimingMs` ms representing the
+   *      production LLM "thinking" time → gives msg2 a window to arrive as FOLLOWER.
+   *   2. Between CKPT-7.N iterations (per-template): sleep proportional to message length →
+   *      gives msg2 a window to arrive during the send loop → detected at the next CKPT-7.N.
+   * Default 0 (no simulation — backward compatible). Lives in `sandbox-adapters.ts`.
    */
   simulateProdTimingMs?: number
   /**
-   * standalone v4-media-audio-image (Plan 04): vision context for the dedicated
-   * image-respond branch. When present, engine-v4 passes it into processMessage
-   * so the shared branch fires in sandbox — parity with production (EngineInput
-   * → V4AgentInput). Absent on text turns, timers, and tests that don't supply it.
-   * Additive — Regla 6. See INTERRUPTION-PARITY.md vision section.
+   * standalone v4-media-audio-image (Plan 04): vision context for the dedicated image-respond
+   * branch. When present, the core threads it into processMessage so the shared branch fires in
+   * sandbox — parity with production. Absent on text turns. Additive — Regla 6.
    */
   visionContext?: { descripcion: string; categoria: string }
   /**
-   * Optional callback fired once per template AFTER CKPT-7.N succeeds for that
-   * template AND the per-template send-pacing sleep has elapsed. Used by the
-   * streaming sandbox route to flush each template to the browser as it is
-   * "sent" by the engine — matching the production behavior where each
-   * V4MessagingAdapter.send() call is observable client-side immediately.
-   *
-   * The callback runs WITH THE LOCK STILL HELD (engine is mid-loop). It MUST
-   * NOT release the lock or perform other lifecycle operations — those are
-   * the engine's responsibility in `finally`.
-   *
-   * Added post-`debounce-v2-sandbox-integration` smoke discovery 2026-05-27:
-   * before the callback, the engine returned only the final messages array at
-   * the end of processMessage, so the user saw all templates appear at once
-   * after the entire lock-hold window completed (~15-25s of nothing then a
-   * burst). The callback enables progressive reveal matching WhatsApp prod.
+   * Optional callback fired once per template AFTER CKPT-7.N succeeds for that template AND the
+   * per-template send-pacing sleep has elapsed. Used by the streaming sandbox route to flush each
+   * template to the browser as it is "sent" — matching production where each
+   * V4MessagingAdapter.send() call is observable client-side immediately. The callback runs WITH
+   * THE LOCK STILL HELD (send-adapter is mid-loop); it MUST NOT release the lock. Lives in
+   * `sandbox-adapters.ts` (send adapter).
    */
   onMessage?: (content: string, index: number) => Promise<void> | void
 }
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export interface V4EngineOutput {
   success: boolean
@@ -145,532 +102,76 @@ export class SomnioV4Engine {
   async processMessage(input: V4EngineInput): Promise<V4EngineOutput> {
     const timestamp = new Date().toISOString()
 
-    // ============================================================
-    // Standalone: debounce-v2-sandbox-integration / Plan 01 (D-04 + D-05 + D-06).
-    // Outer-scope state for restart-loop semantics (mirror V4ProductionRunner
-    // post-`debounce-v2-interrupt-reprocess` shipped 2026-05-26 + chronological-fix
-    // commit 494d3bb4 on 2026-05-27).
-    // These persist ACROSS restart-loop iterations within a single processMessage
-    // invocation; reset to zero at the top of each new processMessage call.
-    // ============================================================
-    const startMs = Date.now()
-    const lockCtx = input.lockHandle && input.lockChannel && input.lockIdentifier
-      ? { channel: input.lockChannel as LockChannel, identifier: input.lockIdentifier as string }
-      : null
-    let stopHeartbeat: (() => void) | null = null
-    if (input.lockHandle) {
-      // D-05: heartbeat lifecycle OUTSIDE the while loop (Pitfall 6 — no heartbeat stacking).
-      stopHeartbeat = startHeartbeat(input.lockHandle)
+    // ----------------------------------------------------------------
+    // Input neutral del core (derivado de V4EngineInput — SIN tipos de WhatsApp). El THROW
+    // defensivo del contrato del webhook (A1) vive en el core (runTurn). El sandbox usa lock
+    // identifier 'sandbox-{id}' + canal 'whatsapp' (D-02 Option C); puede venir null (fail-open).
+    // ----------------------------------------------------------------
+    const coreInput: TurnCoreInput = {
+      message: input.message,
+      conversationId: input.sandboxSessionId ?? 'sandbox-conversation',
+      workspaceId: input.workspaceId,
+      lockHandle: input.lockHandle,
+      lockChannel: input.lockChannel,
+      lockIdentifier: input.lockIdentifier,
+      ownPendingEntryJson: input.ownPendingEntryJson,
     }
-    // ============================================================
-    // D-03 (somnio-v4-consolidation Plan 08): los acumuladores cross-iteración
-    // (totalTokensAcrossRestarts, restartIteration, effectiveMessage,
-    // templatesSentCount, accumulatedSentContents [engine lo llamaba
-    // accumulatedSentMessages — A6], ownEntryUuid + dropOwnEntry, shouldRestart)
-    // viven en el struct ÚNICO RestartContext, idéntico al runner de producción.
-    // El bug del 2026-05-28 (dropOwnEntry/carryState) ya no se arregla dos veces.
-    //
-    // ownEntryUuid: el HOLDER apila su mensaje propio en la pending list
-    // (crash-recovery); todos los drains lo EXCLUYEN por entry_uuid (sino se
-    // combina consigo mismo: "hola\nhola…", el "hola" fantasma).
-    // ============================================================
-    const ctx = createRestartContext(input.ownPendingEntryJson)
 
-    // Bug 2026-05-28 (re-greet on Path B reprocess): each restart iteration
-    // re-seeds the agent from `input.state` (the ORIGINAL turn state). For a
-    // Path A combine that is correct (we re-run the original message merged with
-    // the interrupting one, so the original state is the right starting point).
-    // But for a Path B reprocess — where iter-0 ALREADY sent templates the
-    // customer saw (e.g. the saludo) — starting from the original state makes
-    // the response-track think the saludo was never sent and re-greet. On a
-    // Path B reprocess we capture iter-0's resulting state here and seed iter-1
-    // from it. Stays null for Path A so combine keeps original-state semantics.
-    let carryState: SandboxState | null = null
+    // ----------------------------------------------------------------
+    // C5 — el mapeo TurnResult → V4EngineOutput. onResultReady (dentro del core, ANTES del release)
+    // lo aplica para escribir sandbox-result:{id}; el wrapper lo aplica al TurnResult que runTurn
+    // retorna → lo escrito == lo retornado. Es el ÚNICO punto de frontera hacia src/lib/sandbox/types
+    // (los casts de SandboxState viven aquí; ese archivo NO se toca, compartido con sandbox v3).
+    // ----------------------------------------------------------------
+    const mapResult = (result: TurnResult): SandboxResultPayload =>
+      this.mapResult(result, input, timestamp) as unknown as SandboxResultPayload
 
-    try {
-    try {
-      // ============================================================
-      // Standalone: debounce-v2-sandbox-integration / Plan 01 (D-06 + R-01).
-      // Restart-loop mirrors V4ProductionRunner post-debounce-v2-interrupt-reprocess
-      // (shipped 2026-05-26) + chronological-fix commit 494d3bb4 (2026-05-27).
-      //
-      // Path A restart sites in this sandbox engine: 3 total (CKPT-0,
-      // agent-discriminator, CKPT-6). V4ProductionRunner has 4 (it additionally
-      // has a CKPT-6a pending-templates pre-send branch at v4-production-runner.ts:464
-      // — N/A in sandbox because sandbox does not pre-send templates from a prior
-      // turn). CKPT-7.N (post-send) does NOT restart in either runner (D-05 from
-      // parent: Path B preserved after first send).
-      // ============================================================
-      let lastV4Result: V4EngineOutput | null = null
-      while (ctx.shouldRestart) {
-        ctx.shouldRestart = false
-        const turnEffectiveMessage: string = ctx.effectiveMessage ?? input.message
+    const { adapters } = createSandboxAdapters({
+      state: input.state,
+      history: input.history,
+      turnNumber: input.turnNumber,
+      workspaceId: input.workspaceId,
+      systemEvent: input.systemEvent,
+      visionContext: input.visionContext,
+      lockHandle: input.lockHandle,
+      lockChannel: input.lockChannel,
+      lockIdentifier: input.lockIdentifier,
+      sandboxSessionId: input.sandboxSessionId,
+      simulateProdTimingMs: input.simulateProdTimingMs,
+      onMessage: input.onMessage,
+      redis,
+      mapResult,
+    })
 
-        // === CKPT-0 post-acquire ===
-        {
-          // D-06 (Plan 07): skip-gate + lostLock throw factorizados en
-          // runCheckpointGate (SIN interruptEmit — el drain emite). Colocación
-          // y drain/restart intactos.
-          const ck0 = await runCheckpointGate({
-            ckptId: 'ckpt_0_post_acquire',
-            lockHandle: input.lockHandle,
-            workspaceId: input.workspaceId,
-            lockChannel: lockCtx?.channel,
-            lockIdentifier: lockCtx?.identifier,
-          })
-          if (typeof ck0 === 'object' && lockCtx) {
-            // D-03 (Plan 08): drain consolidado (dropOwnEntry+readAndClearPending+
-            // clearInterrupt+emit×2+combine cronológico+shouldRestart). Sin esto el
-            // siguiente CKPT-0 relee el interrupt y spinea Path A vacío hasta el TTL.
-            await drainPendingAndCombine({
-              ctx,
-              lockCtx: { workspaceId: input.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
-              atStep: 'ckpt_0_post_acquire',
-              priorMsg: turnEffectiveMessage,
-              mode: 'path_a',
-            })
-            continue
-          }
-        }
+    // El core corre el restart loop + Path A/B + heartbeat + finally-release + onResultReady (write
+    // sandbox-result ANTES del release). El wrapper solo mapea el resultado neutral a su shape.
+    const result = await runTurn(coreInput, adapters)
+    return this.mapResult(result, input, timestamp)
+  }
 
-        // Simulate production LLM "thinking" delay (post-smoke fix 2026-05-27).
-        // Lock stays held during this sleep. If msg2 arrives meanwhile, it becomes
-        // FOLLOWER and CKPT-6 (post-processMessage) will detect it for Path A
-        // combined restart. Without this delay, sandbox engine completes in
-        // microseconds and Path A is untestable.
-        // Only sleep on the FIRST iteration (restartIteration === 0): the user
-        // sends msg2 during this window. On Path A restart iterations we must
-        // NOT re-sleep — doing so doubled total latency past the follower's
-        // long-poll window (bug 2026-05-28: combine took ~36s, timed out at 30s).
-        if (
-          input.lockHandle &&
-          (input.simulateProdTimingMs ?? 0) > 0 &&
-          ctx.restartIteration === 0
-        ) {
-          await sleep(input.simulateProdTimingMs!)
-        }
+  // ==================================================================
+  // Mapeo TurnResult neutral → V4EngineOutput (shape sandbox). Divergencia INTENCIONAL del error
+  // (sandbox success:true + '[Error v4]' vs prod success:false) — C5; el engine mapea su lado.
+  // ==================================================================
 
-        // Path B reprocess seeds from iter-0's resulting state (carryState) so
-        // the agent knows the saludo/templates were already sent and does NOT
-        // re-greet. Path A combine keeps `carryState === null` → original state.
-        const seedState: SandboxState = carryState ?? input.state
-        const output = await processMessage({
-          message: turnEffectiveMessage,
-          currentMode: seedState.currentMode,
-          intentsVistos: seedState.intentsVistos ?? [],
-          templatesEnviados: seedState.templatesEnviados ?? [],
-          datosCapturados: seedState.datosCapturados ?? {},
-          packSeleccionado: seedState.packSeleccionado ?? null,
-          accionesEjecutadas: seedState.accionesEjecutadas ?? [],
-          // somnio-v4-turn-ledger Plan 04 (Task 2, paridad runner): restaurar dims del
-          // turno previo con default graceful. carryState (Path B) lo override.
-          turnLedgerDims: seedState.turnLedgerDims ?? { atendido: [], crmActions: [] },
-          history: input.history,
-          turnNumber: input.turnNumber,
-          workspaceId: input.workspaceId,
-          systemEvent: input.systemEvent,
-          // Standalone: debounce-v2-sandbox-integration / Plan 01 (D-04).
-          // Thread lock fields through to the agent — agent + sub-loop already
-          // skip-guard on null (shipped by parent standalone Plan 05).
-          lockHandle: input.lockHandle ?? null,
-          lockChannel: input.lockChannel ?? null,
-          lockIdentifier: input.lockIdentifier ?? null,
-          // D-22 (standalone somnio-v4-crm-subloop Plan 06): el sandbox corre el gate
-          // CRM con mutation-tools SIMULADAS (no DB write). El sub-loop decide+ejecuta
-          // simulado, puebla crmActions/crmResult igual (View B en memoria), y el debug
-          // panel los muestra. Paridad INTERRUPTION-PARITY §4.4 (DB vs memoria permitido).
-          simulate: true,
-          // standalone v4-media-audio-image (Plan 04): thread vision context from
-          // V4EngineInput → V4AgentInput so the sandbox exercises the SAME dedicated
-          // vision branch as production (parity — INTERRUPTION-PARITY.md vision section).
-          visionContext: input.visionContext,
-        })
-
-        // R-05 (debounce-v2-interrupt-reprocess): accumulate per-call tokens
-        // across restart iterations. The final return uses
-        // `totalTokensAcrossRestarts` (NOT `output.totalTokens`) as the single
-        // source of truth for cost accounting (Pitfall 2).
-        ctx.totalTokensAcrossRestarts += (output.totalTokens ?? 0)
-
-        // ============================================================
-        // R-04 + Pitfall 7 (debounce-v2-interrupt-reprocess): detect Path A
-        // interrupt surfaced by the agent's V4AgentOutput.errorMessage.
-        // Sources of the discriminator prefix `interrupted_at_ckpt_`:
-        //   - in-agent CKPT-1 (post-comprehension)
-        //   - in-agent CKPT-2 (post-state-machine)
-        //   - sub-loop CKPT-3/4/5 propagated via resolveLowSlot (mapeo inline del
-        //     LoopOutcome → V4AgentOutput; somnio-v4-consolidation D-12 borró el
-        //     mapper muerto que antes documentaba este path)
-        // ============================================================
-        if (
-          output.success === false &&
-          typeof output.errorMessage === 'string' &&
-          output.errorMessage.startsWith('interrupted_at_ckpt_')
-        ) {
-          if (!lockCtx) {
-            throw new Error(`[SomnioV4Engine] agent emitted ${output.errorMessage} but lockCtx is null`)
-          }
-          // D-03 (Plan 08): drain consolidado. at_step = el discriminator.
-          await drainPendingAndCombine({
-            ctx,
-            lockCtx: { workspaceId: input.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
-            atStep: output.errorMessage,
-            priorMsg: turnEffectiveMessage,
-            mode: 'path_a',
-          })
-          continue
-        }
-
-        // === CKPT-6 pre-send-loop ===
-        // Note: V4ProductionRunner has a CKPT-6a pending-templates pre-send branch
-        // (at v4-production-runner.ts:464) that we do NOT mirror here — sandbox has
-        // no pending-templates pre-send (sandbox doesn't carry pending templates
-        // across turns). See top-of-while comment block for the full rationale.
-        {
-          // D-06 (Plan 07): gate factorizado; opts hasSentAnything:false
-          // preservado; drain/restart intacto.
-          const ck6 = await runCheckpointGate({
-            ckptId: 'ckpt_6_pre_send_loop',
-            lockHandle: input.lockHandle,
-            workspaceId: input.workspaceId,
-            lockChannel: lockCtx?.channel,
-            lockIdentifier: lockCtx?.identifier,
-            opts: { hasSentAnything: false },
-          })
-          if (typeof ck6 === 'object' && lockCtx) {
-            // In sandbox, sentCount is always 0 at this point (the CKPT-7.N
-            // synthetic loop runs AFTER CKPT-6). Always Path A → restart.
-            // D-03 (Plan 08): drain consolidado; templates_sent_before_abort:0
-            // preservado vía pathBEmitExtra.
-            await drainPendingAndCombine({
-              ctx,
-              lockCtx: { workspaceId: input.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
-              atStep: 'ckpt_6_pre_send_loop',
-              priorMsg: turnEffectiveMessage,
-              mode: 'path_a',
-              pathBEmitExtra: { templates_sent_before_abort: 0 },
-            })
-            continue
-          }
-        }
-
-        // ============================================================
-        // CKPT-7.N synthetic per-template filter (D-04 + D-05).
-        // Sandbox does not call MessagingProductionAdapter.send — the route returns
-        // output.messages directly to the client UI. To preserve paridad with
-        // WhatsApp's CKPT-7.N (which fires per template in
-        // V4MessagingAdapter.shouldAbortBeforeTemplate), we synthesize the
-        // per-message abort gate here. NO restart on interrupt at CKPT-7.N
-        // (D-05 from parent: post-send is Path B).
-        // ============================================================
-        const finalMessages: string[] = []
-        for (let i = 0; i < output.messages.length; i++) {
-          // Simulate production per-template send pacing (post-smoke fix 2026-05-27).
-          // Lock stays held during these sleeps. If msg2 arrives during a gap, the
-          // NEXT iteration's CKPT-7.N checkpoint detects the interrupt and breaks
-          // (Path B abort). Skip on iteration 0 — match the production behavior where
-          // pacing happens BETWEEN sends, not before the first.
-          if (
-            i > 0 &&
-            input.lockHandle &&
-            (input.simulateProdTimingMs ?? 0) > 0
-          ) {
-            // ~2-6s per template proportional to length (capped). Production
-            // V4MessagingAdapter has variable typing-speed delays in this range.
-            const perTemplateMs = Math.max(
-              2000,
-              Math.min(6000, output.messages[i].length * 25),
-            )
-            await sleep(perTemplateMs)
-          }
-          {
-            // D-06 (Plan 07): CKPT-7.N sintético (paridad con el send-adapter
-            // sandbox). Gate factorizado con templateIndex + lostLockLabel
-            // dinámico (ckpt_7_pre_template_${i}); Path A/B break intacto.
-            const ck7 = await runCheckpointGate({
-              ckptId: 'ckpt_7_pre_template',
-              lockHandle: input.lockHandle,
-              workspaceId: input.workspaceId,
-              lockChannel: lockCtx?.channel,
-              lockIdentifier: lockCtx?.identifier,
-              opts: { templateIndex: i, hasSentAnything: i > 0 },
-              lostLockLabel: `ckpt_7_pre_template_${i}`,
-            })
-            if (typeof ck7 === 'object' && lockCtx) {
-              // D-03 (Plan 08): drain consolidado. i===0 → Path A (combine prior +
-              // new, re-run desde arriba); i>0 → Path B (descartar resto, KEEP lo
-              // enviado, contestar solo lo nuevo). El drain comparte la misma
-              // secuencia (dropOwnEntry+readAndClearPending+clearInterrupt+emit);
-              // el at_step 'ckpt_7_pre_template_${i}' es el del send-adapter sandbox.
-              const ckpt7Mode = i === 0 ? 'path_a' : 'path_b_solo'
-              const drain7 = await drainPendingAndCombine({
-                ctx,
-                lockCtx: { workspaceId: input.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
-                atStep: `ckpt_7_pre_template_${i}`,
-                priorMsg: turnEffectiveMessage,
-                mode: ckpt7Mode,
-                pathBEmitExtra: i === 0
-                  ? { templates_sent_before_abort: 0 }
-                  : { templates_sent_before_abort: i },
-              })
-              if (ckpt7Mode === 'path_b_solo' && drain7.pendingCount > 0) {
-                // Path B (i > 0): templates already sent for the prior message.
-                // KEEP what was sent, then re-run with the new message(s) only.
-                // Push here (not in the post-loop block, skipped by the break +
-                // outer `continue`) so the count isn't doubled. carrySource='output'
-                // (Pitfall 6 — engine SOLO tiene la variante output, A14).
-                ctx.accumulatedSentContents.push(...finalMessages)
-                ctx.carrySource = 'output'
-                // Seed the reprocess from THIS iteration's resulting state so the
-                // agent knows the saludo/templates were already sent and does NOT
-                // re-greet when answering the interrupting message (bug 2026-05-28).
-                carryState = {
-                  currentMode: output.newMode ?? seedState.currentMode,
-                  intentsVistos: output.intentsVistos,
-                  templatesEnviados: output.templatesEnviados,
-                  datosCapturados: output.datosCapturados,
-                  packSeleccionado: output.packSeleccionado as PackSelection | null,
-                  // somnio-v4-crm-subloop D-18/D-19: el union v4 TipoAccion agrego 3 miembros
-                  // (recordar_*/confirmar_orden) que el SandboxState (tipado contra somnio-v3)
-                  // aun no conoce. Shape identico ({tipo,turno,origen,crmAction}); cast de frontera
-                  // (mismo patron que packSeleccionado as PackSelection). v3 NO se toca (Regla 6).
-                  accionesEjecutadas: output.accionesEjecutadas as SandboxState['accionesEjecutadas'],
-                  // somnio-v4-turn-ledger Plan 04 (Task 2, P3): hereda las dims del
-                  // output de msg1 (≥1 template enviado) → el reprocess no re-registra.
-                  turnLedgerDims: output.turnLedgerDims,
-                }
-              }
-              break
-            }
-          }
-          finalMessages.push(output.messages[i])
-          // Progressive reveal hook (post-smoke fix 2026-05-27). Invoked AFTER
-          // CKPT-7.N succeeds for this template AND the per-template pacing
-          // sleep has elapsed. Streaming sandbox route uses this to flush the
-          // template chunk to the browser immediately, mirroring the per-template
-          // observability of WhatsApp prod's V4MessagingAdapter.send().
-          if (input.onMessage) {
-            await input.onMessage(output.messages[i], i)
-          }
-        }
-        // Path B reprocess (or Path A combine at CKPT-7.1): jump to the next
-        // restart iteration WITHOUT building/returning state for this partial
-        // iteration. The already-sent templates are preserved in
-        // ctx.accumulatedSentContents (pushed in the CKPT-7.N branch for Path B).
-        if (ctx.shouldRestart) continue
-        ctx.accumulatedSentContents.push(...finalMessages)
-        ctx.templatesSentCount = ctx.accumulatedSentContents.length
-
-        const newState: SandboxState = {
-          currentMode: output.newMode ?? input.state.currentMode,
-          intentsVistos: output.intentsVistos,
-          templatesEnviados: output.templatesEnviados,
-          datosCapturados: output.datosCapturados,
-          packSeleccionado: output.packSeleccionado as PackSelection | null,
-          // somnio-v4-crm-subloop D-18/D-19: cast de frontera v4->SandboxState (tipado contra v3)
-          // por los 3 nuevos TipoAccion. Shape identico; v3 NO se toca (Regla 6).
-          accionesEjecutadas: output.accionesEjecutadas as SandboxState['accionesEjecutadas'],
-          // somnio-v4-turn-ledger Plan 04 (Task 2, paridad runner): el subset del
-          // ledger del turno fluye a SandboxState → llega a DebugTurn vía
-          // `stateAfter: newState` para que el Plan 05 (debug panel) lo renderice.
-          turnLedgerDims: output.turnLedgerDims,
-        }
-
-        // Clean stale `_v3:` keys from datosCapturados (now flow as own fields).
-        // El namespace `_v3:` se preserva para DB compat (sessions productivas);
-        // estas keys específicas se reconstruyen desde first-class fields.
-        delete newState.datosCapturados['_v3:accionesEjecutadas']
-        delete newState.datosCapturados['_v3:templatesMostrados']
-
-        // Pick the last timer signal (most relevant)
-        const lastTimerSignal = output.timerSignals.length > 0
-          ? output.timerSignals[output.timerSignals.length - 1]
-          : undefined
-
-        lastV4Result = {
-          success: output.success,
-          messages: ctx.accumulatedSentContents,
-          newState,
-          timerSignal: lastTimerSignal,
-          debugTurn: {
-            turnNumber: input.turnNumber,
-            intent: output.intentInfo ? {
-              intent: output.intentInfo.intent,
-              confidence: output.intentInfo.confidence,
-              intent_confidence: output.intentInfo.intent_confidence,
-              reasoning: output.intentInfo.reasoning,
-              timestamp: output.intentInfo.timestamp,
-            } : output.errorMessage ? {
-              // Standalone: somnio-sales-v4-runtime-wiring / Plan 07 debug.
-              // Surface real catch-block errors instead of the misleading
-              // "Timer event - no comprehension" fallback.
-              intent: 'error',
-              confidence: 0,
-              reasoning: `ERROR: ${output.errorMessage}`,
-              timestamp,
-            } : {
-              intent: 'system_event',
-              confidence: 0,
-              reasoning: 'Timer event - no comprehension',
-              timestamp,
-            },
-            tools: [],
-            tokens: {
-              turnNumber: input.turnNumber,
-              tokensUsed: ctx.totalTokensAcrossRestarts,
-              models: [{
-                model: 'gemini-2.5-flash' as const,
-                inputTokens: Math.round(ctx.totalTokensAcrossRestarts * 0.7),
-                outputTokens: Math.round(ctx.totalTokensAcrossRestarts * 0.3),
-              }],
-              timestamp,
-            },
-            stateAfter: newState,
-            classification: output.decisionInfo ? {
-              category: output.timerSignals.some(s => s.level === 'L5') ? 'SILENCIOSO'
-                : output.newMode === 'handoff' ? 'HANDOFF'
-                : 'RESPONDIBLE',
-              reason: output.decisionInfo.reason,
-              rulesChecked: { rule1: false, rule1_5: false, rule2: false, rule3: false },
-            } : undefined,
-            orchestration: output.decisionInfo ? {
-              nextMode: output.newMode ?? input.state.currentMode,
-              previousMode: input.state.currentMode,
-              modeChanged: !!output.newMode && output.newMode !== input.state.currentMode,
-              // somnio-v4-consolidation D-13: el campo legacy del V4AgentOutput fue
-              // borrado (el runner ya no crea — el gate CRM lo hace en el sub-loop).
-              // El campo homólogo de DebugTurn.orchestration (src/lib/sandbox/types.ts)
-              // NO se toca (compartido con sandbox v3, fuera de scope D-11) → literal false.
-              shouldCreateOrder: false,
-              templatesCount: output.messages.length,
-              // D-22 paridad: el gate CRM corrió simulado (simulate:true arriba). Los
-              // crmActions del turno viven en turnLedgerDims (origen:'rag') y el
-              // resultado simulado en crmResult. El debug panel los muestra sin DB.
-              crmActionsCount: output.turnLedgerDims?.crmActions?.length ?? 0,
-              orderCreated: output.crmResult?.success ?? false,
-            } : undefined,
-            salesTrack: output.salesTrackInfo ? {
-              accion: output.salesTrackInfo.accion,
-              reason: output.salesTrackInfo.reason,
-              enterCaptura: output.salesTrackInfo.enterCaptura,
-            } : undefined,
-            responseTrack: output.responseTrackInfo ? {
-              salesIntents: output.responseTrackInfo.salesTemplateIntents,
-              infoIntents: output.responseTrackInfo.infoTemplateIntents,
-              totalMessages: output.responseTrackInfo.totalMessages,
-            } : undefined,
-            // V4 escalation visibility (Plan 03 D-20 TODO honored in Plan 07 debug):
-            // subLoopReason populated when sub-loop fired (otherwise null/undefined).
-            // threshold = platform_config.somnio_v4_low_confidence_threshold value used.
-            subLoopReason: output.subLoopReason ?? undefined,
-            threshold: output.threshold,
-            // Standalone: v4-subloop-debug-view / Plan 03 (D-02).
-            // Sub-loop debug payload propagated when sub-loop fired (otherwise undefined).
-            subLoopDebug: output.subLoopDebug,
-            timerSignals: output.timerSignals.map(s => ({
-              type: s.type,
-              level: s.level,
-              reason: s.reason,
-            })),
-          },
-        }
-        break  // exit while loop (we have a result)
-      }  // end while (shouldRestart)
-
-      if (!lastV4Result) {
-        throw new Error('[SomnioV4Engine] restart loop exited without lastV4Result — invariant violation')
-      }
-
-      // ============================================================
-      // Pitfall 5 (debounce-v2-sandbox-integration RESEARCH §Pitfall 5):
-      // Write sandbox-result:{id} to Redis BEFORE the outer finally
-      // releases the lock. FOLLOWER long-polls this key after seeing the
-      // HOLDER's lock — if we released the lock before writing the result,
-      // FOLLOWER could acquire the lock as new HOLDER and never see the
-      // previous turn's output (UI would timeout).
-      // ============================================================
-      if (input.sandboxSessionId && input.lockHandle && lastV4Result) {
-        try {
-          await redis.set(
-            `sandbox-result:${input.sandboxSessionId}`,
-            JSON.stringify(lastV4Result),
-            { ex: 60 },
-          )
-        } catch (resultWriteErr) {
-          // Non-fatal — log only; finally still releases lock;
-          // FOLLOWER will time out long-poll.
-          console.error('[SomnioV4Engine] sandbox-result write failed', resultWriteErr)
-        }
-      }
-
-      return lastV4Result
-    } catch (error) {
-      // ============================================================
-      // Standalone: debounce-v2-sandbox-integration / Plan 01 (D-04 LostLockError path).
-      // Detect LostLockError before falling through to the existing non-lock
-      // error fallback (which is preserved verbatim for backward compat).
-      // ============================================================
-      if (error instanceof LostLockError) {
-        emitLockEvent('zombie_lambda_exit', {
-          my_uuid: input.lockHandle?.holderUuid ?? 'unknown',
-          current_holder_uuid: 'unknown',  // Don't read lock value — racy.
-          at_step: error.ckptId,
-        })
-        const zombieResult: V4EngineOutput = {
-          success: false,
-          messages: [],
-          newState: input.state,
-          debugTurn: {
-            turnNumber: input.turnNumber,
-            intent: {
-              intent: 'error',
-              confidence: 0,
-              reasoning: `LOST_LOCK at ${error.ckptId}`,
-              timestamp,
-            },
-            tools: [],
-            tokens: {
-              turnNumber: input.turnNumber,
-              tokensUsed: ctx.totalTokensAcrossRestarts,
-              models: [],
-              timestamp,
-            },
-            stateAfter: input.state,
-          },
-          error: { code: 'V4_ZOMBIE_LAMBDA_EXIT', message: error.message },
-        }
-        // Still write sandbox-result so FOLLOWER long-poll does not hang.
-        if (input.sandboxSessionId && input.lockHandle) {
-          try {
-            await redis.set(
-              `sandbox-result:${input.sandboxSessionId}`,
-              JSON.stringify(zombieResult),
-              { ex: 60 },
-            )
-          } catch (resultWriteErr) {
-            console.error('[SomnioV4Engine] sandbox-result zombie write failed', resultWriteErr)
-          }
-        }
-        return zombieResult
-      }
-
-      // Existing fallback for non-lock errors — UNCHANGED.
-      // The pre-existing inner-catch fallback (non-LostLockError) preserves its
-      // existing tokensUsed shape; do NOT modify it during this plan — the
-      // totalTokensAcrossRestarts accumulator is for the success-path return only.
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error'
-      console.error('[SomnioV4Engine] Error:', error)
-
+  private mapResult(
+    result: TurnResult,
+    input: V4EngineInput,
+    timestamp: string,
+  ): V4EngineOutput {
+    if (result.kind === 'zombie_exit') {
+      // D-15 zombie defense: el send-adapter detectó que esta lambda ya no posee el lock. El core ya
+      // emitió `zombie_lambda_exit` y escribió el sandbox-result vía onResultReady (Pitfall 5).
       return {
-        success: true,
-        messages: [`[Error v4] ${errorMsg}`],
+        success: false,
+        messages: [],
         newState: input.state,
         debugTurn: {
           turnNumber: input.turnNumber,
           intent: {
             intent: 'error',
             confidence: 0,
-            reasoning: errorMsg,
+            reasoning: `LOST_LOCK at ${result.ckptId}`,
             timestamp,
           },
           tools: [],
@@ -682,34 +183,148 @@ export class SomnioV4Engine {
           },
           stateAfter: input.state,
         },
-        error: {
-          code: 'V4_ENGINE_ERROR',
-          message: errorMsg,
-        },
+        error: { code: 'V4_ZOMBIE_LAMBDA_EXIT', message: result.message },
       }
     }
-    } finally {
-      // Standalone: debounce-v2-sandbox-integration / Plan 01 (D-05 + Pitfall 6).
-      // Lock + heartbeat lifecycle ALWAYS released exactly once per processMessage,
-      // regardless of which iteration of the restart loop returned/threw.
-      if (stopHeartbeat) stopHeartbeat()
-      if (input.lockHandle) {
-        try {
-          const released = await releaseLockIfOwner(input.lockHandle)
-          if (released) {
-            emitLockEvent('lock_released_normal', {
-              holder_uuid: input.lockHandle.holderUuid,
-              duration_ms: Date.now() - startMs,
-              templates_sent: ctx.templatesSentCount,
-            })
-          }
-        } catch (releaseError) {
-          emitLockEvent('redis_unavailable_fallback_failed', {
-            error_message: releaseError instanceof Error ? releaseError.message : String(releaseError),
-            at_step: 'release_lock_in_finally',
-          })
-        }
+
+    if (result.kind === 'error') {
+      // C5 (divergencia INTENCIONAL vs prod success:false): el route/UI del sandbox esperan
+      // success:true + un mensaje '[Error v4] ...' renderizable. NO unificar con prod.
+      return {
+        success: true,
+        messages: [`[Error v4] ${result.message}`],
+        newState: input.state,
+        debugTurn: {
+          turnNumber: input.turnNumber,
+          intent: {
+            intent: 'error',
+            confidence: 0,
+            reasoning: result.message,
+            timestamp,
+          },
+          tools: [],
+          tokens: {
+            turnNumber: input.turnNumber,
+            tokensUsed: 0,
+            models: [],
+            timestamp,
+          },
+          stateAfter: input.state,
+        },
+        error: { code: 'V4_ENGINE_ERROR', message: result.message },
       }
+    }
+
+    // kind === 'completed'
+    const output: V4AgentOutput = result.output
+
+    // C2 — build SandboxState desde el output + limpieza de keys `_v3:` stale (ahora fluyen como
+    // first-class fields). El namespace `_v3:` se preserva para DB compat (sessions productivas);
+    // estas keys específicas se reconstruyen desde first-class fields.
+    const newState: SandboxState = {
+      currentMode: output.newMode ?? input.state.currentMode,
+      intentsVistos: output.intentsVistos,
+      templatesEnviados: output.templatesEnviados,
+      datosCapturados: output.datosCapturados,
+      packSeleccionado: output.packSeleccionado as PackSelection | null,
+      // somnio-v4-crm-subloop D-18/D-19: cast de frontera v4→SandboxState (tipado contra v3) por
+      // los 3 nuevos TipoAccion. Shape idéntico; v3 NO se toca (Regla 6).
+      accionesEjecutadas: output.accionesEjecutadas as SandboxState['accionesEjecutadas'],
+      // somnio-v4-turn-ledger Plan 04: el subset del ledger del turno fluye a SandboxState → llega a
+      // DebugTurn vía `stateAfter: newState` para que el debug panel lo renderice.
+      turnLedgerDims: output.turnLedgerDims,
+    }
+    delete newState.datosCapturados['_v3:accionesEjecutadas']
+    delete newState.datosCapturados['_v3:templatesMostrados']
+
+    // Pick the last timer signal (most relevant).
+    const lastTimerSignal = output.timerSignals.length > 0
+      ? output.timerSignals[output.timerSignals.length - 1]
+      : undefined
+
+    // C3 — build DebugTurn completo. tokens.tokensUsed = total acumulado cross-restart (lo provee el
+    // core en result.totalTokens — single source of truth, Pitfall 2).
+    return {
+      success: output.success,
+      messages: result.allSentContents,
+      newState,
+      timerSignal: lastTimerSignal,
+      debugTurn: {
+        turnNumber: input.turnNumber,
+        intent: output.intentInfo ? {
+          intent: output.intentInfo.intent,
+          confidence: output.intentInfo.confidence,
+          intent_confidence: output.intentInfo.intent_confidence,
+          reasoning: output.intentInfo.reasoning,
+          timestamp: output.intentInfo.timestamp,
+        } : output.errorMessage ? {
+          // Standalone: somnio-sales-v4-runtime-wiring / Plan 07 debug. Surface real catch-block
+          // errors instead of the misleading "Timer event - no comprehension" fallback.
+          intent: 'error',
+          confidence: 0,
+          reasoning: `ERROR: ${output.errorMessage}`,
+          timestamp,
+        } : {
+          intent: 'system_event',
+          confidence: 0,
+          reasoning: 'Timer event - no comprehension',
+          timestamp,
+        },
+        tools: [],
+        tokens: {
+          turnNumber: input.turnNumber,
+          tokensUsed: result.totalTokens,
+          models: [{
+            model: 'gemini-2.5-flash' as const,
+            inputTokens: Math.round(result.totalTokens * 0.7),
+            outputTokens: Math.round(result.totalTokens * 0.3),
+          }],
+          timestamp,
+        },
+        stateAfter: newState,
+        classification: output.decisionInfo ? {
+          category: output.timerSignals.some(s => s.level === 'L5') ? 'SILENCIOSO'
+            : output.newMode === 'handoff' ? 'HANDOFF'
+            : 'RESPONDIBLE',
+          reason: output.decisionInfo.reason,
+          rulesChecked: { rule1: false, rule1_5: false, rule2: false, rule3: false },
+        } : undefined,
+        orchestration: output.decisionInfo ? {
+          nextMode: output.newMode ?? input.state.currentMode,
+          previousMode: input.state.currentMode,
+          modeChanged: !!output.newMode && output.newMode !== input.state.currentMode,
+          // somnio-v4-consolidation D-13: el campo legacy del V4AgentOutput fue borrado (el runner ya
+          // no crea — el gate CRM lo hace en el sub-loop). El campo homólogo de DebugTurn.orchestration
+          // (src/lib/sandbox/types.ts) NO se toca (compartido con sandbox v3, fuera de scope D-11) →
+          // literal false.
+          shouldCreateOrder: false,
+          templatesCount: output.messages.length,
+          // D-22 paridad: el gate CRM corrió simulado (simulate:true en el agent input). Los crmActions
+          // del turno viven en turnLedgerDims (origen:'rag') y el resultado simulado en crmResult.
+          crmActionsCount: output.turnLedgerDims?.crmActions?.length ?? 0,
+          orderCreated: output.crmResult?.success ?? false,
+        } : undefined,
+        salesTrack: output.salesTrackInfo ? {
+          accion: output.salesTrackInfo.accion,
+          reason: output.salesTrackInfo.reason,
+          enterCaptura: output.salesTrackInfo.enterCaptura,
+        } : undefined,
+        responseTrack: output.responseTrackInfo ? {
+          salesIntents: output.responseTrackInfo.salesTemplateIntents,
+          infoIntents: output.responseTrackInfo.infoTemplateIntents,
+          totalMessages: output.responseTrackInfo.totalMessages,
+        } : undefined,
+        // V4 escalation visibility (Plan 03 D-20 honored in Plan 07 debug).
+        subLoopReason: output.subLoopReason ?? undefined,
+        threshold: output.threshold,
+        // Standalone: v4-subloop-debug-view / Plan 03 (D-02).
+        subLoopDebug: output.subLoopDebug,
+        timerSignals: output.timerSignals.map(s => ({
+          type: s.type,
+          level: s.level,
+          reason: s.reason,
+        })),
+      },
     }
   }
 }

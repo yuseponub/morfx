@@ -49,10 +49,12 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
  * Resultado FINAL del turno del sandbox que el route long-pollea desde `sandbox-result:{id}`. Es el
- * MISMO payload que el wrapper (`engine-v4.ts`) retorna a `processMessage` — el wrapper lo construye
- * a partir del TurnResult del core y se lo pasa a `createSandboxAdapters` (via setter) para que
- * onResultReady lo escriba ANTES del release. Tipo abierto (Record) porque el shape vive en
- * `src/lib/sandbox/types.ts` (V4EngineOutput) y este módulo no lo acopla.
+ * MISMO payload que el wrapper (`engine-v4.ts`) retorna a `processMessage`: el wrapper le pasa a
+ * `createSandboxAdapters` un `mapResult(TurnResult): SandboxResultPayload`, y onResultReady lo aplica
+ * sobre el TurnResult FINAL para escribir el sandbox-result ANTES del release (Open Question 1 — el
+ * follower DEBE verlo antes de poder adquirir). Garantiza que lo escrito == lo retornado (mismo
+ * mapper). Tipo abierto (Record) porque el shape concreto (V4EngineOutput) vive en
+ * `src/lib/sandbox/types.ts` y este módulo no lo acopla (D-05 — agnosticidad).
  */
 export type SandboxResultPayload = Record<string, unknown>
 
@@ -77,17 +79,22 @@ export interface CreateSandboxAdaptersArgs {
   onMessage?: (content: string, index: number) => Promise<void> | void
   /** Cliente Redis del sandbox (el mismo que el engine usa hoy — specifier absoluto). */
   redis: Redis
+  /**
+   * Mapea el `TurnResult` neutral del core al `SandboxResultPayload` (V4EngineOutput) que el route
+   * consume. onResultReady lo aplica sobre el TurnResult FINAL para escribir el sandbox-result ANTES
+   * del release (Pitfall 5). El wrapper usa EXACTAMENTE el mismo mapper para su valor de retorno →
+   * lo escrito == lo retornado.
+   */
+  mapResult: (result: TurnResult) => SandboxResultPayload
 }
 
 /**
- * Construye los `TurnCoreAdapters` del sandbox + un setter para el resultado final que onResultReady
- * persiste. El wrapper (`engine-v4.ts`) llama `setResult(payload)` con el V4EngineOutput mapeado
- * ANTES de que el core invoque onResultReady (el core lo invoca dentro de su try externo, antes del
- * finally-release — Open Question 1).
+ * Construye los `TurnCoreAdapters` del sandbox. onResultReady aplica `args.mapResult` sobre el
+ * TurnResult FINAL y escribe `sandbox-result:{id}` ANTES del finally-release del core (Open Question
+ * 1 — el follower long-pollea esa key y DEBE verla antes de poder adquirir).
  */
 export function createSandboxAdapters(args: CreateSandboxAdaptersArgs): {
   adapters: TurnCoreAdapters
-  setResult: (payload: SandboxResultPayload) => void
 } {
   const {
     state,
@@ -103,20 +110,13 @@ export function createSandboxAdapters(args: CreateSandboxAdaptersArgs): {
     simulateProdTimingMs,
     onMessage,
     redis,
+    mapResult,
   } = args
 
   const lockCtx =
     lockHandle && lockChannel && lockIdentifier
       ? { channel: lockChannel as LockChannel, identifier: lockIdentifier as string }
       : null
-
-  // El wrapper setea el payload final ANTES del onResultReady (que corre dentro del try externo del
-  // core, antes del finally-release). Si el turno crashea, el wrapper igual setea el payload de error
-  // / zombie para que el follower no quede colgado en el long-poll.
-  let finalResult: SandboxResultPayload | null = null
-  const setResult = (payload: SandboxResultPayload): void => {
-    finalResult = payload
-  }
 
   // ========================================================================
   // getSeedState — estado de memoria + carryState aplicado (B1, Path B reprocess).
@@ -229,12 +229,13 @@ export function createSandboxAdapters(args: CreateSandboxAdaptersArgs): {
   // El follower del sandbox long-pollea `sandbox-result:{id}` tras ver el lock del HOLDER — si
   // liberáramos el lock antes de escribir el resultado, el follower podría adquirir como nuevo HOLDER
   // y nunca ver el output del turno previo (la UI haría timeout). Byte-equivalente al write actual
-  // (try/catch + console.error, TTL 60s). Usa el `finalResult` que el wrapper seteó (V4EngineOutput
-  // mapeado) — NO el TurnResult neutral (el route consume el shape sandbox, no el del core).
-  const onResultReady = async (_result: TurnResult): Promise<void> => {
-    if (!sandboxSessionId || !lockHandle || !finalResult) return
+  // (try/catch + console.error, TTL 60s). Mapea el TurnResult neutral al shape sandbox (V4EngineOutput)
+  // vía `mapResult` — el MISMO mapper que el wrapper usa para su retorno → lo escrito == lo retornado.
+  const onResultReady = async (result: TurnResult): Promise<void> => {
+    if (!sandboxSessionId || !lockHandle) return
     try {
-      await redis.set(`sandbox-result:${sandboxSessionId}`, JSON.stringify(finalResult), { ex: 60 })
+      const payload = mapResult(result)
+      await redis.set(`sandbox-result:${sandboxSessionId}`, JSON.stringify(payload), { ex: 60 })
     } catch (resultWriteErr) {
       // Non-fatal — log only; el finally del core igual libera el lock; el follower hace timeout.
       console.error('[sandbox-adapters] sandbox-result write failed', resultWriteErr)
@@ -254,5 +255,5 @@ export function createSandboxAdapters(args: CreateSandboxAdaptersArgs): {
     // crash-recovery / no-rep — D-07).
   }
 
-  return { adapters, setResult }
+  return { adapters }
 }

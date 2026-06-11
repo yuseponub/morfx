@@ -323,12 +323,16 @@ export async function runTurn(
         if (typeof ck6b === 'object' && lockCtx) {
           const sentCount = actuallySentIds.length
           const lockArgs = { workspaceId: input.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier }
+          // El at_step EMITIDO es 'ckpt_6_pre_send_loop' (sin sufijo) — es el CheckpointId canónico
+          // que las suites de paridad (sandbox E4) asertan; ningún test de prod aserta este at_step.
+          // El sufijo `_main` se conserva SOLO en lostLockLabel (arriba) para disambiguar el zombie
+          // at_step de 6a (`_pending_templates`) vs 6b (`_main`) — eso es independiente del emit del drain.
           if (sentCount === 0) {
             // Path A — restart.
             await drainPendingAndCombine({
               ctx,
               lockCtx: lockArgs,
-              atStep: 'ckpt_6_pre_send_loop_main',
+              atStep: 'ckpt_6_pre_send_loop',
               priorMsg: turnEffectiveMessage,
               mode: 'path_a',
               pathBEmitExtra: { templates_sent_before_abort: 0 },
@@ -341,7 +345,7 @@ export async function runTurn(
           const drainB = await drainPendingAndCombine({
             ctx,
             lockCtx: lockArgs,
-            atStep: 'ckpt_6_pre_send_loop_main',
+            atStep: 'ckpt_6_pre_send_loop',
             priorMsg: turnEffectiveMessage,
             mode: 'path_b_solo',
             pathBEmitExtra: { templates_sent_before_abort: sentCount },
@@ -375,7 +379,27 @@ export async function runTurn(
       }
 
       // --- h. Send-prep: filtro rag:* (B6) + warning D-14 (B10) + filterOutbound (B5). ---
+      // El agente puede surface el outbound de DOS formas según el lado:
+      //   - PROD (fuente de verdad D-04): SIEMPRE `output.templates` poblado (templates reales o
+      //     pseudo-templates `rag:*` post-híbrido). `output.messages` los espeja.
+      //   - SANDBOX: el agente surface `output.messages` SIN `output.templates` estructurados
+      //     (el sandbox no resuelve templates reales — históricamente el engine-v4 iteraba
+      //     `output.messages` directo). Para que el MISMO send-loop del core funcione en ambos lados
+      //     (paridad por construcción), si NO hay templates pero SÍ hay messages, sintetizamos un
+      //     template por mensaje (ids `sandbox-msg:${i}` excluidos del filtro T-7 de templates_enviados).
+      //     En PROD esta rama es inalcanzable (templates siempre presente) → byte-equivalente; NO
+      //     contradice D-14 (que borró el viejo fallback que enviaba SIN pasar por el send-adapter;
+      //     aquí los mensajes sintéticos SÍ pasan por `adapters.send`, con CKPT-7.N).
       let templatesToSend: ProcessedMessage[] = output.templates ?? []
+      if (templatesToSend.length === 0 && output.messages.length > 0) {
+        templatesToSend = output.messages.map((content, i) => ({
+          templateId: `sandbox-msg:${i}`,
+          content,
+          contentType: 'texto' as const,
+          priority: 'CORE' as const,
+          delayMs: 0,
+        }))
+      }
       if (templatesToSend.length > 0) {
         // B5 (no-repetición prod-only): el adapter filtra ya-enviados; rag:* siempre pasa (R4-B).
         if (adapters.filterOutbound) {
@@ -420,7 +444,8 @@ export async function runTurn(
             .slice(0, sendResult.messagesSent)
             .map(t => t.templateId)
             // T-7: rag:* pseudo-ids nunca entran a templates_enviados (la canónica es el turn ledger).
-            .filter((id): id is string => id != null && id.length > 0 && !id.startsWith('rag:'))
+            // sandbox-msg:* (synthetic del send-prep sandbox arriba) tampoco — no son templates reales.
+            .filter((id): id is string => id != null && id.length > 0 && !id.startsWith('rag:') && !id.startsWith('sandbox-msg:'))
           actuallySentIds.push(...sentIds)
 
           if (sendResult.interrupted && lockCtx) {
@@ -452,9 +477,23 @@ export async function runTurn(
               if (sendMode === 'path_b_solo') {
                 ctx.carrySource = 'output'
                 ctx.accumulatedSentContents.push(...sentMessageContents)
+                // carrySource='output' (A14): msg1 fue parcialmente enviado → el reprocess se siembra
+                // del OUTPUT del agente. templatesEnviados = UNIÓN dedup de tres fuentes para cubrir
+                // ambos lados sin re-saludo (bug 2026-05-28):
+                //   - seed.templatesEnviados: lo que ya venía de turnos previos.
+                //   - actuallySentIds: los ids reales que el send-adapter pushó este turno (PROD: el
+                //     agente mock no setea output.templatesEnviados, así que estos son la única señal
+                //     de "lo enviado"; los ids sintéticos `sandbox-msg:*` quedan FUERA — filtrados).
+                //   - output.templatesEnviados: lo que el agente registró como enviado (SANDBOX: la
+                //     única señal, porque sus ids son sintéticos y no entran a actuallySentIds).
+                // La unión satisface PROD (['t-saludo']) y SANDBOX (['saludo_core']) sin tocar asserts.
                 ctx.carryState = {
                   intentsVistos: output.intentsVistos,
-                  templatesEnviados: [...seed.templatesEnviados, ...actuallySentIds],
+                  templatesEnviados: Array.from(new Set([
+                    ...seed.templatesEnviados,
+                    ...actuallySentIds,
+                    ...output.templatesEnviados,
+                  ])),
                   datosCapturados: output.datosCapturados,
                   packSeleccionado: output.packSeleccionado,
                   accionesEjecutadas: output.accionesEjecutadas,

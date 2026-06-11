@@ -17,9 +17,11 @@
 
 import { describe, it, expect } from 'vitest'
 import { resolveTransition, systemEventToKey } from '../transitions'
+import { checkGuards } from '../guards'
 import { createInitialState } from '../state'
 import type { AgentState, Gates, Phase } from '../types'
 import type { StateChanges } from '../transitions'
+import type { MessageAnalysis } from '../comprehension-schema'
 
 // ============================================================================
 // Fixture factory
@@ -292,5 +294,65 @@ describe('systemEventToKey', () => {
   })
   it('maps auto result to auto:result', () => {
     expect(systemEventToKey({ type: 'auto', result: 'datos_criticos' })).toBe('auto:datos_criticos')
+  })
+})
+
+// ============================================================================
+// Escape -> handoff (diseño §7 #37-41 — manejado por guards.ts antes de la tabla)
+// ============================================================================
+
+function makeAnalysis(
+  primary: MessageAnalysis['intent']['primary'],
+  confidence = 95,
+): MessageAnalysis {
+  return {
+    intent: { primary, secondary: 'ninguno', confidence, reasoning: 'test' },
+    extracted_fields: {
+      nombre: null, telefono: null, cedula: null, ciudad: null, tipo_venas: null,
+      fecha_preferida: null, fecha_vaga: null, preferencia_jornada: null, horario_seleccionado: null,
+    },
+    classification: { category: 'pregunta', sentiment: 'neutro', idioma: 'es' },
+  }
+}
+
+describe('checkGuards — escape intents -> handoff (diseño §7)', () => {
+  // Los 5 escape intents del diseño §1 deben disparar handoff en CUALQUIER fase
+  // (el guard corre ANTES de la phase derivation, así que es phase-agnóstico).
+  const ESCAPE_CASES: Array<MessageAnalysis['intent']['primary']> = [
+    'asesor',
+    'reagendamiento',
+    'cancelar_cita',
+    'queja',
+    'paciente_antiguo',
+  ]
+
+  for (const intent of ESCAPE_CASES) {
+    it(`escape intent "${intent}" -> blocked handoff con cancel timer`, () => {
+      const r = checkGuards(makeAnalysis(intent))
+      expect(r.blocked).toBe(true)
+      if (r.blocked) {
+        expect(r.decision.action).toBe('handoff')
+        expect(r.decision.timerSignal?.type).toBe('cancel')
+      }
+    })
+  }
+
+  it('low confidence + otro -> handoff (R0)', () => {
+    // LOW_CONFIDENCE_THRESHOLD = 80; intent=otro con confidence<80 escala a humano.
+    const r = checkGuards(makeAnalysis('otro', 30))
+    expect(r.blocked).toBe(true)
+    if (r.blocked) {
+      expect(r.decision.action).toBe('handoff')
+    }
+  })
+
+  it('intent normal (quiero_agendar) -> NO blocked (pasa a la tabla §7)', () => {
+    const r = checkGuards(makeAnalysis('quiero_agendar'))
+    expect(r.blocked).toBe(false)
+  })
+
+  it('otro con alta confianza -> NO blocked (solo low-conf escala)', () => {
+    const r = checkGuards(makeAnalysis('otro', 95))
+    expect(r.blocked).toBe(false)
   })
 })

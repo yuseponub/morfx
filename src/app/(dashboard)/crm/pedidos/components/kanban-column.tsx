@@ -40,14 +40,32 @@ interface KanbanColumnProps {
 
 /**
  * Editorial dot color classes cycled by stage position (UI-SPEC §6.3). Stages
- * are workspace-configurable so there is no fixed slug — cycle the mock's 6
+ * are workspace-configurable so there is no fixed slug — cycle the mock's
  * stage colors in declared order. The real `stage.color` still drives the
- * legacy path; v3 uses these token-built classes.
+ * legacy path; v3 uses these token-built classes. (Vivificación v3 2026-06:
+ * 7th class `cancel` added; color resolution moved to `--stage-c` on
+ * `.kcol-head.s-*` in globals.css.)
  */
-const V3_DOT_CLASSES = ['agend', 'web', 'nuevo', 'info', 'conf', 'ok'] as const
+const V3_DOT_CLASSES = ['agend', 'web', 'nuevo', 'info', 'conf', 'ok', 'cancel'] as const
 
 export function v3DotClassForIndex(index: number): string {
   return V3_DOT_CLASSES[index % V3_DOT_CLASSES.length]
+}
+
+/**
+ * Map well-known stage NAMES to a stable dot class so "Confirmado" is always
+ * salvia and "Cancelado" always red even if the operator reorders columns
+ * (Vivificación v3 2026-06). Unknown names fall back to the position cycle.
+ */
+const V3_STAGE_NAME_CLASS: Record<string, string> = {
+  'agendado': 'agend', 'nuevo pag web': 'web', 'nuevo pedido': 'nuevo', 'nuevo': 'nuevo',
+  'falta info': 'info', 'falta confirmar': 'conf', 'por confirmar': 'conf',
+  'confirmado': 'ok', 'entregado': 'ok', 'ganado': 'ok',
+  'cancelado': 'cancel', 'perdido': 'cancel', 'devuelto': 'cancel', 'rechazado': 'cancel',
+}
+
+export function v3StageClass(stageName: string, index: number): string {
+  return V3_STAGE_NAME_CLASS[stageName.trim().toLowerCase()] ?? v3DotClassForIndex(index)
 }
 
 /**
@@ -146,8 +164,9 @@ export function KanbanColumn({
         style={style}
         className={cn('kcol', isOver && 'ring-1 ring-primary/40', isDragging && 'opacity-50')}
       >
-        {/* Column head — drag handle is the whole head via attributes/listeners */}
-        <div className="kcol-head" {...attributes} {...listeners} suppressHydrationWarning>
+        {/* Column head — drag handle is the whole head via attributes/listeners.
+            `s-${v3DotClass}` sets --stage-c (dot + contador + línea superior). */}
+        <div className={cn('kcol-head', `s-${v3DotClass}`)} {...attributes} {...listeners} suppressHydrationWarning>
           <span className={cn('dot', v3DotClass)} />
           <span className="t" title={stage.name}>{stage.name}</span>
           <span className="c">{totalCount !== undefined ? totalCount : orderCount}</span>

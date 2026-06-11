@@ -20,7 +20,7 @@ import {
   sortableKeyboardCoordinates,
   arrayMove,
 } from '@dnd-kit/sortable'
-import { KanbanColumn, v3DotClassForIndex } from './kanban-column'
+import { KanbanColumn, v3StageClass } from './kanban-column'
 import { KanbanCard } from './kanban-card'
 import { moveOrderToStage } from '@/app/actions/orders'
 import { updateStageOrder } from '@/app/actions/pipelines'
@@ -458,7 +458,7 @@ export function KanbanBoard({
               isLoadingMore={stageLoading?.[stage.id] ?? false}
               onLoadMore={onLoadMore ? () => onLoadMore(stage.id) : undefined}
               v3={v3}
-              v3DotClass={v3DotClassForIndex(index)}
+              v3DotClass={v3StageClass(stage.name, index)}
             />
           ))}
         </div>

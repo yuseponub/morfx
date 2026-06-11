@@ -89,12 +89,16 @@ export async function createAuditUser(
 
 /** Login vía UI real (/login) — el camino que usan los usuarios. */
 export async function loginViaUI(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login', { waitUntil: 'networkidle' })
+  // 'domcontentloaded' + wait explícito del form en vez de 'networkidle':
+  // networkidle es antipatrón Playwright y en dev WSL los compiles fríos de
+  // Turbopack (60-120s) + chunks lazy hacían timeout (Wave 1 run 1).
+  await page.goto('/login', { waitUntil: 'domcontentloaded', timeout: 90_000 })
+  await expect(page.locator('#email')).toBeVisible({ timeout: 30_000 })
   await page.fill('#email', email)
   await page.fill('#password', password)
   await page.click('button[type=submit]')
   // login-form hace router.push client-side; esperar a salir de /login
-  await page.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 15_000 })
+  await page.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 30_000 })
 }
 
 /** Nombres de cookies de auth de Supabase presentes en el contexto (sb-*-auth-token[.N]). */

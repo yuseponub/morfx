@@ -19,7 +19,16 @@ import { logout } from '@/app/actions/auth'
 import { useTaskBadge } from '@/hooks/use-task-badge'
 import { useAutomationBadge } from '@/hooks/use-automation-badge'
 import type { WorkspaceWithRole } from '@/lib/types/database'
-import type { User } from '@supabase/supabase-js'
+
+/**
+ * Identidad mínima resuelta server-side vía getClaims() en el layout
+ * (auth-hardening Wave 1) — el sidebar solo consume el email. Antes era el
+ * `User` completo de GoTrue (getUser()), eliminado del render path por C-1.
+ */
+type SidebarUser = {
+  id: string
+  email?: string | null
+}
 
 type NavItem = {
   href: string
@@ -185,7 +194,7 @@ const navCategoriesV2: SidebarCategoryV2[] = [
 interface SidebarProps {
   workspaces?: WorkspaceWithRole[]
   currentWorkspace?: WorkspaceWithRole | null
-  user?: User | null
+  user?: SidebarUser | null
   /**
    * UI Dashboard v2 flag (Standalone ui-redesign-dashboard, D-DASH-01/D-DASH-06).
    * Resolved server-side via `getIsDashboardV2Enabled(workspaceId)` in

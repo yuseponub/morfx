@@ -9,6 +9,7 @@ import { getIsDashboardV2Enabled } from '@/lib/auth/dashboard-v2'
 import { getIsEditorialV3Enabled } from '@/lib/auth/editorial-v3'
 import { DashboardV2Provider } from '@/components/layout/dashboard-v2-context'
 import { QueryProvider } from '@/components/providers/query-provider'
+import { AuthProvider } from '@/components/providers/auth-provider'
 import { RealtimeAuthProvider } from '@/components/providers/realtime-auth-provider'
 import { ebGaramond, inter, jetbrainsMono } from './fonts'
 
@@ -18,10 +19,21 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // Identidad vía getClaims() — verify local del JWT (ES256 vs JWKS), sin red
+  // ni refresh: el middleware es el ÚNICO punto de refresh (auth-hardening
+  // Wave 1). El getUser() que vivía aquí era uno de los guards que lanzaban
+  // AuthSessionMissingError y expulsaban la sesión durante el ciclo
+  // action→revalidate de createWorkspace (C-1, FINDINGS-C1).
+  const { data } = await supabase.auth.getClaims()
+  const claims = data?.claims
 
-  if (!user) {
+  if (!claims?.sub) {
     redirect('/login')
+  }
+
+  const user = {
+    id: claims.sub,
+    email: typeof claims.email === 'string' ? claims.email : null,
   }
 
   // Fetch user's workspaces and resolve active workspace in parallel
@@ -53,6 +65,7 @@ export default async function DashboardLayout({
 
   return (
     <QueryProvider>
+      <AuthProvider>
       <RealtimeAuthProvider>
       <WorkspaceProvider workspace={currentWorkspace} workspaces={workspaces}>
         <DashboardV2Provider v2={isDashboardV2}>
@@ -95,6 +108,7 @@ export default async function DashboardLayout({
         </DashboardV2Provider>
       </WorkspaceProvider>
       </RealtimeAuthProvider>
+      </AuthProvider>
     </QueryProvider>
   )
 }

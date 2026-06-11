@@ -116,7 +116,14 @@ export async function createWorkspace(input: CreateWorkspaceInput) {
     return { error: 'Error al crear el workspace' }
   }
 
-  revalidatePath('/')
+  // Dejar el workspace recién creado como activo ANTES de navegar — evita que
+  // el bootstrap de getActiveWorkspaceId tenga que resolver vía DB en el
+  // próximo render (server action SÍ puede setear cookies).
+  await setWorkspaceCookie(data)
+
+  // 'layout' invalida el árbol completo (T1.4): el siguiente router.push('/crm')
+  // del form renderiza el dashboard con el workspace nuevo ya visible.
+  revalidatePath('/', 'layout')
   return { success: true, workspaceId: data }
 }
 

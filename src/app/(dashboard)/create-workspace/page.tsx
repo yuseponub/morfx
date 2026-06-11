@@ -12,9 +12,12 @@ import {
 
 export default async function CreateWorkspacePage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // getClaims() (verify local, sin refresh) en lugar de getUser(): este guard
+  // sin instrumentar era el que abortaba el ciclo action→revalidate de
+  // createWorkspace con AuthSessionMissingError (C-1, FINDINGS-C1).
+  const { data } = await supabase.auth.getClaims()
 
-  if (!user) {
+  if (!data?.claims?.sub) {
     redirect('/login')
   }
 

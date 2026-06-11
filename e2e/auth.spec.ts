@@ -80,22 +80,78 @@ test.describe('auth-hardening E2E', () => {
       const user = await createAuditUser(admin, `c1x${intento}`)
       await loginViaUI(page, user.email, user.password)
 
-      await page.goto('/create-workspace', { waitUntil: 'networkidle' })
-      await page.fill('#name', `Audit WS ${intento} run`)
-      await page.waitForTimeout(500)
-      const slug = page.locator('#slug')
-      if ((await slug.count()) && !(await slug.inputValue())) {
-        await slug.fill(`audit-ws-${intento}-${Date.now()}`)
-      }
-      await page.click('button[type=submit]')
-      // El fallo observado es un 303 POST → /login en ~2-4s; dar margen amplio
+      // domcontentloaded + wait del form: networkidle nunca asienta en el árbol
+      // dashboard en dev (compiles Turbopack 60-120s en WSL — Wave 1 run 1).
+      await page.goto('/create-workspace', { waitUntil: 'domcontentloaded', timeout: 90_000 })
+      await expect(page.locator('#name')).toBeVisible({ timeout: 60_000 })
+      // Esperar HIDRATACIÓN funcional: llenar #name y exigir que el auto-slug
+      // (useEffect de react-hook-form) reaccione. Un fill pre-hidratación se
+      // pierde cuando React monta (input no-controlado) y Zod bloquea el
+      // submit con "al menos 2 caracteres" (visto en Wave 1 run 4).
+      await expect(async () => {
+        await page.fill('#name', `Audit WS ${intento} run`)
+        await expect(page.locator('#slug')).toHaveValue(/audit-ws/, { timeout: 1_500 })
+      }).toPass({ timeout: 60_000 })
+      // Slug único para evitar colisión con basura de corridas abortadas
+      await page.fill('#slug', `audit-ws-${intento}-${Date.now()}`)
+      // OJO selector (causa raíz REAL de C-1, FINDINGS-C1 revisión Wave 1):
+      // 'button[type=submit]' a secas matchea PRIMERO el botón "Cerrar sesión"
+      // del sidebar (<form action={logout}>, type=submit, renderizado antes de
+      // <main> en el DOM) → el robot se deslogueaba A SÍ MISMO. Todos los
+      // scripts _audit-* originales (incluida la "verificación en prod")
+      // tenían este mismo selector. Apuntar SIEMPRE al botón del form.
+      // Scoped a <main>: el sidebar TAMBIÉN tiene un botón "Crear workspace"
+      // (workspace-switcher) — strict mode lo detectó en run 3.
+      await page.getByRole('main').getByRole('button', { name: /crear workspace/i }).click()
+      // Margen para el ciclo action→revalidate→push
       await page.waitForTimeout(7_000)
 
       await expectSessionAlive(page)
-      const owned = await workspacesOwnedBy(admin, user.id)
-      expect(owned, 'el workspace debe existir en DB para el owner').toHaveLength(1)
+      // La mutación puede tardar más que el sleep fijo en dev frío — poll DB
+      // (sigue detectando C-1: si la action aborta, el workspace nunca aparece).
+      await expect
+        .poll(async () => (await workspacesOwnedBy(admin, user.id)).length, {
+          message: 'el workspace debe existir en DB para el owner',
+          timeout: 60_000,
+        })
+        .toBe(1)
+      await expectSessionAlive(page)
     })
   }
+
+  // ==================== REGLA 6 GATE (Wave 1, T1.5b) ====================
+  // El fix de sesión (middleware getClaims + guards sin getUser) afecta a
+  // TODOS los usuarios. Este gate verifica que un usuario que YA es miembro
+  // de un workspace existente sigue entrando a /crm con normalidad.
+  // Si esto falla → STOP + rollback de Wave 1.
+
+  test('Regla 6 gate — usuario ya-miembro de un workspace existente sigue entrando a /crm', async ({ page }) => {
+    test.setTimeout(90_000)
+    const member = await createAuditUser(admin, 'r6member')
+    const { data: ws, error: wsErr } = await admin
+      .from('workspaces')
+      .insert({ name: 'Audit R6 WS', slug: `audit-r6-${Date.now()}`, owner_id: member.id })
+      .select('id')
+      .single()
+    expect(wsErr, `bootstrap workspace: ${wsErr?.message}`).toBeNull()
+    const { error: memErr } = await admin
+      .from('workspace_members')
+      .insert({ workspace_id: ws!.id, user_id: member.id, role: 'owner', permissions: { all: true } })
+    expect(memErr, `bootstrap member: ${memErr?.message}`).toBeNull()
+
+    await loginViaUI(page, member.email, member.password)
+    expect(page.url(), 'login de usuario existente debe aterrizar en /crm').toContain('/crm')
+
+    // /crm SIEMPRE redirige a /crm/pedidos (crm/page.tsx) — esperar a que ese
+    // redirect aterrice antes de la navegación dura evita net::ERR_ABORTED por
+    // navegaciones superpuestas (Wave 1 run 1).
+    await page.waitForURL(/\/crm\/pedidos/, { timeout: 90_000 })
+
+    // Navegación dura adicional — pasa por middleware + (dashboard)/layout de nuevo
+    await page.goto('/crm/pedidos', { waitUntil: 'domcontentloaded', timeout: 90_000 })
+    await expectSessionAlive(page)
+    expect(page.url(), 'la ruta protegida debe renderizar para el miembro existente').toContain('/crm/pedidos')
+  })
 
   // ==================== C-2 / H-9 — OPEN REDIRECT ====================
 
@@ -170,8 +226,8 @@ test.describe('auth-hardening E2E', () => {
       waitUntil: 'domcontentloaded',
     })
     await page.waitForTimeout(2_500)
-    await page.goto('/reset-password', { waitUntil: 'networkidle' })
-    await expect(page.locator('#password')).toBeVisible()
+    await page.goto('/reset-password', { waitUntil: 'domcontentloaded', timeout: 90_000 })
+    await expect(page.locator('#password')).toBeVisible({ timeout: 30_000 })
     await page.fill('#password', AUDIT_PASSWORD_2)
     await page.fill('#confirmPassword', AUDIT_PASSWORD_2)
     await page.click('button[type=submit]')

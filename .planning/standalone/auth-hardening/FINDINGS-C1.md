@@ -1,5 +1,39 @@
 # FINDINGS-C1 — Reproducción y bisección de C-1 (Wave 0, T0.2)
 
+> ## ⚠️ REVISIÓN WAVE 1 (2026-06-11) — CAUSA RAÍZ REAL: ARTEFACTO DEL HARNESS
+>
+> La conclusión de Wave 0 (abajo) quedó **refutada con captura directa**. C-1 nunca
+> fue un bug de producto: **el selector `page.click('button[type=submit]')` de TODOS
+> los scripts de auditoría (incluida la "verificación en prod" de
+> `scripts/_audit-createws-repro.mjs:29`) matchea PRIMERO el botón "Cerrar sesión"
+> del sidebar** — `<form action={logout}><button type="submit" aria-label="Cerrar sesión">`
+> en `sidebar.tsx:394-398`, que en el DOM va antes que `<main>` (el form de
+> create-workspace). El robot se deslogueaba a sí mismo.
+>
+> **Evidencia (debug run 2026-06-11, instrumentación fs + captura de red Playwright):**
+> 1. Server-side: layout + create-workspace page renderizan con `sub` válido y cookie
+>    presente en TODA la navegación previa. Durante el "submit": **ningún** código
+>    instrumentado corre — ni `createWorkspace ENTRY`, ni guards. La action jamás fue invocada.
+> 2. El 303 `x-action-redirect=/login;push` + `x-action-revalidated=1` es la firma de
+>    **`logout()`** (`src/app/actions/auth.ts`: `signOut()` + `redirect('/login')`) —
+>    explica el wipe de `sb-*-auth-token` y el workspace nunca creado (DB=0).
+> 3. Con el selector corregido (`getByRole('button', { name: /crear workspace/i })`),
+>    el flujo crear-workspace completa y C-1 ×3 pasa a verde (run 3 Wave 1).
+>
+> **El mecanismo "action→revalidate→getUser AuthSessionMissingError" de Wave 0 fue una
+> inferencia incorrecta**: el `c1err=AuthSessionMissingError` capturado vía curl era el
+> comportamiento normal de un GET sin cookies (la "evidencia" del paso 4 conectó mal los
+> puntos). Los 33/33 getClaims OK eran reales — el flujo de producto siempre estuvo sano.
+>
+> **Qué se queda igual:** los fixes Wave 1 (T1.1-T1.4: getClaims en middleware/guards,
+> cookies copiadas en redirects del middleware, `?redirect=`, AuthProvider, revalidatePath
+> layout) son el hardening canónico Supabase SSR planificado y pasaron el gate Regla 6 —
+> se mantienen como defensa en profundidad. Los hoyos del AUDIT (C-2, H-*, INV-*) siguen
+> vigentes para Waves 2-5.
+>
+> **Lección para futuros harnesses:** nunca `button[type=submit]` global en páginas con
+> sidebar/chrome — siempre `getByRole` con nombre accesible del botón target.
+
 **Fecha:** 2026-06-10
 **Método:** harness Playwright (`e2e/auth.spec.ts` + script temporal `scripts/_audit-c1-capture.mjs`) contra dev local (3020) + Supabase prod, con logging temporal revertible en `middleware.ts`, `(dashboard)/layout.tsx` y `app/actions/workspace.ts`.
 **Veredicto:** C-1 reproducido **3/3**. Causa raíz **confirmada y refinada** — el error literal es **`AuthSessionMissingError: Auth session missing!`** desde un guard `getUser()` del árbol `(dashboard)`, **NO** `Invalid Refresh Token: Already Used` en `getClaims()` como hipotetizaba el RESEARCH.

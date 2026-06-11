@@ -29,10 +29,14 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // IMPORTANT: Do not remove auth.getUser() - it validates and refreshes the session
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // ÚNICO punto de refresh de sesión de toda la app (auth-hardening Wave 1,
+  // FINDINGS-C1). getClaims() verifica el JWT localmente (ES256 vs JWKS
+  // cacheado) y solo va a red cuando el access token expiró — ese refresh
+  // escribe las cookies nuevas en supabaseResponse vía setAll. NO usar
+  // getUser() aquí: era uno de los 3 guards que disparaban
+  // AuthSessionMissingError en el ciclo action→revalidate (C-1).
+  const { data } = await supabase.auth.getClaims()
+  const user = data?.claims ?? null
 
   // Define public routes that don't require authentication
   const publicRoutes = [
@@ -66,11 +70,29 @@ export async function updateSession(request: NextRequest) {
       request.nextUrl.pathname.startsWith('/invite/')
   )
 
+  // Todo redirect emitido por el middleware DEBE llevar las cookies que el
+  // refresh dejó en supabaseResponse — el redirect "pelado" a /login era
+  // parte del wipe de sesión de C-1 (FINDINGS-C1 §Mecanismo, paso 4).
+  const redirectWithCookies = (url: URL) => {
+    const response = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      response.cookies.set(cookie)
+    })
+    return response
+  }
+
   // Redirect unauthenticated users to login (except for public routes)
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    return NextResponse.redirect(url)
+    url.search = ''
+    // H-5: preservar el destino para volver tras el login. El consumo del
+    // param se sanitiza en Wave 2 (safeRedirectPath — solo paths internos).
+    const target = request.nextUrl.pathname + request.nextUrl.search
+    if (target !== '/') {
+      url.searchParams.set('redirect', target)
+    }
+    return redirectWithCookies(url)
   }
 
   // Redirect authenticated users away from auth pages (except callbacks/reset)
@@ -78,7 +100,7 @@ export async function updateSession(request: NextRequest) {
   if (user && authPages.includes(request.nextUrl.pathname)) {
     const url = request.nextUrl.clone()
     url.pathname = '/crm'
-    return NextResponse.redirect(url)
+    return redirectWithCookies(url)
   }
 
   return supabaseResponse

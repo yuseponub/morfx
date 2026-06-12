@@ -320,13 +320,19 @@ export const v3Timer = inngest.createFunction(
       // Check session state first (contact-level routing for recompra),
       // then fall back to workspace-level config (godentist vs somnio-v3)
       const agentConfig = await getWorkspaceAgentConfig(workspaceId)
-      let agentModule: 'somnio-v3' | 'godentist' | 'somnio-recompra' = 'somnio-v3'
+      let agentModule: 'somnio-v3' | 'godentist' | 'somnio-recompra' | 'varixcenter' = 'somnio-v3'
       // `_v3:agent_module` lives inside `session.state.datos_capturados` (jsonb),
       // not as a top-level column of session_state — there is no such column.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sessionAgentModule = (session.state as any)?.datos_capturados?.['_v3:agent_module'] as string | undefined
       if (sessionAgentModule === 'somnio-recompra') {
         agentModule = 'somnio-recompra'
+      } else if (sessionAgentModule === 'varixcenter') {
+        // Hotfix 2026-06-12: sin este branch la retoma de una sesión varixcenter caía
+        // al default somnio-v3 (templates de otro negocio al paciente). El runner ya
+        // escribe `_v3:agent_module='varixcenter'` (v3-production-runner.ts:143).
+        // Sitio de registro #7 del clone checklist (LEARNINGS agent-varixcenter).
+        agentModule = 'varixcenter'
       } else if (agentConfig?.conversational_agent_id === 'godentist') {
         agentModule = 'godentist'
       }
@@ -337,6 +343,9 @@ export const v3Timer = inngest.createFunction(
         output = await processMessage(v3Input as any) as unknown as V3AgentOutput
       } else if (agentModule === 'somnio-recompra') {
         const { processMessage } = await import('@/lib/agents/somnio-recompra/somnio-recompra-agent')
+        output = await processMessage(v3Input as any) as unknown as V3AgentOutput
+      } else if (agentModule === 'varixcenter') {
+        const { processMessage } = await import('@/lib/agents/varixcenter')
         output = await processMessage(v3Input as any) as unknown as V3AgentOutput
       } else {
         const { processMessage } = await import('@/lib/agents/somnio-v3/somnio-v3-agent')

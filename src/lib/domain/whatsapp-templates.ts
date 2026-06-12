@@ -385,6 +385,37 @@ export interface RemoteTemplateStatus {
 }
 
 /**
+ * Normalize a Meta/360dialog quality score into the value vocabulary accepted by
+ * the `whatsapp_templates_quality_rating_check` CHECK constraint
+ * (`HIGH | MEDIUM | LOW | PENDING | NULL`).
+ *
+ * BUG (2026-06-12 live diagnosis — Varixcenter): Meta's WABA API returns
+ * `quality_score.score` in its OWN vocabulary (`GREEN | YELLOW | RED | UNKNOWN`).
+ * Writing that raw value into `quality_rating` violated the CHECK constraint
+ * (error 23514), which aborted the ENTIRE status UPDATE — so every template whose
+ * Meta quality was e.g. `UNKNOWN` stayed PENDING forever even after Meta approved
+ * it (Varixcenter: 4 templates APPROVED in Meta, stuck PENDING in MorfX). Mapping
+ * to the allowed vocabulary (or NULL for unknown) lets the status persist.
+ */
+function normalizeQualityRating(score?: string | null): string | null {
+  if (!score) return null
+  switch (score.toUpperCase()) {
+    case 'GREEN':
+    case 'HIGH':
+      return 'HIGH'
+    case 'YELLOW':
+    case 'MEDIUM':
+      return 'MEDIUM'
+    case 'RED':
+    case 'LOW':
+      return 'LOW'
+    // UNKNOWN / anything else → NULL (never block the status sync on quality).
+    default:
+      return null
+  }
+}
+
+/**
  * Persist a batch of remote template statuses (poll/sync path — WA-08 fallback).
  *
  * Regla 3 chokepoint for `syncTemplateStatuses` (server action). It previously ran
@@ -418,7 +449,7 @@ export async function syncRemoteTemplateStatuses(
       .from('whatsapp_templates')
       .update({
         status,
-        quality_rating: t.quality_score?.score || null,
+        quality_rating: normalizeQualityRating(t.quality_score?.score),
         rejected_reason: rejected,
         approved_at: status === 'APPROVED' ? new Date().toISOString() : null,
         updated_at: new Date().toISOString(),

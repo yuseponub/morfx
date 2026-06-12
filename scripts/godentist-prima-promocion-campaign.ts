@@ -57,8 +57,9 @@ const SMS_TEXT = 'GoDentist: A un paso de la sonrisa de tus suenos, escribenos a
 const RENDERED_BODY = '¡Ya llegó la prima! godentist®️ te espera.\n\nEmpieza este semestre dando un paso más hacia la sonrisa de tus sueños. Agenda tu cita hoy, valoración GRATIS 3016262603.'
 
 const DATA_DIR = '/mnt/c/Users/Usuario/Proyectos/morfx-new/godentist/pacientes-data'
-const PATIENTS_FILE = path.join(DATA_DIR, 'prima-promocion-2026.json')
-const STATE_FILE = path.join(DATA_DIR, 'prima-promocion-state.json')
+// Overrides por env para retry-runs (dataset + state propios, sin tocar el offset principal)
+const PATIENTS_FILE = process.env.CAMPAIGN_PATIENTS_FILE || path.join(DATA_DIR, 'prima-promocion-2026.json')
+const STATE_FILE = process.env.CAMPAIGN_STATE_FILE || path.join(DATA_DIR, 'prima-promocion-state.json')
 const CAMPAIGN_DIR = path.join(DATA_DIR, 'prima-promocion')
 const SENT_FILE = path.join(CAMPAIGN_DIR, 'sent.json')
 const SKIPPED_CSV_FILE = path.join(CAMPAIGN_DIR, 'skipped.csv')

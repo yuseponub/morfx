@@ -22,9 +22,17 @@ export const COOLDOWN_MS = 30_000 // D-07 — cooldown tras abrir el circuito
 
 // D-06 — timeout ~2-3x P95 por call-site. Defaults sensatos (v4 DORMANT en prod →
 // poca data real; ajustar con observability post-deploy). RESEARCH Q5.
+//
+// AJUSTE post-deploy 2026-06-12 (la data que D-06 pedía): comprehension 10s→20s.
+// Evidencia (sandbox prod, eventos fallback_failed 22:15-22:16Z): con sesión larga
+// el prompt pesa ~7k tokens y la latencia NORMAL de Haiku roza/excede 10s — el
+// budget cortaba al plan B vivo (anthropic_error: TimeoutError a los 10.002s
+// exactos). Mismo precedente en SMOKE-PREFLIP run 1. 20s = margen 2x sobre la
+// latencia real observada de Haiku con historia; el peor caso doble-fallo pasa
+// de 20s a 40s de espera antes de propagar (aceptable, es el caso raro).
 export const TIMEOUT_MS: Record<CallSite, number> = {
   generation: 20_000,
-  comprehension: 10_000,
+  comprehension: 20_000,
   compliance: 10_000,
   vision: 15_000,
 }

@@ -320,7 +320,7 @@ export const v3Timer = inngest.createFunction(
       // Check session state first (contact-level routing for recompra),
       // then fall back to workspace-level config (godentist vs somnio-v3)
       const agentConfig = await getWorkspaceAgentConfig(workspaceId)
-      let agentModule: 'somnio-v3' | 'godentist' | 'somnio-recompra' | 'varixcenter' = 'somnio-v3'
+      let agentModule: 'somnio-v3' | 'godentist' | 'somnio-recompra' | 'varixcenter' | 'godentist-fb-ig' = 'somnio-v3'
       // `_v3:agent_module` lives inside `session.state.datos_capturados` (jsonb),
       // not as a top-level column of session_state — there is no such column.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -333,6 +333,12 @@ export const v3Timer = inngest.createFunction(
         // escribe `_v3:agent_module='varixcenter'` (v3-production-runner.ts:143).
         // Sitio de registro #7 del clone checklist (LEARNINGS agent-varixcenter).
         agentModule = 'varixcenter'
+      } else if (sessionAgentModule === 'godentist-fb-ig') {
+        // Fix 2026-06-12 (aprobado por el usuario): mismo bug latente que varixcenter —
+        // las retomas de sesiones FB/IG despachaban al módulo godentist original
+        // (catálogo WhatsApp) en vez del sibling con su propio catálogo lead-capture.
+        // El check va ANTES del fallback por conversational_agent_id para no ser shadowed.
+        agentModule = 'godentist-fb-ig'
       } else if (agentConfig?.conversational_agent_id === 'godentist') {
         agentModule = 'godentist'
       }
@@ -346,6 +352,9 @@ export const v3Timer = inngest.createFunction(
         output = await processMessage(v3Input as any) as unknown as V3AgentOutput
       } else if (agentModule === 'varixcenter') {
         const { processMessage } = await import('@/lib/agents/varixcenter')
+        output = await processMessage(v3Input as any) as unknown as V3AgentOutput
+      } else if (agentModule === 'godentist-fb-ig') {
+        const { processMessage } = await import('@/lib/agents/godentist-fb-ig')
         output = await processMessage(v3Input as any) as unknown as V3AgentOutput
       } else {
         const { processMessage } = await import('@/lib/agents/somnio-v3/somnio-v3-agent')

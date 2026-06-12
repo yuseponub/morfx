@@ -70,6 +70,10 @@ grep -cE "agentModule.*!== 'varixcenter'" src/lib/agents/engine/v3-production-ru
 curl -s "$URL/rest/v1/agent_templates?agent_id=eq.varixcenter&select=id" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Prefer: count=exact" -H "Range: 0-0" -I | grep content-range
 ```
 
+## Gap de activación encontrado en vivo (2026-06-12)
+
+El SQL de activación cubría `lifecycle_routing_enabled` + routing rule pero NO el master switch **`agent_enabled`** (default `false`) de `workspace_agent_config` — con él en false, `isAgentEnabledForConversation` (agent-config.ts:160) deshabilita todas las conversaciones y el bot no responde aunque el routing esté perfecto. Síntoma: inbound real llegó, cero eventos, cero respuesta. Fix: `agent_enabled=true` vía PATCH. **Lección:** en activaciones de agente nuevo, la checklist es TRES switches: `agent_enabled` + `lifecycle_routing_enabled` + routing rule activa.
+
 ## Estado al cierre
 
 - Código completo, pusheado (`4fc7bf9b`), 251/251 tests, tsc=0, VERIFICATION 18/18.

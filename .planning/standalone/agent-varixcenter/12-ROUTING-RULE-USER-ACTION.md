@@ -49,14 +49,20 @@ FROM workspace_agent_config
 WHERE workspace_id = 'c6621640-ba67-43de-9f05-905f09a6dc8f';
 -- Wave 0 audit confirmó: 0 filas → NO existe row → hay que hacer INSERT (no UPDATE).
 
+-- ⚠️ GAP DETECTADO EN ACTIVACIÓN REAL (2026-06-12): además de lifecycle_routing_enabled,
+-- el master switch agent_enabled DEBE quedar en true — con false, isAgentEnabledForConversation
+-- (src/lib/agents/production/agent-config.ts:160) deshabilita TODAS las conversaciones y el bot
+-- nunca responde aunque la routing rule esté activa. El INSERT de abajo fue corregido en vivo
+-- con: PATCH workspace_agent_config SET agent_enabled=true.
+
 -- Paso A: crear/asegurar la row de workspace_agent_config con el lifecycle router activo.
 -- (Columnas NOT NULL sin default: sólo workspace_id (PK). Las demás tienen DEFAULT:
 --  agent_enabled=false, conversational_agent_id='somnio-sales-v1', crm_agents_enabled,
 --  handoff_message, timer_preset='real', response_speed=1.0, created_at, updated_at.
 --  conversational_agent_id queda en su default 'somnio-sales-v1' pero NO afecta: el
 --  lifecycle router + la routing rule de abajo deciden el agente por canal.)
-INSERT INTO workspace_agent_config (workspace_id, lifecycle_routing_enabled)
-VALUES ('c6621640-ba67-43de-9f05-905f09a6dc8f', true)
+INSERT INTO workspace_agent_config (workspace_id, lifecycle_routing_enabled, agent_enabled)
+VALUES ('c6621640-ba67-43de-9f05-905f09a6dc8f', true, true)
 ON CONFLICT (workspace_id)
 DO UPDATE SET lifecycle_routing_enabled = true,
               updated_at = timezone('America/Bogota', NOW());

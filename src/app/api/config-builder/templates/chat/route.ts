@@ -112,21 +112,37 @@ export async function POST(request: Request) {
       // pueda combinar multiples tools + responder texto final.
       prepareStep: async ({ stepNumber }: { stepNumber: number }) => {
         if (stepNumber === 0) {
-          return { toolChoice: 'required' as const }
+          return {
+            toolChoice: 'required' as const,
+            // suggestActions excluida del step 0: una tool "barata" satisfaria el
+            // toolChoice forzado sin llamar updateDraft y mataria la REGLA CERO
+            // (Pitfall 1 — template-builder-suggested-actions).
+            activeTools: [
+              'listExistingTemplates',
+              'suggestCategory',
+              'suggestLanguage',
+              'captureVariableMapping',
+              'updateDraft',
+              'validateTemplateDraft',
+              'submitTemplate',
+            ] as const,
+          }
         }
         return {}
       },
-      onFinish: async () => {
-        // Persistir las UIMessages tal cual vienen del cliente.
-        // Mismo patron que /api/builder/chat.
+    })
+
+    // 8. Return streaming response con session header (persistence mode)
+    const response = result.toUIMessageStreamResponse({
+      originalMessages: messages,
+      onFinish: async ({ messages: updated }) => {
+        // Persistence mode: incluye la respuesta del turno actual (cierra el lag
+        // de 1 turno que el patron viejo heredaba de /api/builder/chat — D-10).
         await updateSession(sessionId!, workspaceId, {
-          messages: messages as unknown[],
+          messages: updated as unknown[],
         })
       },
     })
-
-    // 8. Return streaming response con session header
-    const response = result.toUIMessageStreamResponse()
     response.headers.set('X-Session-Id', sessionId!)
     return response
   } catch (error) {

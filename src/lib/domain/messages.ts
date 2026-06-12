@@ -33,6 +33,7 @@ import {
 // creds resolved from ctx.workspaceId (T-39-02 — NEVER from input/params). The
 // `360dialog` arm stays byte-identical (Regla 6).
 import { resolveByWorkspace } from '@/lib/meta/credentials'
+import { MetaGraphApiError } from '@/lib/meta/types'
 import { metaWhatsappSender } from '@/lib/channels/meta-whatsapp-sender'
 // Phase 40 (MIG-02 / D-10 — Facebook Messenger Direct): the SINGLE messenger
 // provider-decision site. `meta_direct` workspaces route the facebook arm through
@@ -103,6 +104,71 @@ async function readInstagramProvider(
     .eq('id', workspaceId)
     .single()
   return ws?.instagram_provider === 'meta_direct' ? 'meta_direct' : 'manychat'
+}
+
+// ============================================================================
+// Outbound-failure observability (Somnio Meta Direct send-failure debug 2026-06-12)
+// When a send to Meta/360dialog THROWS, the message used to vanish (no DB row) —
+// "volando a ciegas". This persists a status='failed' row carrying the FULL Meta
+// error (code, subcode, http, fbtrace_id, error_data.details) so the exact reason
+// behind an intermittent (#2)/(#3) is recoverable from the DB instead of lost.
+// Pure observability: NO retry, NO behaviour change to the send path (the caller
+// still gets the same DomainResult error). Best-effort: never throws.
+// ============================================================================
+async function persistFailedOutbound(
+  supabase: ReturnType<typeof createAdminClient>,
+  ctx: DomainContext,
+  args: {
+    conversationId: string
+    type: 'text' | 'image' | 'video' | 'audio' | 'document' | 'template' | 'interactive'
+    body?: string
+  },
+  error: unknown
+): Promise<void> {
+  try {
+    const meta = error instanceof MetaGraphApiError ? error : null
+    const message = error instanceof Error ? error.message : String(error)
+    const errorCode =
+      [meta?.code, meta?.errorSubcode].filter((v) => v != null).join('/') || null
+    const errorMessage = [
+      message,
+      meta?.details ? `details=${meta.details}` : null,
+      meta?.fbtraceId ? `fbtrace=${meta.fbtraceId}` : null,
+      meta?.httpStatus ? `http=${meta.httpStatus}` : null,
+    ]
+      .filter(Boolean)
+      .join(' | ')
+      .slice(0, 1000)
+
+    await supabase.from('messages').insert({
+      conversation_id: args.conversationId,
+      workspace_id: ctx.workspaceId,
+      direction: 'outbound',
+      type: args.type,
+      content: {
+        body: args.body ?? '',
+        error: {
+          code: meta?.code ?? null,
+          subcode: meta?.errorSubcode ?? null,
+          http_status: meta?.httpStatus ?? null,
+          fbtrace_id: meta?.fbtraceId ?? null,
+          details: meta?.details ?? null,
+          message,
+        },
+      } as unknown as Record<string, unknown>,
+      status: 'failed',
+      error_code: errorCode,
+      error_message: errorMessage,
+      timestamp: new Date().toISOString(),
+    })
+
+    console.error(
+      `[domain/messages] OUTBOUND FAILED persisted — ws=${ctx.workspaceId} type=${args.type} code=${errorCode} fbtrace=${meta?.fbtraceId ?? '-'} details=${meta?.details ?? '-'} msg=${message}`
+    )
+  } catch (persistErr) {
+    // Never let observability break the send error path.
+    console.error('[domain/messages] persistFailedOutbound failed:', persistErr)
+  }
 }
 
 // ============================================================================
@@ -343,6 +409,14 @@ export async function sendTextMessage(
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('[domain/messages] sendTextMessage failed:', msg)
+    if (error instanceof MetaGraphApiError) {
+      await persistFailedOutbound(
+        supabase,
+        ctx,
+        { conversationId: params.conversationId, type: 'text', body: params.messageBody },
+        error
+      )
+    }
     return { success: false, error: msg }
   }
 }
@@ -502,6 +576,14 @@ export async function sendMediaMessage(
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('[domain/messages] sendMediaMessage failed:', msg)
+    if (error instanceof MetaGraphApiError) {
+      await persistFailedOutbound(
+        supabase,
+        ctx,
+        { conversationId: params.conversationId, type: params.mediaType, body: params.caption },
+        error
+      )
+    }
     return { success: false, error: msg }
   }
 }
@@ -602,6 +684,18 @@ export async function sendTemplateMessage(
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('[domain/messages] sendTemplateMessage failed:', msg)
+    if (error instanceof MetaGraphApiError) {
+      await persistFailedOutbound(
+        supabase,
+        ctx,
+        {
+          conversationId: params.conversationId,
+          type: 'template',
+          body: params.renderedText || params.templateName,
+        },
+        error
+      )
+    }
     return { success: false, error: msg }
   }
 }
@@ -728,6 +822,14 @@ export async function sendInteractiveMessage(
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('[domain/messages] sendInteractiveMessage failed:', msg)
+    if (error instanceof MetaGraphApiError) {
+      await persistFailedOutbound(
+        supabase,
+        ctx,
+        { conversationId: params.conversationId, type: 'interactive', body: params.body },
+        error
+      )
+    }
     return { success: false, error: msg }
   }
 }

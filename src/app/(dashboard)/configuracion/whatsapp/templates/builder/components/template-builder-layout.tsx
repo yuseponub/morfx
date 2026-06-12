@@ -182,6 +182,7 @@ function TemplateBuilderLayoutInner() {
               sessionId={sessionId}
               onSessionCreated={handleSessionCreated}
               initialMessages={initialMessages}
+              onNewSession={handleNewSession}
             />
           </div>
           <div className="flex flex-col min-h-0 overflow-y-auto">

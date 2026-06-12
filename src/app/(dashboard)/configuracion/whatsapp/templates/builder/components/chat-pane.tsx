@@ -14,24 +14,33 @@
 // TemplateDraftContext (onDraftPatch), no via props locales.
 // ============================================================================
 
-import { useRef, useEffect, useCallback, useState } from 'react'
+import { useRef, useEffect, useCallback, useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import type { UIMessage } from 'ai'
 import { toast } from 'sonner'
 import { useTemplateDraft } from './template-draft-context'
 import { ChatMessage } from './chat-message'
+import { SuggestedActionChips, type SuggestedChip } from './suggested-action-chips'
 import { BuilderInput } from '@/app/(dashboard)/automatizaciones/builder/components/builder-input'
 import { Sparkles, ImagePlus, Loader2 } from 'lucide-react'
 import type { TemplateDraft } from '@/lib/config-builder/templates/types'
+import {
+  deriveStage,
+  mergeChips,
+  extractAiActions,
+  STARTER_CHIPS,
+} from '@/lib/config-builder/templates/suggested-actions'
 
 interface ChatPaneProps {
   sessionId: string | null
   onSessionCreated: (id: string) => void
   initialMessages?: UIMessage[]
+  onNewSession: () => void
 }
 
-export function ChatPane({ sessionId, onSessionCreated, initialMessages }: ChatPaneProps) {
+export function ChatPane({ sessionId, onSessionCreated, initialMessages, onNewSession }: ChatPaneProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const sessionIdRef = useRef(sessionId)
@@ -200,6 +209,41 @@ export function ChatPane({ sessionId, onSessionCreated, initialMessages }: ChatP
 
   const isLoading = status === 'submitted' || status === 'streaming'
 
+  const router = useRouter()
+
+  // Chips: derivación pura desde draft + messages (D-01). useMemo, no side-effects.
+  // Fuente ÚNICA (Pitfall 5): cero useState para chips, cero dispatches nuevos.
+  const mergedChips = useMemo(() => {
+    const { chips: deterministic } = deriveStage(draft, messages)
+    const ai = extractAiActions(messages)
+    return mergeChips(deterministic, ai, 4)
+  }, [draft, messages])
+
+  // Click handler híbrido (D-04 mensaje / D-05 acciones locales) con doble guard D-06.
+  // Recibe SuggestedChip (super-tipo estructural de Chip) para que el callback sea
+  // asignable al prop onChipClick del componente presentacional portable.
+  const handleChipClick = useCallback(
+    (chip: SuggestedChip) => {
+      if (isLoading) return // D-06: no-op mientras el turno corre
+      if (chip.action === 'upload-image') {
+        fileInputRef.current?.click() // el onChange existente hace todo (validación/upload/aviso)
+        return
+      }
+      if (chip.action === 'navigate-templates') {
+        router.push('/configuracion/whatsapp/templates')
+        return
+      }
+      if (chip.action === 'new-session') {
+        onNewSession()
+        return
+      }
+      if (chip.message.trim()) {
+        sendMessage({ text: chip.message }) // D-04: burbuja visible del usuario
+      }
+    },
+    [isLoading, router, onNewSession, sendMessage]
+  )
+
   const handleSubmit = useCallback(
     (text: string) => {
       if (!text.trim() || isLoading) return
@@ -233,6 +277,10 @@ export function ChatPane({ sessionId, onSessionCreated, initialMessages }: ChatP
                 llega manana&rdquo;.
               </p>
             </div>
+            {/* Starter-chips D-08/D-09: el click envía el prompt pre-armado */}
+            <div className="flex flex-wrap justify-center gap-2 max-w-md">
+              <SuggestedActionChips chips={STARTER_CHIPS} disabled={isLoading} onChipClick={handleChipClick} />
+            </div>
           </div>
         ) : (
           <div className="space-y-4 max-w-3xl mx-auto">
@@ -248,6 +296,15 @@ export function ChatPane({ sessionId, onSessionCreated, initialMessages }: ChatP
 
         <div ref={bottomRef} />
       </div>
+
+      {/* Chips de acción sugerida (D-06: solo con turno terminado) */}
+      {status === 'ready' && messages.length > 0 && mergedChips.length > 0 && (
+        <div className="px-4 pb-1">
+          <div className="max-w-3xl mx-auto">
+            <SuggestedActionChips chips={mergedChips} onChipClick={handleChipClick} />
+          </div>
+        </div>
+      )}
 
       {/* Error display */}
       {error && (

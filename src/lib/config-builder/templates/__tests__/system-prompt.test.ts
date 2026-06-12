@@ -25,3 +25,37 @@ describe('buildTemplatesSystemPrompt — candado de footer', () => {
     expect(prompt).toContain('NUNCA** agregues un footer por tu cuenta')
   })
 })
+
+// Origen: Standalone template-builder-suggested-actions — Plan 01.
+// La tool 8 (suggestActions) se instruye SIN debilitar la REGLA CERO
+// (Pitfall 1) y prohibiendo AI-chips de confirmacion (Pitfall 2 capa 2).
+describe('buildTemplatesSystemPrompt — suggestActions', () => {
+  const prompt = buildTemplatesSystemPrompt('ws-test')
+
+  it('menciona la tool suggestActions', () => {
+    expect(prompt).toContain('suggestActions')
+  })
+
+  it('actualiza el conteo de tools a 8', () => {
+    expect(prompt).toContain('estas 8 tools')
+  })
+
+  it('prohibe llamarla como primera tool del turno (Pitfall 1)', () => {
+    expect(prompt).toContain('NUNCA la llames como primera tool del turno')
+  })
+
+  it('prohibe sugerir acciones de confirmacion/creacion en suggestActions (Pitfall 2)', () => {
+    expect(prompt).toContain(
+      'NUNCA sugieras acciones de confirmacion o creacion del template',
+    )
+  })
+
+  it('mantiene la REGLA CERO intacta (no se debilita por la tool nueva)', () => {
+    expect(prompt).toContain(
+      'REGLA CERO (la mas importante de todas, no la rompas nunca)',
+    )
+    expect(prompt).toContain(
+      '**ANTES** de escribir cualquier texto al usuario, **DEBES** llamar la tool',
+    )
+  })
+})

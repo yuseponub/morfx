@@ -2,13 +2,15 @@
 // Standalone: whatsapp-template-ai-builder — Plan 03
 // AI SDK tools para el Config Builder > WhatsApp Templates.
 //
-// 6 tools (matching stepCountIs(6) en .claude/rules/agent-scope.md):
+// 8 tools (el route usa stopWhen: stepCountIs(15) — src/app/api/config-builder/templates/chat/route.ts):
 //   1. listExistingTemplates  — READ
 //   2. suggestCategory        — pure reasoning
 //   3. suggestLanguage        — pure reasoning
 //   4. captureVariableMapping — validate catalog path
-//   5. validateTemplateDraft  — shared validator
-//   6. submitTemplate         — MUTATION (delega a domain createTemplate)
+//   5. updateDraft            — echo (patch del draft; la UI lo aplica)
+//   6. validateTemplateDraft  — shared validator
+//   7. submitTemplate         — MUTATION (delega a domain createTemplate)
+//   8. suggestActions         — echo (chips de acción sugerida; la UI los renderiza)
 //
 // INVARIANTE CRITICO (Regla 3 + agent-scope.md):
 //   - `submitTemplate` DEBE delegar al domain (unica forma de mutar whatsapp_templates).
@@ -410,6 +412,37 @@ export function createTemplateBuilderTools(ctx: TemplateBuilderToolContext) {
         }
 
         return { success: true, templateId: result.data.id }
+      },
+    }),
+
+    // ------------------------------------------------------------------
+    // 8. suggestActions — echo de chips de accion sugerida (cero DB)
+    // ------------------------------------------------------------------
+    suggestActions: tool({
+      description:
+        'OPCIONAL — al FINAL de tu turno, sugiere hasta 3 acciones rápidas que el usuario ' +
+        'probablemente quiera hacer a continuación. Cada acción tiene un label corto (botón) ' +
+        'y el mensaje que se enviará al clickearlo. NUNCA la llames como primera tool del turno. ' +
+        'NUNCA sugieras confirmar la creación del template (eso lo maneja la UI).',
+      inputSchema: z.object({
+        actions: z
+          .array(
+            z.object({
+              label: z.string().min(1).max(30),
+              message: z.string().min(1).max(200),
+            }),
+          )
+          .min(1)
+          .max(3),
+      }),
+      execute: async (
+        params,
+      ): Promise<{
+        success: true
+        actions: Array<{ label: string; message: string }>
+      }> => {
+        // Echo — la UI lo lee del tool-result part (mismo patrón que updateDraft)
+        return { success: true, actions: params.actions }
       },
     }),
   }

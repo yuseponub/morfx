@@ -373,13 +373,10 @@ Vocabulario visual existente del builder (para los chips, discreción de Claude 
 | A2 | Comportamiento runtime de la IA con `variableMapping` en `validateTemplateDraft` (puede inventar mappings para pasar la validación) | Pitfall 6 | Medio — el chip "Confirmar y crear" podría no aparecer para templates con variables; QA del plan debe probarlo end-to-end |
 | A3 | `output.actions` del part persistido conserva el shape exacto tras round-trip JSONB (serialización Supabase) | Persistence D-10 | Bajo — updateDraft ya hace el mismo round-trip con `patch` y funciona (replay verificado en código) |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **¿Cerrar el lag de persistencia (Pitfall 4) en este standalone?**
-   - Sabemos: fix de ~5 líneas verificado en ai@6.0.86, acotado al route de templates.
-   - No claro: si el usuario prefiere consistencia con el comportamiento actual (lag también en preview) o cerrar D-10 al 100%.
-   - Recomendación: incluirlo como task opcional del plan con flag de decisión; default = incluirlo (es estrictamente mejor y no toca /api/builder/chat).
-2. **Chip "Crear otro template" — prop `onNewSession` vs mensaje:** recomendación firme prop (a) (ver Local Actions); confirmarlo en plan.
+1. **¿Cerrar el lag de persistencia (Pitfall 4) en este standalone?** — **RESOLVED (planning):** SÍ — se incluye el persistence mode (`toUIMessageStreamResponse({ originalMessages, onFinish })`) en Plan 01 Task 3. Cierra D-10 al 100% sin tocar `/api/builder/chat` (fix de ~5 líneas verificado en ai@6.0.86, acotado al route de templates).
+2. **Chip "Crear otro template" — prop `onNewSession` vs mensaje:** — **RESOLVED (planning):** prop `onNewSession` pasada desde `template-builder-layout.tsx` (reusa `handleNewSession` existente) — Plan 02 Task 2.
 
 ## Environment Availability
 

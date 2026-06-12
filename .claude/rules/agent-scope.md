@@ -268,6 +268,7 @@ Standalone: `.planning/standalone/crm-mutation-tools/` (shipped 2026-04-29).
     - `grep -c "agentId === 'varixcenter'" src/lib/agents/production/webhook-processor.ts` → 1.
     - `grep -c "agentModule === 'varixcenter'" src/lib/agents/engine/v3-production-runner.ts` → 1.
     - `grep -cE "agentModule.*!== 'varixcenter'" src/lib/agents/engine/v3-production-runner.ts` → ≥1 (VAL guard cubre varixcenter).
+  - `grep -c "sessionAgentModule === 'varixcenter'" src/inngest/functions/agent-timers-v3.ts` = 1 (sitio #7 — dispatcher de retomas; hotfix `1a6255c5`)
   - VAL guard: `CRITICAL_FIELDS_BY_AGENT['varixcenter'] = ['nombre','telefono','cedula']` en `v3-production-runner.ts`; godentist sigue con `sede_preferida` (cero regresión, D-05).
   - El único `createClient` del cross-project varix-clinic vive en `src/lib/domain/varix-clinic/client.ts`.
   - Suites: `npx vitest run src/lib/agents/varixcenter/__tests__/ src/lib/domain/varix-clinic/__tests__/` verde + baseline `npx vitest run src/lib/agents/godentist/__tests__/ src/lib/agents/godentist-fb-ig/__tests__/` mantiene 103/103 (Regla 6).

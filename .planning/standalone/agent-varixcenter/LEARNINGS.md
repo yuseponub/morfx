@@ -50,7 +50,7 @@
 - NO confiar en los line numbers de PATTERNS/RESEARCH al ejecutar — el repo se mueve por instancias concurrentes; ubicar branches por contenido.
 
 ### Patrones a seguir
-- Agente clonado v3: **7 sitios de registro** (index self-register, AGENT_CATALOG, pre-warm, dispatch branch, agentModule branch, VAL guard, **dispatcher de timers `agent-timers-v3.ts`**) — falta uno = roto en silencio. El #7 se descubrió en vivo (hotfix `1a6255c5`): sin él las retomas L1-L6 caen al módulo somnio-v3 (templates de otro negocio). godentist-fb-ig tiene el mismo bug LATENTE (sus retomas despachan al módulo godentist original) — pendiente decisión del usuario.
+- Agente clonado v3: **7 sitios de registro** (index self-register, AGENT_CATALOG, pre-warm, dispatch branch, agentModule branch, VAL guard, **dispatcher de timers `agent-timers-v3.ts`**) — falta uno = roto en silencio. El #7 se descubrió en vivo (hotfix `1a6255c5`): sin él las retomas L1-L6 caen al módulo somnio-v3 (templates de otro negocio). godentist-fb-ig tenía el mismo bug latente — FIXED mismo día con aprobación del usuario (`ac1efd1d`).
 - Domain module cross-project: único `createClient` en `client.ts` fail-fast, caller fail-open, scope acotado a las tablas mínimas.
 - Constraint 23P01 (EXCLUDE gist): retry con el otro doctor → si ambos fallan → `slot_taken` → re-availability.
 - TZ Bogotá: `Date.UTC(...).getUTCDay()` para día de semana; offset literal `-05:00` en TIMESTAMPTZ; nunca `new Date(string)` sin offset.

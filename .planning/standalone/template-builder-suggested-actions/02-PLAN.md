@@ -192,7 +192,7 @@ if (toolName === 'suggestActions') return null
   <files>src/app/(dashboard)/configuracion/whatsapp/templates/builder/components/chat-pane.tsx, src/app/(dashboard)/configuracion/whatsapp/templates/builder/components/template-builder-layout.tsx</files>
   <read_first>
     - src/app/(dashboard)/configuracion/whatsapp/templates/builder/components/chat-pane.tsx (COMPLETO — props:28-32, useTemplateDraft:44, useChat:68, scan:82-125, isLoading:201, handleSubmit:203-209, empty-state:223-236, cierre messages-area:250, error display:252-259)
-    - src/app/(dashboard)/configuracion/whatsapp/templates/builder/components/template-builder-layout.tsx (handleNewSession:85-92, render de ChatPane:~180-185)
+    - src/app/(dashboard)/configuracion/whatsapp/templates/builder/components/template-builder-layout.tsx (handleNewSession:85-92, render de ChatPane:~180-185; OJO: ya existe una ocurrencia de `onNewSession={handleNewSession}` en línea ~172 — la recibe TemplateSessionHistory)
     - src/lib/config-builder/templates/suggested-actions.ts (creado en Plan 01 — firmas exactas de los exports)
     - .planning/standalone/template-builder-suggested-actions/RESEARCH.md (§Chips Rendering — useMemo NO processedPartsRef; §Local Actions Wiring — tabla de mecanismos; §Ubicación del render — Pitfall 7)
   </read_first>
@@ -207,7 +207,7 @@ if (toolName === 'suggestActions') return null
   onNewSession={handleNewSession}
 />
 ```
-`handleNewSession` (85-92) NO se modifica — ya hace el reset completo.
+`handleNewSession` (85-92) NO se modifica — ya hace el reset completo. NOTA: el archivo YA contiene `onNewSession={handleNewSession}` en la línea ~172 (prop de `TemplateSessionHistory`, preexistente — NO tocarla); tras esta edición habrá 2 ocurrencias en total.
 
 **chat-pane.tsx** — seis ediciones:
 
@@ -296,7 +296,8 @@ PROHIBIDO en este task: tocar el scan parent-level (82-125), el processedPartsRe
     - `grep -c "fileInputRef.current?.click()" "src/app/(dashboard)/configuracion/whatsapp/templates/builder/components/chat-pane.tsx"` retorna 2 (botón existente + chip upload-image)
     - `grep -c "router.push('/configuracion/whatsapp/templates')" "src/app/(dashboard)/configuracion/whatsapp/templates/builder/components/chat-pane.tsx"` retorna 1
     - `grep -c "onNewSession: () => void" "src/app/(dashboard)/configuracion/whatsapp/templates/builder/components/chat-pane.tsx"` retorna 1
-    - `grep -c "onNewSession={handleNewSession}" "src/app/(dashboard)/configuracion/whatsapp/templates/builder/components/template-builder-layout.tsx"` retorna 1
+    - `grep -c "onNewSession={handleNewSession}" "src/app/(dashboard)/configuracion/whatsapp/templates/builder/components/template-builder-layout.tsx"` retorna 2 (la ocurrencia preexistente de TemplateSessionHistory línea ~172 + la nueva en ChatPane)
+    - `grep -A6 "<ChatPane" "src/app/(dashboard)/configuracion/whatsapp/templates/builder/components/template-builder-layout.tsx" | grep -c "onNewSession={handleNewSession}"` retorna 1 (la prop nueva quedó dentro del bloque <ChatPane, no en otro lado)
     - `grep -c "STARTER_CHIPS" "src/app/(dashboard)/configuracion/whatsapp/templates/builder/components/chat-pane.tsx"` ≥ 1 (empty-state D-08)
     - El strip está FUERA del div `flex-1 overflow-y-auto` (Pitfall 7): en el JSX, el bloque del strip aparece DESPUÉS del cierre del messages-area y ANTES del `{error &&` display
     - `git diff` de chat-pane.tsx NO modifica las líneas del scan parent-level (82-125) ni handleChatImageUpload (135-192)

@@ -300,7 +300,21 @@ suggestActions: tool({
   },
 }),
 ```
-Actualizar el comentario header del archivo (líneas ~5-11) que enumera las tools: 7 → 8, agregando `suggestActions` a la lista. PROHIBIDO: agregar imports de supabase/domain en el diff (la tool es echo puro — gate de agent-scope).
+**Actualizar el comentario header del archivo (líneas 4-11) — está STALE respecto al código real:** hoy dice `6 tools (matching stepCountIs(6) en .claude/rules/agent-scope.md)` y la enumeración OMITE `updateDraft` (tool echo agregada después, existe en líneas 218-242). NO buscar "7" — no existe. Reemplazar el bloque de enumeración (la línea "6 tools ..." + las 6 líneas numeradas) por este texto verbatim, que enumera las 8 tools reales y corrige la referencia obsoleta a stepCountIs(6) (el route usa `stopWhen: stepCountIs(15)`):
+
+```
+// 8 tools (el route usa stopWhen: stepCountIs(15) — src/app/api/config-builder/templates/chat/route.ts):
+//   1. listExistingTemplates  — READ
+//   2. suggestCategory        — pure reasoning
+//   3. suggestLanguage        — pure reasoning
+//   4. captureVariableMapping — validate catalog path
+//   5. updateDraft            — echo (patch del draft; la UI lo aplica)
+//   6. validateTemplateDraft  — shared validator
+//   7. submitTemplate         — MUTATION (delega a domain createTemplate)
+//   8. suggestActions         — echo (chips de acción sugerida; la UI los renderiza)
+```
+
+El resto del header (banner Standalone + bloque INVARIANTE CRITICO de líneas 13-19) NO se toca. PROHIBIDO: agregar imports de supabase/domain en el diff (la tool es echo puro — gate de agent-scope).
 
 **system-prompt.ts** — tres inserciones, SIN tocar la REGLA CERO (líneas 31-43):
 
@@ -339,12 +353,15 @@ Al FINAL de tu turno (despues de updateDraft y de tu texto) puedes llamar `sugge
     - `grep -c "suggestActions: tool(" src/lib/config-builder/templates/tools.ts` retorna 1
     - `grep -c "max(3)" src/lib/config-builder/templates/tools.ts` ≥ 1 (cap de 3 acciones — D-02/D-03: la IA nunca llena más de 3 slots)
     - `git diff src/lib/config-builder/templates/tools.ts | grep -c "createAdminClient\|@supabase\|@/lib/domain"` retorna 0 (echo puro, cero ampliación de scope)
+    - `grep -c "8 tools" src/lib/config-builder/templates/tools.ts` retorna 1 (header actualizado — antes decía "6 tools" stale que omitía updateDraft)
+    - `grep -c "stepCountIs(6)" src/lib/config-builder/templates/tools.ts` retorna 0 (referencia stale eliminada; el header ahora referencia stepCountIs(15) del route)
+    - `grep -c "updateDraft" src/lib/config-builder/templates/tools.ts` ≥ 2 (la enumeración del header ahora incluye updateDraft además de la tool existente)
     - `grep -c "estas 8 tools" src/lib/config-builder/templates/system-prompt.ts` retorna 1
     - `grep -c "Acciones sugeridas (suggestActions)" src/lib/config-builder/templates/system-prompt.ts` retorna 1
     - La REGLA CERO (system-prompt.ts:31-43) está byte-idéntica: `git diff src/lib/config-builder/templates/system-prompt.ts` no muestra cambios en ese rango
     - `npx vitest run src/lib/config-builder/templates/__tests__/system-prompt.test.ts` verde con los asserts nuevos
   </acceptance_criteria>
-  <done>Tool 8 registrada como echo puro + prompt instruido en 3 puntos + tests de prompt verdes. Commit: `feat(template-builder-chips): tool suggestActions echo + instruccion en system prompt (D-01, Pitfall 2 capas 1-2)`.</done>
+  <done>Tool 8 registrada como echo puro + header del archivo corregido (8 tools reales, sin referencia stale a stepCountIs(6)) + prompt instruido en 3 puntos + tests de prompt verdes. Commit: `feat(template-builder-chips): tool suggestActions echo + instruccion en system prompt (D-01, Pitfall 2 capas 1-2)`.</done>
 </task>
 
 <task type="auto">

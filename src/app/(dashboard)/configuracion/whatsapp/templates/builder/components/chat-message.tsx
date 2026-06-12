@@ -45,6 +45,7 @@ const TOOL_LABELS: Record<string, string> = {
   updateDraft: 'Actualizando preview...',
   validateTemplateDraft: 'Validando...',
   submitTemplate: 'Enviando a Meta...',
+  suggestActions: 'Sugiriendo acciones...',
 }
 
 // ============================================================================
@@ -52,6 +53,8 @@ const TOOL_LABELS: Record<string, string> = {
 // ============================================================================
 
 function ToolLoading({ toolName }: { toolName: string }) {
+  // suggestActions es invisible: los chips se renderizan en el strip del chat-pane
+  if (toolName === 'suggestActions') return null
   const label = TOOL_LABELS[toolName] ?? `Ejecutando ${toolName}...`
   return (
     <div className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-muted/50 text-xs text-muted-foreground w-fit">
@@ -126,6 +129,9 @@ function ToolOutput({
 
   if (!output || typeof output !== 'object') return null
   const o = output as Record<string, unknown>
+
+  // suggestActions: invisible en la burbuja — los chips se renderizan en el strip
+  if (toolName === 'suggestActions') return null
 
   // submitTemplate success -> green banner con link
   if (toolName === 'submitTemplate' && 'success' in o && o.success === true && 'templateId' in o) {

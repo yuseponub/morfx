@@ -99,6 +99,7 @@ Standalone: `.planning/standalone/crm-mutation-tools/` (shipped 2026-04-29).
   - Subir imagenes de header al bucket `whatsapp-media` path `templates/{workspaceId}/{timestamp}_{safeName}`
   - Consultar templates existentes (solo lectura, para detectar duplicados y cooldown de 30 dias)
   - Sugerir categoria (MARKETING / UTILITY / AUTHENTICATION), idioma (es / es_CO / en_US) y mapping de variables
+  - Sugerir hasta 3 acciones rapidas contextuales via tool `suggestActions` (echo puro: devuelve `{label, message}` que la UI renderiza como chips — cero DB, cero mutacion; la UI capea el total en 4 con prioridad determinista)
 - **NO PUEDE:**
   - Editar o eliminar templates ya creados (limitacion Meta: solo se elimina y recrea)
   - Crear/editar tags, pipelines, etapas, contactos, pedidos, tareas, usuarios, templates de otro modulo
@@ -109,7 +110,9 @@ Standalone: `.planning/standalone/crm-mutation-tools/` (shipped 2026-04-29).
   - Tool `submitTemplate.execute` llama EXCLUSIVAMENTE a `createTemplate` del domain; CERO `createAdminClient` + `insert` directo en `src/lib/config-builder/templates/tools.ts` (verificable con grep)
   - System prompt `buildTemplatesSystemPrompt` incluye lista textual de PUEDE / NO PUEDE y prohibicion explicita de crear recursos fuera del scope
   - Agent ID registrado: `'config-builder-whatsapp-templates'`
-  - stopWhen: `stepCountIs(6)` — ciclo maximo list -> draft -> preview -> validate -> upload -> submit
+  - stopWhen: `stepCountIs(15)` — holgura para el ciclo list -> draft -> preview -> validate -> upload -> submit + suggestActions al final del turno
+  - `suggestActions` es echo puro: `git log -p src/lib/config-builder/templates/tools.ts` no muestra imports de supabase/domain en la tool; excluida de `activeTools` en el step 0 del route (REGLA CERO intacta)
+  - Standalone: `.planning/standalone/template-builder-suggested-actions/` (chips de accion sugerida en el chat del builder)
 
 ### Somnio Recompra Agent (`somnio-recompra-v1` — webhook WhatsApp inbound)
 - **PUEDE:**

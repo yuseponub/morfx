@@ -85,6 +85,8 @@ export interface SubLoopContext extends SubLoopToolsContext {
   lockHandle?: LockHandle | null
   lockChannel?: 'whatsapp' | 'facebook' | 'instagram' | null
   lockIdentifier?: string | null
+  /** Standalone v4-observability-completeness (D-03): iteración del restart loop para etiquetar los eventos del sub-loop. */
+  restartIteration?: number
   /**
    * #2 v4-subloop-context-pass (C-01): contexto del state para el path RAG.
    * SOLO informacional (no-repetición con filtrado/scoring es trabajo futuro).

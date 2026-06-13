@@ -204,6 +204,13 @@ export interface V4AgentInput {
    * Absent on text/audio/timer turns + sandbox/tests that omit it. Additive — Regla 6.
    */
   visionContext?: { descripcion: string; categoria: string }
+  /**
+   * Standalone v4-observability-completeness (D-03): RestartContext.restartIteration,
+   * threadeado por el core para que TODOS los eventos del pipeline (agente + sub-loop
+   * + gate) lo lleven uniforme en el payload. Optional/default 0 — backward-compat con
+   * sandbox/tests que arman V4AgentInput a mano.
+   */
+  restartIteration?: number
 }
 
 export interface V4AgentOutput {
@@ -219,6 +226,14 @@ export interface V4AgentOutput {
    * con el error real en debugTurn (visible en sandbox UI inspector).
    */
   errorMessage?: string
+
+  /**
+   * Standalone v4-observability-completeness (D-01): el stage donde reventó el catch
+   * externo de processUserMessage ('comprehension' | 'guards' | ... | 'send'). El runner
+   * lo lee para construir un mensaje limpio `V4_AGENT_ERROR @ {stage}: {reason}`.
+   * Optional — undefined cuando success.
+   */
+  errorStage?: string
 
   /**
    * D-60: cuando outcome=no_match en el sub-loop, el agente flagga la sesión

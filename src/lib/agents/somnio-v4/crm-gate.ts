@@ -154,6 +154,8 @@ export interface RunCrmGateArgs {
   lockHandle?: LockHandle | null
   lockChannel?: 'whatsapp' | 'facebook' | 'instagram' | null
   lockIdentifier?: string | null
+  /** Standalone v4-observability-completeness (D-03): iteración del restart loop para etiquetar los eventos del gate. */
+  restartIteration?: number
 }
 
 /**

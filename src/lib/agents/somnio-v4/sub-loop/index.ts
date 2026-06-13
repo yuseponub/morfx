@@ -17,6 +17,8 @@ import { runToolingCall } from './tooling-call'
 import { runGenerationCall } from './generation-call'
 import { safeAccessOutput } from './safe-output'
 import { SOMNIO_V4_AGENT_ID } from '../config'
+import { recordV4Event } from '../observability'
+import { bodyTruncate } from '@/lib/agents/shared/crm-mutation-tools/helpers'
 import type {
   SubLoopDebugPayload,
   SubLoopToolCallSnapshot,
@@ -288,6 +290,19 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
   const tooling = toolingResult.output
   const toolingStep = extractStepData(toolingResult.rawResult)
 
+  // Standalone v4-observability-completeness (D-02): qué topic recuperó el KB +
+  // similarity por hit + finishReason. Explica el flip generated↔no_match (antes
+  // SOLO en onDebug del sandbox, nunca en la DB). Campos planos (Pitfall 6).
+  recordV4Event('subloop_tooling_completed', {
+    agent: SOMNIO_V4_AGENT_ID,
+    reason: args.reason,
+    topicSelected: tooling.topic_seleccionado ?? null,
+    shouldHandoff: tooling.should_handoff ?? false,
+    kbHits: (toolingStep.kbHits ?? []).map((h) => ({ topic: h.topic, similarity: h.similarity })),
+    finishReason: toolingStep.finishReason ?? null,
+    latencyMs: toolingResult.latencyMs,
+  }, { restartIteration: args.ctx.restartIteration ?? 0 })
+
   // ==========================================================================
   // CKPT-3 `ckpt_3_post_tooling` (D-18 + Plan 05 Task 5.2)
   // Fires after the tooling call returns. lostLock → throw. interrupted →
@@ -393,6 +408,18 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
   }
 
   const generation = generationResult.output
+
+  // Standalone v4-observability-completeness (D-02): confidence auto-reportada +
+  // binary backstop + threshold. Combinado con subloop_tooling_completed, explica
+  // por qué un mismo topic dio generated en un turno y no_match en otro.
+  recordV4Event('subloop_generation_completed', {
+    agent: SOMNIO_V4_AGENT_ID,
+    reason: args.reason,
+    responseConfidence: generation.responseConfidence,
+    binary: (generation as { binary?: unknown }).binary ?? null,
+    threshold: RESPONSE_CONFIDENCE_THRESHOLD,
+    latencyMs: generationResult.latencyMs,
+  }, { restartIteration: args.ctx.restartIteration ?? 0 })
 
   // ==========================================================================
   // CKPT-4 `ckpt_4_post_generation` (D-18 + Plan 05 Task 5.2)
@@ -710,6 +737,20 @@ function emitRagError(
         }
       : undefined,
   })
+
+  // Standalone v4-observability-completeness (D-02): los errores POR PASO del
+  // sub-loop (tooling/generation/invariant) hoy solo iban a onDebug+throw — NUNCA
+  // a la DB. Ahora dejan rastro en agent_observability_events ANTES de relanzar.
+  // El param `reason` de emitRagError es el tipo de error (tooling_call_error /
+  // generation_call_error / invariant_violation: ...) — mapeado a errorType.
+  // message truncado (Pitfall 6 / PII): solo campos planos, sin rawResult crudo.
+  recordV4Event('subloop_error', {
+    agent: SOMNIO_V4_AGENT_ID,
+    reason: args.reason,
+    errorType: reason,
+    errorName: errName,
+    message: bodyTruncate(errMsg, 200),
+  }, { restartIteration: args.ctx.restartIteration ?? 0 })
 
   throw new Error(`[SubLoop RAG reason=${args.reason} stage=${reason}] ${errName}: ${errMsg}`)
 }

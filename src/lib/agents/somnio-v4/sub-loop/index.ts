@@ -38,14 +38,10 @@ import type { LockHandle } from '@/lib/agents/interruption-system-v2/lock'
 // CKPT-3/4/5 (+ legacy combined) está factorizado en runCheckpointGate; las
 // colocaciones NO se mueven.
 import { runCheckpointGate } from '../core/checkpoint-gate'
+import { getResponseConfidenceThreshold } from './response-confidence-threshold'
 
 export type { SubLoopReason } from './output-schema'
 
-/**
- * Threshold post-generation: si responseConfidence < THRESHOLD → handoff (D-19).
- * Default 0.70. Plan 04+ podría leerlo de platform_config.somnio_v4_low_confidence_threshold.
- */
-const RESPONSE_CONFIDENCE_THRESHOLD = 0.70
 
 /**
  * Lazy singleton — OpenAI client con key custom OPENAI_API_KEY_SALESV4 (D-30).
@@ -270,6 +266,10 @@ export async function runSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
 
 async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
   const t0 = performance.now()
+
+  // Fix D-03 (v4-gate-confidence-fixes): threshold desde platform_config (cache 60s).
+  // Default 0.70 si key ausente — Regla 6, comportamiento idéntico al hardcodeado anterior.
+  const RESPONSE_CONFIDENCE_THRESHOLD = await getResponseConfidenceThreshold()
 
   // CALL 1 — Tooling (GPT-4o mini + kb_search + Output.object)
   let toolingResult: Awaited<ReturnType<typeof runToolingCall>>

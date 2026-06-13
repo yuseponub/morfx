@@ -443,6 +443,10 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       earlyReason: earlyReason ?? null,
       tokensUsed,
       restart_iteration: restartIteration, // Plan 02 (D-02/D-03)
+      secondary: analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : null,
+      secondary_confidence: analysis.intent.secondary_confidence ?? null,
+      secondary_confidence_reasoning: analysis.intent.secondary_confidence_reasoning ?? null,
+      secondary_query: analysis.intent.secondary_query ?? null,
     })
 
     // NOTE (T-1): the exclusive early-return that lived here (escalate the WHOLE

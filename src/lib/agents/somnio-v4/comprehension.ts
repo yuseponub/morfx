@@ -239,6 +239,9 @@ export async function comprehend(
       k => analysis.extracted_fields[k as keyof typeof analysis.extracted_fields] !== null
     ),
     tokensUsed,
+    secondary_confidence: analysis.intent.secondary_confidence ?? null,
+    secondary_confidence_reasoning: analysis.intent.secondary_confidence_reasoning ?? null,
+    secondary_query: analysis.intent.secondary_query ?? null,
   })
 
   return { analysis, tokensUsed }

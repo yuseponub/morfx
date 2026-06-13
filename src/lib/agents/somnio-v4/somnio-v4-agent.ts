@@ -53,6 +53,10 @@ import type { LoopOutcome } from './sub-loop/output-schema'
 import { captureUnknownCase } from './unknown-cases/capture'
 import { SOMNIO_V4_AGENT_ID, SOMNIO_WORKSPACE_ID } from './config'
 import { getCollector } from '@/lib/observability'
+// Standalone v4-observability-completeness (Plan 02):
+// engine_error en el error path (D-01) + restart_iteration en el spine (D-02/D-03).
+import { recordV4Event, type V4Stage } from './observability'
+import { bodyTruncate } from '@/lib/agents/shared/crm-mutation-tools/helpers'
 // ============================================================================
 // Standalone: debounce-interruption-system-v2 (Plan 05 Task 5.1)
 // CKPT-1 (post-comprehension) + CKPT-2 (post-state-machine) fire here.
@@ -144,6 +148,14 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
   // runSubLoop invocations + error path. Survives throws (Pitfall 7 option a).
   let capturedSubLoopDebug: SubLoopDebugPayload | undefined = undefined
 
+  // Standalone v4-observability-completeness (Plan 02):
+  // - restartIteration (D-03): consumido de input (default 0) → threadeado a los
+  //   eventos del pipeline + a las calls runCrmGate/runSubLoop + al engine_error.
+  // - currentStage (D-01): var local actualizada al ENTRAR a cada stage; el catch
+  //   externo la usa para emitir engine_error con EL STAGE donde reventó + errorStage.
+  const restartIteration = input.restartIteration ?? 0
+  let currentStage: V4Stage = 'comprehension'
+
   try {
     // 1. Restore state from session
     const state = deserializeState(
@@ -197,6 +209,9 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
             lockHandle: input.lockHandle ?? null,
             lockChannel: input.lockChannel ?? null,
             lockIdentifier: input.lockIdentifier ?? null,
+            // Standalone v4-observability-completeness (Plan 02, D-03): consistencia
+            // de telemetría en la rama vision.
+            restartIteration,
             stateContext: {
               datosCapturados: input.datosCapturados,
               atendidoPrevio: input.turnLedgerDims?.atendido ?? [],
@@ -427,6 +442,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       scaledToSubLoop: anyLowSlot,
       earlyReason: earlyReason ?? null,
       tokensUsed,
+      restart_iteration: restartIteration, // Plan 02 (D-02/D-03)
     })
 
     // NOTE (T-1): the exclusive early-return that lived here (escalate the WHOLE
@@ -437,6 +453,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
     // the low slot(s) and combines with the deterministic templates.
 
     // 7. Guards R0/R1 (escape intents)
+    currentStage = 'guards' // Plan 02 (D-01): stage tracking para engine_error.
     const guardResult = checkGuards(analysis)
     if (guardResult.blocked) {
       getCollector()?.recordEvent('guard', 'blocked', {
@@ -444,6 +461,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         intent: analysis.intent.primary,
         confidence: analysis.intent.confidence,
         reason: guardResult.decision.reason,
+        restart_iteration: restartIteration, // Plan 02 (D-02/D-03)
       })
 
       if (guardResult.decision.timerSignal) {
@@ -506,6 +524,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       agent: SOMNIO_V4_AGENT_ID,
       intent: analysis.intent.primary,
       confidence: analysis.intent.confidence,
+      restart_iteration: restartIteration, // Plan 02 (D-02/D-03)
     })
 
     // ========================================================================
@@ -550,6 +569,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
     }
 
     // 8. Sales track — WHAT TO DO
+    currentStage = 'sales-track' // Plan 02 (D-01): stage tracking para engine_error.
     const phase = derivePhase(mergedState.accionesEjecutadas)
     const salesResult = resolveSalesTrack({
       phase,
@@ -572,6 +592,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       hasTimerSignal: !!salesResult.timerSignal,
       secondaryAction: salesResult.secondarySalesAction ?? 'none',
       phase,
+      restart_iteration: restartIteration, // Plan 02 (D-02/D-03)
     })
 
     if (salesResult.timerSignal) {
@@ -591,6 +612,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
     // actualiza el snapshot _v4 — y CAE a response-track (que sigue enviando
     // templates). El gate decide internamente si prende (accion CRM-gate-set |
     // newFields shipping | category 'datos'); si no prende retorna { crmActions: [] }.
+    currentStage = 'crm-gate' // Plan 02 (D-01): stage tracking para engine_error.
     const crmGateOut = await runCrmGate({
       workspaceId: input.workspaceId || SOMNIO_WORKSPACE_ID,
       sessionId: input.sessionId ?? '',
@@ -609,9 +631,13 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       lockHandle: input.lockHandle ?? null,
       lockChannel: input.lockChannel ?? null,
       lockIdentifier: input.lockIdentifier ?? null,
+      // Standalone v4-observability-completeness (Plan 02, D-03): threadea la
+      // iteración de restart para que el gate (Plan 03) etiquete sus eventos.
+      restartIteration,
     })
 
     // 11. Response track
+    currentStage = 'response-track' // Plan 02 (D-01): stage tracking para engine_error.
     // T-8 (v4-hybrid Plan 04): pass per-intent coverage from the slot plan so that
     // LOW intents are NOT given a template (they escalate to RAG in the slot resolver
     // below). Default-undefined = 'covered' (back-compat with any non-hybrid callers).
@@ -633,6 +659,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       infoTemplateIntents: responseResult.infoTemplateIntents,
       messageCount: responseResult.messages.length,
       templateIdsSent: responseResult.templateIdsSent,
+      restart_iteration: restartIteration, // Plan 02 (D-02/D-03)
     })
 
     // 12. Register action (single registration point)
@@ -709,6 +736,9 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           lockHandle: input.lockHandle ?? null,
           lockChannel: input.lockChannel ?? null,
           lockIdentifier: input.lockIdentifier ?? null,
+          // Standalone v4-observability-completeness (Plan 02, D-03): threadea la
+          // iteración de restart para que el sub-loop (Plan 03) etiquete sus eventos.
+          restartIteration,
           // #2 v4-subloop-context-pass (C-01): contexto del state para el path RAG.
           stateContext: {
             datosCapturados: input.datosCapturados,
@@ -783,6 +813,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
     }
 
     // Sequential resolution — primary first, then secondary (D-11 order).
+    currentStage = 'sub-loop-slot' // Plan 02 (D-01): stage tracking para engine_error.
     const primaryLow = slotPlan.primary.coverage === 'low'
     if (primaryLow && slotPlan.primary.reason) {
       await resolveLowSlot(slotPlan.primary, slotPlan.primary.reason)
@@ -1013,12 +1044,32 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
     }
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error)
-    const errStack = error instanceof Error && error.stack ? error.stack.split('\n').slice(0, 4).join(' | ') : undefined
+    const errStack = error instanceof Error && error.stack ? error.stack.split('\n').slice(0, 5).join(' | ') : undefined
     console.error('[SomnioV4] Error processing message:', errMsg, errStack ?? '')
+
+    // Standalone v4-observability-completeness (Plan 02, D-01): cierra el agujero
+    // negro del turno 1b561aaf. Emite el motivo REAL + stack truncado (5 frames) +
+    // EL STAGE donde reventó + restart_iteration a observabilidad. PII-safe: el
+    // errorMessage embebido va redactado vía bodyTruncate (T-obs02-01); el stack
+    // crudo vive solo en stackFrames (DB, NUNCA al chat — Pitfall 5).
+    // Los early-returns de interrupción (errorMessage 'interrupted_at_ckpt_*')
+    // retornan ANTES del catch → NO pasan por aquí → NO emiten engine_error
+    // (Pitfall 2: son Path A restarts normales, no errores).
+    recordV4Event('engine_error', {
+      stage: currentStage,
+      errorMessage: bodyTruncate(errMsg, 200),
+      stackFrames: errStack ?? null,
+      agent: SOMNIO_V4_AGENT_ID,
+    }, { restartIteration })
+
     return {
       success: false,
       messages: [],
+      // KEEP — discriminador de drain del orchestrator (interrupted_at_ckpt_*).
       errorMessage: errStack ? `${errMsg} :: ${errStack}` : errMsg,
+      // Plan 02 (D-01): el stage donde reventó viaja en el output para que el runner
+      // (Plan 04) construya un mensaje limpio al chat del operador (SIN stack).
+      errorStage: currentStage,
       intentsVistos: input.intentsVistos,
       templatesEnviados: input.templatesEnviados,
       datosCapturados: input.datosCapturados,

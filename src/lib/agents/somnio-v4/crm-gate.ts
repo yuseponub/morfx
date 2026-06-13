@@ -42,6 +42,8 @@ import { PACK_PRICES_NUMERIC, PACK_PRODUCTS } from './constants'
 import { runCrmSubLoop } from './sub-loop'
 import { resolveOrCreateContact } from '@/lib/domain/contacts'
 import { getCollector } from '@/lib/observability'
+import { recordV4Event } from './observability'
+import { idSuffix } from '@/lib/agents/shared/crm-mutation-tools/helpers'
 import type { AgentState, CrmActionRegistrada } from './types'
 import type { StateChanges } from './state'
 import type { LockHandle } from '@/lib/agents/interruption-system-v2/lock'
@@ -176,6 +178,7 @@ async function buildCrmHint(
   grounding: CrmGrounding,
 ): Promise<string> {
   const { accion, changes, mergedState, phone, sessionId, workspaceId } = args
+  const restartIteration = args.restartIteration ?? 0
   const activeOrder = grounding.activeOrder
   const idempotencyKey = `somnio-v4-createOrder-${sessionId}`
 
@@ -190,6 +193,7 @@ async function buildCrmHint(
         agent: SOMNIO_V4_AGENT_ID,
         sessionId,
         reason: 'SOMNIO_NUEVO_PEDIDO_STAGE_UUID env var not set',
+        restart_iteration: restartIteration,
       })
       return 'No crear pedido: stage NUEVO PEDIDO no configurado (fail-closed).'
     }
@@ -198,6 +202,7 @@ async function buildCrmHint(
         agent: SOMNIO_V4_AGENT_ID,
         sessionId,
         reason: 'telefono ausente — no se puede resolver contactId',
+        restart_iteration: restartIteration,
       })
       return 'No crear pedido: telefono ausente.'
     }
@@ -220,6 +225,7 @@ async function buildCrmHint(
         agent: SOMNIO_V4_AGENT_ID,
         sessionId,
         reason: `resolveOrCreateContact failed: ${resolved.error ?? 'unknown'}`,
+        restart_iteration: restartIteration,
       })
       return 'No crear pedido: no se pudo resolver el contacto.'
     }
@@ -266,6 +272,7 @@ async function buildCrmHint(
       reason: !confirmado
         ? 'SOMNIO_CONFIRMADO_STAGE_UUID env var not set'
         : 'fromStage no es pre-confirmacion (whitelist D-13)',
+      restart_iteration: restartIteration,
     })
     return `No mover de stage: la transicion no esta permitida por la whitelist (D-13).`
   }
@@ -312,6 +319,10 @@ function buildPackItemsHint(pack: AgentState['pack']): string {
  *   5. actualiza el snapshot _v4 tras mutacion exitosa.
  */
 export async function runCrmGate(args: RunCrmGateArgs): Promise<RunCrmGateResult> {
+  // Standalone v4-observability-completeness (D-03): iteración del restart loop
+  // provista por Plan 01 (campo de tipo) + Plan 02 (call site del agente).
+  const restartIteration = args.restartIteration ?? 0
+
   // Gate amplio (D-02). Salida valida BARATA si no prende — runCrmGate es autonomo
   // (re-evalua las 3 senales aqui, no confia en el caller). El grounding/sub-loop
   // SOLO se cargan si prende (D-11 lazy).
@@ -322,6 +333,13 @@ export async function runCrmGate(args: RunCrmGateArgs): Promise<RunCrmGateResult
       category: args.category,
     })
   ) {
+    // Orquestador NO prende (D-02) — antes mudo; ahora deja rastro en la timeline.
+    recordV4Event('crm_gate_skipped', {
+      agent: SOMNIO_V4_AGENT_ID,
+      accion: args.accion ?? null,
+      category: args.category,
+      reason: 'not_fired',
+    }, { restartIteration })
     return { crmActions: [] }
   }
 
@@ -351,6 +369,10 @@ export async function runCrmGate(args: RunCrmGateArgs): Promise<RunCrmGateResult
       lockHandle: args.lockHandle ?? null,
       lockChannel: args.lockChannel ?? null,
       lockIdentifier: args.lockIdentifier ?? null,
+      // D-03: el gate threadea la iteración a su sub-loop CRM (eventos del sub-loop
+      // CRM heredan restart_iteration). El threading desde el AGENTE (runSubLoop de
+      // slot) lo hace Plan 02 en su propio ctx.
+      restartIteration,
     },
   })
 
@@ -367,6 +389,17 @@ export async function runCrmGate(args: RunCrmGateArgs): Promise<RunCrmGateResult
       // Snapshot best-effort — no rompe el turno si falla la serializacion.
     }
   }
+
+  // Orquestador prendió + completó (D-02) — antes mudo. Registra el resultado del
+  // gate (fired/tools/success/orderId redactado) para la timeline diagnóstica.
+  recordV4Event('crm_gate_completed', {
+    agent: SOMNIO_V4_AGENT_ID,
+    fired: true,
+    crmActionsCount: crmActions.length,
+    tools: crmActions.map((a) => a.tool),
+    success: crmResult?.success ?? false,
+    orderId: crmResult?.orderId ? idSuffix(crmResult.orderId) : null,
+  }, { restartIteration })
 
   return { crmActions, crmResult }
 }

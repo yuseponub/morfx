@@ -53,8 +53,26 @@ import type {
   CommittedTurn,
 } from '@/lib/agents/somnio-v4/core/types'
 import type { CarryState } from '@/lib/agents/somnio-v4/core/restart-context'
+import { bodyTruncate } from '@/lib/agents/shared/crm-mutation-tools/helpers'
 
 const MAX_VERSION_CONFLICT_RETRIES = 3
+
+/**
+ * Standalone v4-observability-completeness (D-01): construye el motivo LIMPIO para el chat
+ * del operador a partir de output.errorMessage (que es `errMsg :: errStack`). SIN stack
+ * (Pitfall 5). Formato: `V4_AGENT_ERROR @ {stage}: {motivo}` o `V4_AGENT_ERROR: {motivo}`
+ * si no hay stage. PII-safe vía bodyTruncate (~150).
+ *
+ * El stack vive SOLO en observabilidad (evento engine_error de Plan 02), NUNCA en el chat.
+ */
+export function buildCleanErrorMessage(output: V4AgentOutput): string {
+  const raw = output.errorMessage ?? 'V4 agent processing failed'
+  // strip stack: el errorMessage es `errMsg :: errStack` — quedarnos con errMsg (antes del ::).
+  const firstSegment = raw.split(' :: ')[0]
+  const reason = bodyTruncate(firstSegment, 150)
+  const stage = output.errorStage
+  return stage ? `V4_AGENT_ERROR @ ${stage}: ${reason}` : `V4_AGENT_ERROR: ${reason}`
+}
 
 export class V4ProductionRunner {
   private adapters: EngineAdapters
@@ -595,8 +613,8 @@ export class V4ProductionRunner {
       orderId: outputDiscarded ? undefined : output.crmResult?.orderId,
       contactId: output.crmResult?.contactId ?? input.contactId,
       error: output.success ? undefined : {
-        code: 'V4_AGENT_ERROR',
-        message: 'V4 agent processing failed',
+        code: 'V4_AGENT_ERROR',                      // UNCHANGED — Pitfall 4 / Regla 6
+        message: buildCleanErrorMessage(output),     // D-01: motivo real, limpio, SIN stack
       },
     }
   }

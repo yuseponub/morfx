@@ -313,6 +313,7 @@ export function InboxLayout({
                     onOpenAgentConfig={handleOpenAgentConfig}
                     onToggleDebug={() => setDebugPanelOpen((o) => !o)}
                     isDebugOpen={debugPanelOpen}
+                    canRestartSession={isSuperUser}
                   />
                 </Allotment.Pane>
                 <Allotment.Pane minSize={320} preferredSize={520}>
@@ -332,6 +333,7 @@ export function InboxLayout({
                 isSuperUser ? () => setDebugPanelOpen((o) => !o) : undefined
               }
               isDebugOpen={debugPanelOpen}
+              canRestartSession={isSuperUser}
             />
           )}
 
@@ -392,6 +394,7 @@ export function InboxLayout({
                   onOpenAgentConfig={handleOpenAgentConfig}
                   onToggleDebug={() => setDebugPanelOpen((o) => !o)}
                   isDebugOpen={debugPanelOpen}
+                  canRestartSession={isSuperUser}
                 />
               </Allotment.Pane>
               <Allotment.Pane minSize={320} preferredSize={520}>
@@ -410,6 +413,7 @@ export function InboxLayout({
               isSuperUser ? () => setDebugPanelOpen((o) => !o) : undefined
             }
             isDebugOpen={debugPanelOpen}
+            canRestartSession={isSuperUser}
           />
         )}
 

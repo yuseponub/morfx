@@ -229,3 +229,34 @@ export async function setConversationAgentOverride(
 
   return true
 }
+
+/**
+ * Close ALL active agent sessions for a conversation (owner testing tool).
+ *
+ * Sets `agent_sessions.status = 'closed'` for every row of this conversation
+ * still `status='active'`. The next inbound message then starts a FRESH session
+ * via SessionManager.createSession (clean state machine + captured data), so the
+ * bot greets from scratch instead of resuming mid-conversation.
+ *
+ * Channel-agnostic: WhatsApp / FB / IG all share `agent_sessions`, so one call
+ * covers all three. Returns the number of sessions closed.
+ */
+export async function closeActiveSessionsForConversation(
+  conversationId: string
+): Promise<number> {
+  const supabase = createAdminClient()
+
+  const { data, error } = await supabase
+    .from('agent_sessions')
+    .update({ status: 'closed' })
+    .eq('conversation_id', conversationId)
+    .eq('status', 'active')
+    .select('id')
+
+  if (error) {
+    console.error('Error closing active sessions for conversation:', error)
+    return 0
+  }
+
+  return data?.length ?? 0
+}

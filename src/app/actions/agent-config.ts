@@ -6,10 +6,13 @@ import {
   getWorkspaceAgentConfig,
   upsertWorkspaceAgentConfig,
   setConversationAgentOverride,
+  closeActiveSessionsForConversation,
   isAgentEnabledForConversation,
   DEFAULT_AGENT_CONFIG,
   type AgentConfig,
 } from '@/lib/agents/production/agent-config'
+import { getIsSuperUser } from '@/lib/auth/super-user'
+import { revalidatePath } from 'next/cache'
 
 // ============================================================================
 // HELPERS
@@ -185,6 +188,65 @@ export async function toggleConversationAgent(
   }
 
   return { success: true, data: undefined }
+}
+
+// ============================================================================
+// SESSION RESTART (owner-only testing tool)
+// ============================================================================
+
+/**
+ * Restart the bot session for a conversation so the next message starts fresh.
+ *
+ * Owner-only (platform super-user, MORFX_OWNER_USER_ID) — temporary testing
+ * tool for the v4 canary. Does two things:
+ *   1. Turns the conversational agent back ON for this conversation
+ *      (clears any handoff override → `agent_conversational = true`).
+ *   2. Closes all active agent sessions → the next inbound message creates a
+ *      fresh session (clean state machine + captured data = greeting from zero).
+ *
+ * Channel-agnostic: works for WhatsApp / FB / IG (shared tables).
+ */
+export async function restartConversationSession(
+  conversationId: string
+): Promise<
+  | { success: true; data: { sessionsClosed: number } }
+  | { error: string }
+> {
+  // Owner-only enforcement (server-side security boundary)
+  const isOwner = await getIsSuperUser()
+  if (!isOwner) {
+    return { error: 'Solo el propietario de la plataforma puede reiniciar sesiones' }
+  }
+
+  const ctx = await getAuthContext()
+  if (!ctx) {
+    return { error: 'No autenticado o workspace no seleccionado' }
+  }
+
+  // Verify conversation belongs to this workspace (isolation)
+  const { data: conversation } = await ctx.supabase
+    .from('conversations')
+    .select('id')
+    .eq('id', conversationId)
+    .eq('workspace_id', ctx.workspaceId)
+    .single()
+
+  if (!conversation) {
+    return { error: 'Conversacion no encontrada' }
+  }
+
+  // 1. Turn the bot back ON for this conversation
+  const turnedOn = await setConversationAgentOverride(conversationId, 'conversational', true)
+  if (!turnedOn) {
+    return { error: 'Error al reactivar el agente para esta conversacion' }
+  }
+
+  // 2. Close active sessions → next message starts fresh
+  const sessionsClosed = await closeActiveSessionsForConversation(conversationId)
+
+  revalidatePath('/whatsapp')
+
+  return { success: true, data: { sessionsClosed } }
 }
 
 // ============================================================================

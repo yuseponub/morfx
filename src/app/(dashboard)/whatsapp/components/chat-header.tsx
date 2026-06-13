@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Archive, ArchiveRestore, Bot, Bug, CalendarCheck, Check, ExternalLink, Loader2, PanelRightClose, PanelRightOpen, Pencil, SlidersHorizontal } from 'lucide-react'
+import { Archive, ArchiveRestore, Bot, Bug, CalendarCheck, Check, ExternalLink, Loader2, PanelRightClose, PanelRightOpen, Pencil, RotateCcw, SlidersHorizontal } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,7 +21,7 @@ import { ConversationTagInput } from './conversation-tag-input'
 import { useInboxV2 } from './inbox-v2-context'
 import { useInboxV3 } from './inbox-v3-context'
 import { markAsRead, archiveConversation, unarchiveConversation, updateProfileName } from '@/app/actions/conversations'
-import { toggleConversationAgent, getConversationAgentStatus } from '@/app/actions/agent-config'
+import { toggleConversationAgent, getConversationAgentStatus, restartConversationSession } from '@/app/actions/agent-config'
 import { confirmAppointment, getAppointmentForContact } from '@/app/actions/godentist'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -45,6 +45,13 @@ interface ChatHeaderProps {
    */
   onToggleDebug?: () => void
   isDebugOpen?: boolean
+  /**
+   * Owner-only (platform super-user) testing tool for the v4 canary. When true,
+   * renders a "Reiniciar sesión" button that turns the bot back ON for this
+   * conversation and closes its active session (fresh greeting on next message).
+   * Parent passes `false`/omits for non-owners so the control is fully absent.
+   */
+  canRestartSession?: boolean
 }
 
 /**
@@ -58,6 +65,7 @@ export function ChatHeader({
   onOpenAgentConfig,
   onToggleDebug,
   isDebugOpen,
+  canRestartSession = false,
 }: ChatHeaderProps) {
   const router = useRouter()
   const v2 = useInboxV2()
@@ -75,6 +83,7 @@ export function ChatHeader({
   // Agent toggle states (null = loading, boolean = resolved)
   const [agentConversational, setAgentConversational] = useState<boolean | null>(null)
   const [agentCrm, setAgentCrm] = useState<boolean | null>(null)
+  const [isRestarting, setIsRestarting] = useState(false)
 
   // GoDentist appointment confirmation
   const [appointmentInfo, setAppointmentInfo] = useState<{
@@ -138,6 +147,28 @@ export function ChatHeader({
       // Rollback
       setter(prev)
       toast.error(result.error)
+    }
+  }
+
+  // Owner-only: restart bot session (turn bot on + close active session → fresh greeting)
+  const handleRestartSession = async () => {
+    if (isRestarting) return
+    if (!window.confirm('¿Reiniciar la sesión del bot para esta conversación? Se reactivará el agente y el próximo mensaje arrancará desde cero.')) {
+      return
+    }
+    setIsRestarting(true)
+    const result = await restartConversationSession(conversation.id)
+    setIsRestarting(false)
+    if ('error' in result) {
+      toast.error(result.error)
+    } else {
+      setAgentConversational(true)
+      toast.success(
+        result.data.sessionsClosed > 0
+          ? `Sesión reiniciada (${result.data.sessionsClosed} cerrada${result.data.sessionsClosed > 1 ? 's' : ''}). El próximo mensaje arranca fresco.`
+          : 'Bot reactivado. No había sesión activa; el próximo mensaje arranca fresco.'
+      )
+      router.refresh()
     }
   }
 
@@ -438,6 +469,20 @@ export function ChatHeader({
             </button>
           )}
 
+          {/* Reiniciar sesión del bot (owner-only testing tool) */}
+          {canRestartSession && (
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={handleRestartSession}
+              disabled={isRestarting}
+              title="Reiniciar sesión del bot (owner)"
+              aria-label="Reiniciar sesión del bot"
+            >
+              {isRestarting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+            </button>
+          )}
+
           {/* GAP-02: toggle visible de la ficha de contacto. La ficha está oculta
               por default; este botón la abre/cierra y refleja el estado (icono +
               active). */}
@@ -731,6 +776,21 @@ export function ChatHeader({
               aria-label="Abrir panel de debug"
             >
               <Bug className="h-4 w-4" />
+            </Button>
+          )}
+
+          {/* Reiniciar sesión del bot (owner-only testing tool) */}
+          {canRestartSession && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handleRestartSession}
+              disabled={isRestarting}
+              title="Reiniciar sesion del bot (owner)"
+              aria-label="Reiniciar sesion del bot"
+            >
+              {isRestarting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
             </Button>
           )}
 

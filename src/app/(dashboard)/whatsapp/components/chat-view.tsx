@@ -36,6 +36,9 @@ interface ChatViewProps {
   onToggleDebug?: () => void
   /** Whether the production debug panel is currently visible. */
   isDebugOpen?: boolean
+  /** Owner-only: show "Reiniciar sesión" button in header. Pass false/omit for
+   *  non-owners so the control is fully absent. */
+  canRestartSession?: boolean
 }
 
 /**
@@ -51,6 +54,7 @@ export function ChatView({
   onOpenAgentConfig,
   onToggleDebug,
   isDebugOpen,
+  canRestartSession,
 }: ChatViewProps) {
   const v2 = useInboxV2()
   const v3 = useInboxV3()
@@ -225,6 +229,7 @@ export function ChatView({
         onOpenAgentConfig={onOpenAgentConfig}
         onToggleDebug={onToggleDebug}
         isDebugOpen={isDebugOpen}
+        canRestartSession={canRestartSession}
       />
 
       {/* Messages container with geometric pattern background */}

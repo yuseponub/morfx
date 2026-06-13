@@ -15,8 +15,9 @@
 -- remaining fully resolvable by getTemplatesForIntents('varixcenter', workspaceId, ...).
 --
 -- Saludo (AMENDA D-12 — saludo NO hace doble triage; bienvenida + CTA directo):
---   intent='saludo' CORE: "¡Hola! 👋 Bienvenido a VarixCenter, donde tus várices son
---     cosa del pasado ✨"
+--   intent='saludo' CORE: "Hola ✨ Muchas gracias por comunicarte con VarixCenter,
+--     somos un Centro Médico especializado en venas varices ubicado en Bucaramanga
+--     con más de 28 años de experiencia" (wording del cliente, 2026-06-13)
 --   intent='saludo' COMPLEMENTARIA: "¿Deseas agendar tu valoración?"
 --   (El triage ciudad+tipo_venas se difiere al template `triage` §2 — sin cambios.)
 --
@@ -55,7 +56,7 @@ DELETE FROM agent_templates WHERE agent_id = 'varixcenter';
 INSERT INTO agent_templates (id, agent_id, workspace_id, intent, visit_type, priority, orden, content_type, content, delay_s)
 VALUES
   (gen_random_uuid(), 'varixcenter', 'c6621640-ba67-43de-9f05-905f09a6dc8f', 'saludo', 'primera_vez', 'CORE', 0, 'texto',
-   E'¡Hola! 👋 Bienvenido a VarixCenter, donde tus várices son cosa del pasado ✨', 0),
+   E'Hola ✨ Muchas gracias por comunicarte con VarixCenter, somos un Centro Médico especializado en venas varices ubicado en Bucaramanga con más de 28 años de experiencia', 0),
   (gen_random_uuid(), 'varixcenter', 'c6621640-ba67-43de-9f05-905f09a6dc8f', 'saludo', 'primera_vez', 'COMPLEMENTARIA', 1, 'texto',
    E'¿Deseas agendar tu valoración?', 2);
 
@@ -216,7 +217,7 @@ DECLARE
   saludo_core_ok BOOLEAN;
   saludo_comp_ok BOOLEAN;
 BEGIN
-  SELECT bool_or(content LIKE '%cosa del pasado%')
+  SELECT bool_or(content LIKE '%28 años de experiencia%')
   INTO saludo_core_ok
   FROM agent_templates
   WHERE agent_id = 'varixcenter' AND intent = 'saludo' AND priority = 'CORE';
@@ -227,7 +228,7 @@ BEGIN
   WHERE agent_id = 'varixcenter' AND intent = 'saludo' AND priority = 'COMPLEMENTARIA';
 
   IF NOT saludo_core_ok THEN
-    RAISE EXCEPTION 'Saludo CORE for varixcenter does not match AMENDA D-12 (missing "cosa del pasado")';
+    RAISE EXCEPTION 'Saludo CORE for varixcenter does not match AMENDA D-12 (missing "28 años de experiencia")';
   END IF;
   IF NOT saludo_comp_ok THEN
     RAISE EXCEPTION 'Saludo COMPLEMENTARIA for varixcenter does not match AMENDA D-12 (missing CTA)';

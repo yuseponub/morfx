@@ -108,7 +108,7 @@ Tras crear la regla, el agente empieza a recibir tráfico WA/FB/IG del workspace
 
 1. **Dropdown:** `/agentes/routing/editor` muestra "Varixcenter Valoraciones" (ya verificado en Pre-requisito #2).
 2. **Smoke real WA:** enviar un mensaje de prueba al número/canal del workspace `c6621640-...` y verificar:
-   - (a) el bot responde con templates de **varixcenter** (saludo "cosa del pasado ✨" + "¿Deseas agendar tu valoración?"), NO templates de godentist.
+   - (a) el bot responde con templates de **varixcenter** (saludo "...28 años de experiencia" + "¿Deseas agendar tu valoración?"), NO templates de godentist.
    - (b) al completar el flujo (nombre + teléfono + cédula + agendar), la cita aparece en **varix-clinic**:
      ```sql
      -- En el Supabase de varix-clinic:

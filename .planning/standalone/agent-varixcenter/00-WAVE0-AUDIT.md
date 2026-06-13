@@ -62,7 +62,7 @@ El usuario escogió un saludo CUSTOM de **2 plantillas** (no una de las 5 opcion
 
 | ID | Prioridad | Contenido verbatim |
 |----|-----------|--------------------|
-| `saludo` | CORE | `¡Hola! 👋 Bienvenido a VarixCenter, donde tus várices son cosa del pasado ✨` |
+| `saludo` | CORE | `Hola ✨ Muchas gracias por comunicarte con VarixCenter, somos un Centro Médico especializado en venas varices ubicado en Bucaramanga con más de 28 años de experiencia` |
 | `saludo_comp` | COMP | `¿Deseas agendar tu valoración?` |
 
 **Implicaciones (D-12 amendada — el saludo YA NO hace doble triage):**

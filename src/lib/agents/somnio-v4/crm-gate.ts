@@ -65,34 +65,26 @@ export const CRM_GATE_ACTIONS: ReadonlySet<string> = new Set([
   'confirmar_orden',
 ])
 
-/** Campos de envio que, recien capturados, disparan el gate (D-02). */
-const SHIPPING_FIELDS: ReadonlySet<string> = new Set([
-  'direccion',
-  'ciudad',
-  'departamento',
-  'barrio',
-  'correo',
-])
-
 /**
- * Gate determinista AMPLIO (D-02 — union de tres senales, alto recall):
- *   (a) accion ∈ CRM_GATE_ACTIONS, o
- *   (b) newFields ∩ SHIPPING_FIELDS (datos de envio capturados este turno), o
- *   (c) category === 'datos' (red anti-falso-negativo — si la extraccion fallo
- *       pero el cliente claramente mando datos, el sub-loop grounded rescata).
+ * Gate determinista (D-02 — v4-gate-confidence-fixes: trigger (b) reemplazado):
+ *   (a) accion ∈ CRM_GATE_ACTIONS (confirmaciones de pedido), o
+ *   (b) datosCriticosJustCompleted — TODOS los campos críticos recién completados, o
+ *   (c) category === 'datos' (red anti-falso-negativo — si la extracción falló
+ *       pero el cliente claramente mandó datos, el sub-loop grounded rescata).
  *
- * Filosofia D-03: preferimos prender de mas (recall) y dejar que el sub-loop
- * grounded + las guards (idempotency/CAS/whitelist) sean la precision.
+ * Filosofía D-03: (b) ahora dispara en el momento preciso de crear pedido en lugar
+ * de en cualquier extracción incidental de un campo shipping (p.ej. ciudad en una
+ * pregunta informacional → causaba crash AI_NoObjectGeneratedError).
  */
 export function crmGateFired(args: {
   accion?: string | null
-  newFields: string[]
   category: string
+  datosCriticosJustCompleted: boolean
 }): boolean {
-  const { accion, newFields, category } = args
-  if (accion && CRM_GATE_ACTIONS.has(accion)) return true
-  if (newFields.some((f) => SHIPPING_FIELDS.has(f))) return true
-  if (category === 'datos') return true
+  const { accion, category, datosCriticosJustCompleted } = args
+  if (accion && CRM_GATE_ACTIONS.has(accion)) return true             // (a) — sin cambio
+  if (datosCriticosJustCompleted) return true                          // (b) — reemplazado
+  if (category === 'datos') return true                                 // (c) — sin cambio
   return false
 }
 
@@ -329,8 +321,8 @@ export async function runCrmGate(args: RunCrmGateArgs): Promise<RunCrmGateResult
   if (
     !crmGateFired({
       accion: args.accion ?? null,
-      newFields: args.changes.newFields,
       category: args.category,
+      datosCriticosJustCompleted: args.changes.datosCriticosJustCompleted,
     })
   ) {
     // Orquestador NO prende (D-02) — antes mudo; ahora deja rastro en la timeline.

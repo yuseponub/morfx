@@ -174,6 +174,7 @@ export async function runTurn(
         lockHandle: input.lockHandle ?? null,
         lockChannel: input.lockChannel ?? null,
         lockIdentifier: input.lockIdentifier ?? null,
+        restartIteration: ctx.restartIteration,   // D-03 — RestartContext (restart-context.ts:46)
         // Vision context del path image-respond v4 (runner viejo :332). El adapter lo resuelve en
         // getSeedState desde EngineInput.visionContext; sandbox lo arma desde input.visionContext.
         visionContext: seed.visionContext,
@@ -225,6 +226,7 @@ export async function runTurn(
         action: output.salesTrackInfo?.accion ?? 'none',
         messageCount: output.messages.length,
         templateCount: output.templates?.length ?? 0,
+        restart_iteration: ctx.restartIteration,   // D-03 — etiqueta el send-loop por iteración
       })
 
       // ============================================================

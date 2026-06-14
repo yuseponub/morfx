@@ -580,18 +580,27 @@ export const whatsappAgentProcessor = inngest.createFunction(
 
     // Write error message to conversation for visibility (same as inline path)
     if (!result.success && result.error) {
-      await step.run('write-error-message', async () => {
-        const { createAdminClient } = await import('@/lib/supabase/admin')
-        const supabase = createAdminClient()
-        await supabase.from('messages').insert({
-          conversation_id: conversationId,
-          workspace_id: workspaceId,
-          direction: 'outbound',
-          type: 'text',
-          content: { body: `[ERROR AGENTE] ${result.error?.code}: ${result.error?.message?.substring(0, 500)}` },
-          timestamp: new Date().toISOString(),
+      // v4-handoff-soft-signal (D-06): suppress [ERROR AGENTE] for V4_ZOMBIE_LAMBDA_EXIT at ckpt_0.
+      // These zombies are benign — the lock winner always completes the turn.
+      // zombie_lambda_exit observability event is still emitted (mechanism unchanged).
+      // Later-checkpoint zombies and all other errors still write [ERROR AGENTE].
+      const isZombieAtCkpt0 =
+        result.error.code === 'V4_ZOMBIE_LAMBDA_EXIT' &&
+        result.error.message?.includes('ckpt_0_post_acquire')
+      if (!isZombieAtCkpt0) {
+        await step.run('write-error-message', async () => {
+          const { createAdminClient } = await import('@/lib/supabase/admin')
+          const supabase = createAdminClient()
+          await supabase.from('messages').insert({
+            conversation_id: conversationId,
+            workspace_id: workspaceId,
+            direction: 'outbound',
+            type: 'text',
+            content: { body: `[ERROR AGENTE] ${result.error?.code}: ${result.error?.message?.substring(0, 500)}` },
+            timestamp: new Date().toISOString(),
+          })
         })
-      })
+      }
     }
 
     collector?.recordEvent('session_lifecycle', 'turn_completed', {

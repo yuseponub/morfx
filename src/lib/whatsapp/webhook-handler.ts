@@ -544,14 +544,21 @@ async function processAgentInline(
 
     // If agent failed, write error to conversation so we can diagnose
     if (!agentResult.success && agentResult.error) {
-      await supabase.from('messages').insert({
-        conversation_id: conversationId,
-        workspace_id: workspaceId,
-        direction: 'outbound',
-        type: 'text',
-        content: { body: `[ERROR AGENTE] ${agentResult.error.code}: ${agentResult.error.message?.substring(0, 500)}` },
-        timestamp: new Date().toISOString(),
-      })
+      // v4-handoff-soft-signal (D-06): suppress [ERROR AGENTE] for V4_ZOMBIE_LAMBDA_EXIT at ckpt_0.
+      // Same guard as agent-production.ts Inngest path (RESEARCH Pitfall 4).
+      const isZombieAtCkpt0 =
+        agentResult.error.code === 'V4_ZOMBIE_LAMBDA_EXIT' &&
+        agentResult.error.message?.includes('ckpt_0_post_acquire')
+      if (!isZombieAtCkpt0) {
+        await supabase.from('messages').insert({
+          conversation_id: conversationId,
+          workspace_id: workspaceId,
+          direction: 'outbound',
+          type: 'text',
+          content: { body: `[ERROR AGENTE] ${agentResult.error.code}: ${agentResult.error.message?.substring(0, 500)}` },
+          timestamp: new Date().toISOString(),
+        })
+      }
     }
   } catch (agentError) {
     // Non-blocking: log but never fail message processing

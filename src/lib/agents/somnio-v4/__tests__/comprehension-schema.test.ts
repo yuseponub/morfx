@@ -34,6 +34,8 @@ function baseValidPayload(): Record<string, unknown> {
       secondary_confidence: null,
       secondary_confidence_reasoning: null,
       secondary_query: null,
+      // v4-dual-intent-query-split D-01 — null when secondary='ninguno'
+      primary_query: null,
     },
     extracted_fields: {
       nombre: null,

@@ -18,8 +18,9 @@
  *   low+covered     → RAG primary + template secondary
  *   low+low         → RAG+RAG (2 invocations per D-08)
  *
- * T-2 sub-query selection:
- *   - low PRIMARY  → ragQuery = rawMessage (full message, behavior unchanged from today)
+ * T-2 sub-query selection (v4-dual-intent-query-split D-03 fix):
+ *   - low PRIMARY with secondary present → ragQuery = primaryQuery ?? rawMessage (segmented, avoids contamination)
+ *   - low PRIMARY single-intent → ragQuery = rawMessage (byte-identical to pre-fix, Regla 6)
  *   - low SECONDARY → ragQuery = secondaryQuery (segmented sub-query from comprehension D-04);
  *                     defensive fallback to rawMessage if secondaryQuery is null.
  *
@@ -82,6 +83,12 @@ export interface ComputeSlotsArgs {
    * Used as ragQuery for low secondary (T-2).
    */
   secondaryQuery: string | null
+  /**
+   * Segmented sub-query for the primary intent (D-01/D-02 v4-dual-intent-query-split).
+   * null when secondaryIntent === 'ninguno' or not available.
+   * Used as ragQuery for low primary when a secondary exists (T-2 fix).
+   */
+  primaryQuery: string | null
   /** The full raw message from the user — used as ragQuery for low primary (T-2). */
   rawMessage: string
   /** Confidence threshold from platform_config (D-09 — same threshold for both intents). */
@@ -106,6 +113,7 @@ export function computeSlots(args: ComputeSlotsArgs): SlotPlan {
     secondaryIntent,
     secondaryConfidence,
     secondaryQuery,
+    primaryQuery,
     rawMessage,
     threshold,
   } = args
@@ -125,8 +133,13 @@ export function computeSlots(args: ComputeSlotsArgs): SlotPlan {
     intent: primaryIntent,
     coverage: primaryCoverage,
     reason: primaryReason,
-    // T-2: low primary uses the raw message (unpartitioned — D-04 only segments the secondary).
-    ragQuery: primaryCoverage === 'low' ? rawMessage : null,
+    // T-2 fix (v4-dual-intent-query-split D-03): low primary uses primary_query when a
+    // secondary exists (segmented sub-query avoids contamination from the secondary's question).
+    // Single-intent turns: secondaryIntent === 'ninguno' → exact rawMessage (byte-identical, Regla 6).
+    // Defensive fallback to rawMessage if comprehension produced no primary_query despite a secondary.
+    ragQuery: primaryCoverage === 'low'
+      ? (secondaryIntent !== 'ninguno' ? (primaryQuery ?? rawMessage) : rawMessage)
+      : null,
   }
 
   // ─── Secondary slot ──────────────────────────────────────────────────────

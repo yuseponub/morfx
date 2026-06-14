@@ -414,6 +414,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       secondaryIntent: analysis.intent.secondary,
       secondaryConfidence: analysis.intent.secondary_confidence ?? null,
       secondaryQuery: analysis.intent.secondary_query ?? null,
+      primaryQuery: analysis.intent.primary_query ?? null,
       rawMessage: input.message,
       threshold,
     })
@@ -447,6 +448,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       secondary_confidence: analysis.intent.secondary_confidence ?? null,
       secondary_confidence_reasoning: analysis.intent.secondary_confidence_reasoning ?? null,
       secondary_query: analysis.intent.secondary_query ?? null,
+      primary_query: analysis.intent.primary_query ?? null,
     })
 
     // NOTE (T-1): the exclusive early-return that lived here (escalate the WHOLE

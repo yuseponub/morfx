@@ -40,6 +40,7 @@ describe('computeSlots — D-02/D-03 coverage matrix + T-2 sub-query selection',
         secondaryIntent: 'contenido',
         secondaryConfidence: 0.85,
         secondaryQuery: null,
+        primaryQuery: null,
         rawMessage: RAW_MESSAGE,
         threshold: THRESHOLD,
       })
@@ -88,6 +89,7 @@ describe('computeSlots — D-02/D-03 coverage matrix + T-2 sub-query selection',
         secondaryIntent: 'contraindicaciones',
         secondaryConfidence: 0.25,
         secondaryQuery: SECONDARY_QUERY,
+        primaryQuery: null,
         rawMessage: RAW_MESSAGE,
         threshold: THRESHOLD,
       })
@@ -127,6 +129,7 @@ describe('computeSlots — D-02/D-03 coverage matrix + T-2 sub-query selection',
         secondaryIntent: 'tiempo_entrega',
         secondaryConfidence: 0.88,
         secondaryQuery: null,
+        primaryQuery: null,
         rawMessage: RAW_MESSAGE,
         threshold: THRESHOLD,
       })
@@ -167,6 +170,7 @@ describe('computeSlots — D-02/D-03 coverage matrix + T-2 sub-query selection',
         secondaryIntent: 'dependencia',
         secondaryConfidence: 0.30,
         secondaryQuery: SECONDARY_QUERY,
+        primaryQuery: null,
         rawMessage: RAW_MESSAGE,
         threshold: THRESHOLD,
       })
@@ -202,6 +206,7 @@ describe('computeSlots — D-02/D-03 coverage matrix + T-2 sub-query selection',
         secondaryIntent: 'ninguno',
         secondaryConfidence: null,
         secondaryQuery: null,
+        primaryQuery: null,
         rawMessage: RAW_MESSAGE,
         threshold: THRESHOLD,
       })
@@ -229,6 +234,7 @@ describe('computeSlots — D-02/D-03 coverage matrix + T-2 sub-query selection',
         secondaryIntent: 'ninguno',
         secondaryConfidence: null,
         secondaryQuery: null,
+        primaryQuery: null,
         rawMessage: RAW_MESSAGE,
         threshold: THRESHOLD,
       })
@@ -260,6 +266,7 @@ describe('computeSlots — D-02/D-03 coverage matrix + T-2 sub-query selection',
         secondaryIntent: 'otro',
         secondaryConfidence: 0.90,
         secondaryQuery: null,
+        primaryQuery: null,
         rawMessage: RAW_MESSAGE,
         threshold: THRESHOLD,
       })
@@ -291,6 +298,7 @@ describe('computeSlots — D-02/D-03 coverage matrix + T-2 sub-query selection',
         secondaryIntent: 'contraindicaciones',
         secondaryConfidence: null,  // missing confidence — treat as 0
         secondaryQuery: null,        // no secondary_query either — fallback rawMessage
+        primaryQuery: null,
         rawMessage: RAW_MESSAGE,
         threshold: THRESHOLD,
       })
@@ -316,6 +324,7 @@ describe('computeSlots — D-02/D-03 coverage matrix + T-2 sub-query selection',
         secondaryIntent: 'ninguno',
         secondaryConfidence: null,
         secondaryQuery: null,
+        primaryQuery: null,
         rawMessage: RAW_MESSAGE,
         threshold: THRESHOLD,
       })
@@ -329,10 +338,67 @@ describe('computeSlots — D-02/D-03 coverage matrix + T-2 sub-query selection',
         secondaryIntent: 'tiempo_entrega',
         secondaryConfidence: 0.85,
         secondaryQuery: null,
+        primaryQuery: null,
         rawMessage: RAW_MESSAGE,
         threshold: THRESHOLD,
       })
       expect(result.secondary!.intent).toBe('tiempo_entrega')
+    })
+  })
+
+  // ============================================================
+  // Regla 6 regressions — v4-dual-intent-query-split D-03
+  // ============================================================
+  describe('Regla 6 — single-intent byte-identical + primary_query usage', () => {
+
+    // Invariant 1: single-intent => rawMessage exacto (byte-identical a pre-fix)
+    it('single-intent low primary: ragQuery === rawMessage exacto (Regla 6 byte-identical)', () => {
+      const result = computeSlots({
+        primaryIntent: 'contraindicaciones',
+        primaryConfidence: 0.25,
+        secondaryIntent: 'ninguno',
+        secondaryConfidence: null,
+        secondaryQuery: null,
+        primaryQuery: null,       // null cuando no hay secundario
+        rawMessage: RAW_MESSAGE,
+        threshold: THRESHOLD,
+      })
+      expect(result.primary.coverage).toBe('low')
+      expect(result.primary.ragQuery).toBe(RAW_MESSAGE)  // byte-identical
+    })
+
+    // Invariant 2: dual-intent low primary con primary_query => usa primary_query
+    it('dual-intent low primary con primary_query: ragQuery === primary_query (fix D-03)', () => {
+      const PRIMARY_QUERY = 'puedo tomar el producto si consumo alcohol?'
+      const result = computeSlots({
+        primaryIntent: 'contraindicaciones',
+        primaryConfidence: 0.25,
+        secondaryIntent: 'tiempo_entrega',
+        secondaryConfidence: 0.88,
+        secondaryQuery: 'cuando llega el pedido a bucaramanga?',
+        primaryQuery: PRIMARY_QUERY,
+        rawMessage: 'lo puedo tomar si tomo alcohol? cuanto demora en llegar a bucaramanga',
+        threshold: THRESHOLD,
+      })
+      expect(result.primary.coverage).toBe('low')
+      expect(result.primary.ragQuery).toBe(PRIMARY_QUERY)   // usa la sub-query limpia
+    })
+
+    // Invariant 3: dual-intent low primary SIN primary_query (null) => fallback a rawMessage
+    it('dual-intent low primary con primary_query=null: fallback defensivo a rawMessage', () => {
+      const raw = 'lo puedo tomar si tomo alcohol? cuanto demora en llegar a bucaramanga'
+      const result = computeSlots({
+        primaryIntent: 'contraindicaciones',
+        primaryConfidence: 0.25,
+        secondaryIntent: 'tiempo_entrega',
+        secondaryConfidence: 0.88,
+        secondaryQuery: 'cuando llega el pedido a bucaramanga?',
+        primaryQuery: null,   // comprehension no produjo primary_query — fallback defensivo
+        rawMessage: raw,
+        threshold: THRESHOLD,
+      })
+      expect(result.primary.coverage).toBe('low')
+      expect(result.primary.ragQuery).toBe(raw)   // fallback a rawMessage sin crash
     })
   })
 })

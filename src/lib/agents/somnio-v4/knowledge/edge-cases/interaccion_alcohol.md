@@ -37,4 +37,3 @@ NO recomendamos combinar el ELIXIR DEL SUEÑO con alcohol. La empresa prioriza s
 ## Cuándo escalar a humano
 - cliente insiste en combinar tras la advertencia
 - cliente reporta haber tomado dosis con alcohol y siente malestar
-- cliente pregunta sobre interacciones con otros depresores del SNC (benzodiacepinas, opioides)

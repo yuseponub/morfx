@@ -1110,14 +1110,29 @@ export async function processMessageWithAgent(
     }
   }
 
-  // v4-handoff-soft-signal: SOFT path — somnio-sales-v4 (D-04).
-  // Inbox note insert happens in Plan 02. This skeleton prevents executeHandoff
-  // from firing on v4 handoff outcomes. The inbox note will be added here in Plan 02.
+  // v4-handoff-soft-signal: SOFT path — somnio-sales-v4 (D-04 + D-05).
+  // direction:'outbound' → appears in the inbox as a bot-side note. NOT sent to WhatsApp.
+  // Clone of [ERROR AGENTE] insert pattern (webhook-handler.ts:546-554).
+  // supabase = createAdminClient() (line 140) — bypasses RLS, no silent 0-row risk.
   if (result.success && result.newMode === 'handoff' && result.handoffSuggested) {
-    logger.info(
-      { conversationId, handoffSignal: result.handoffSignal },
-      'v4 soft handoff signal — executeHandoff suppressed (inbox note pending Plan 02)'
-    )
+    try {
+      const handoffReason = result.handoffSignal?.reason ?? 'unknown'
+      await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        workspace_id: workspaceId,
+        direction: 'outbound',
+        type: 'text',
+        content: { body: `⚠ HANDOFF SUGERIDO — motivo: ${handoffReason}` },
+        timestamp: new Date().toISOString(),
+      })
+      logger.info(
+        { conversationId, handoffSignal: result.handoffSignal },
+        'v4 soft handoff — inbox note inserted'
+      )
+    } catch (noteError) {
+      // Non-blocking: inbox note failure must not affect turn completion.
+      logger.warn({ error: noteError, conversationId }, 'Failed to insert handoff suggestion note')
+    }
   }
 
   // 12. Mark inbound messages as processed by agent

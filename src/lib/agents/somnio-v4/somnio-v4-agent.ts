@@ -81,6 +81,8 @@ import type {
   ProcessedMessage,
   TurnLedger,
 } from './types'
+// v4-handoff-soft-signal (D-03): HandoffGate type for structured handoff signal.
+import type { EngineOutput } from '@/lib/agents/engine/types'
 
 // ============================================================================
 // Turn Ledger helpers (standalone: somnio-v4-turn-ledger — D-04/D-17)
@@ -223,9 +225,22 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       } catch (err) {
         // Error in sub-loop → informed handoff (D-07 fail-safe).
         const errDesc = err instanceof Error ? err.message : String(err)
+        // v4-handoff-soft-signal (D-03): vision sub-loop error → handoff signal.
+        const visionErrReason = `imagen producto/página — ${descripcion} (error: ${errDesc})`
+        recordV4Event('handoff_suggested', {
+          sessionId: input.sessionId ?? null,
+          conversationId: null, // V4AgentInput does not carry conversationId (uses sessionId as proxy)
+          turnId: null,        // V4AgentInput does not carry turnId at this layer
+          source: 'somnio-v4',
+          layer: 'comprehension',
+          gate: 'vision',
+          reason: visionErrReason,
+          topic: undefined,
+          createdAt: new Date().toISOString(),
+        })
         const errLedger: TurnLedger = {
           comprehension: { intent: 'imagen', confidence: 0 },
-          atendido: [{ kind: 'handoff', reason: `imagen producto/página — ${descripcion} (error: ${errDesc})` }],
+          atendido: [{ kind: 'handoff', reason: visionErrReason }],
           crmActions: [],
           modeTransition: { from: prevMode, to: 'handoff' },
           messagesSent: 0,
@@ -313,6 +328,18 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
 
       // no_match / generated-with-null / empty KB → informed handoff (D-07).
       const handoffReason = `imagen ${categoria} — ${descripcion}`
+      // v4-handoff-soft-signal (D-03): emit structured handoff signal for vision no_match.
+      recordV4Event('handoff_suggested', {
+        sessionId: input.sessionId ?? null,
+        conversationId: null, // V4AgentInput does not carry conversationId (uses sessionId as proxy)
+        turnId: null,         // V4AgentInput does not carry turnId at this layer
+        source: 'somnio-v4',
+        layer: 'comprehension',
+        gate: 'vision',
+        reason: handoffReason,
+        topic: undefined,
+        createdAt: new Date().toISOString(),
+      })
       const handoffLedger: TurnLedger = {
         comprehension: { intent: 'imagen', confidence: 0 },
         atendido: [{ kind: 'handoff', reason: `imagen producto/página — ${descripcion}` }],
@@ -470,6 +497,19 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         restart_iteration: restartIteration, // Plan 02 (D-02/D-03)
       })
 
+      // v4-handoff-soft-signal (D-03): emit structured handoff signal for guard R0/R1.
+      recordV4Event('handoff_suggested', {
+        sessionId: input.sessionId ?? null,
+        conversationId: null, // V4AgentInput does not carry conversationId (uses sessionId as proxy)
+        turnId: null,         // V4AgentInput does not carry turnId at this layer
+        source: 'somnio-v4',
+        layer: 'comprehension',
+        gate: 'guard_r0_r1',
+        reason: guardResult.decision.reason,
+        topic: undefined,
+        createdAt: new Date().toISOString(),
+      })
+
       if (guardResult.decision.timerSignal) {
         timerSignals.push(guardResult.decision.timerSignal)
       }
@@ -488,9 +528,22 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         messagesSent: 0,
       }
       const serialized = commitTurn(mergedState, ledgerR1)
+      // D-08: For explicit human asks (guard R0/R1), inject a minimal ack ProcessedMessage.
+      // In soft mode, no handoff_humano is sent (executeHandoff is suppressed in webhook-processor).
+      // Total silence on an explicit "quiero hablar con un asesor" request is poor UX, so we
+      // send a minimal acknowledgment. For content-gap handoffs (no_kb / low_confidence /
+      // binary_backstop / escalation_trigger / nunca_decir) silence + signal is the correct behavior.
+      const handoffAckMessage: ProcessedMessage = {
+        templateId: 'rag:handoff_ack',
+        content: 'Entendido, un asesor te contactará en breve.',
+        contentType: 'texto',
+        delayMs: 0,
+        priority: 'CORE',
+      }
       return {
         success: true,
         messages: [],
+        templates: [handoffAckMessage], // D-08: minimal ack for explicit human ask
         newMode: 'handoff',
         requiresHuman: true, // D-60 también para R1 escape intents (semantically a handoff)
         intentsVistos: serialized.intentsVistos,
@@ -812,6 +865,28 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         reason: outcome.reason,
         intent: slot.intent,
       })
+      // v4-handoff-soft-signal (D-03): emit per-slot handoff signal.
+      // D-02: do NOT emit for interrupted_at_ckpt_* reasons (they are interruption artifacts).
+      if (!outcome.reason?.startsWith('interrupted_at_ckpt_')) {
+        type HandoffGate = NonNullable<EngineOutput['handoffSignal']>['gate']
+        const gate: HandoffGate =
+          outcome.reason?.startsWith('low_response_confidence') ? 'low_confidence'
+          : outcome.reason?.startsWith('binary_backstop_') ? 'binary_backstop'
+          : outcome.reason?.startsWith('escalation_trigger_match:') ? 'escalation_trigger'
+          : outcome.reason?.startsWith('nunca_decir_violation:') ? 'nunca_decir'
+          : 'no_kb'
+        recordV4Event('handoff_suggested', {
+          sessionId: input.sessionId ?? null,
+          conversationId: null, // V4AgentInput does not carry conversationId (uses sessionId as proxy)
+          turnId: null,        // V4AgentInput does not carry turnId at this layer
+          source: 'somnio-v4',
+          layer: 'subloop',
+          gate,
+          reason: outcome.reason ?? 'unknown',
+          topic: outcome.sourceTopic ?? undefined,
+          createdAt: new Date().toISOString(),
+        })
+      }
       handoffSlots.push({
         intent: slot.intent,
         reason: outcome.reason ?? 'low_confidence_no_match',

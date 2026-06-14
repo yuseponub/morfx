@@ -22,7 +22,7 @@ BEGIN;
 
 -- 1) precio_valoracion: CORE reescrito + COMP/OPC nuevos (idempotente)
 UPDATE agent_templates
-  SET content = E'La consulta de valoración tiene un valor de $100.000. En esta el Doctor te da tu diagnóstico.',
+  SET content = E'La consulta de valoración tiene un valor de $100.000. En esta los Doctores te examinarán.',
       orden = 0, delay_s = 0
   WHERE agent_id='varixcenter' AND intent='precio_valoracion' AND priority='CORE';
 
@@ -32,7 +32,7 @@ DELETE FROM agent_templates
 INSERT INTO agent_templates (id, agent_id, workspace_id, intent, visit_type, priority, orden, content_type, content, delay_s)
 VALUES
   (gen_random_uuid(),'varixcenter','c6621640-ba67-43de-9f05-905f09a6dc8f','precio_valoracion','primera_vez','COMPLEMENTARIA',1,'texto',
-   E'Incluye gratis un escaneo venoso con equipo Eco Doppler para determinar el mejor plan de tratamiento para ti.',3),
+   E'Este examen incluye un escaneo con el equipo Eco-Doppler para revisar el sistema venoso interno, pudiendo así determinar tu diagnóstico y el mejor plan de tratamiento para ti.',3),
   (gen_random_uuid(),'varixcenter','c6621640-ba67-43de-9f05-905f09a6dc8f','precio_valoracion','primera_vez','OPCIONAL',2,'texto',
    E'¿Tienes várices grandes o vasitos?',3);
 

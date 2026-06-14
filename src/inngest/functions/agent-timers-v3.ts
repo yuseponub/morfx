@@ -325,21 +325,22 @@ export const v3Timer = inngest.createFunction(
       // not as a top-level column of session_state — there is no such column.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sessionAgentModule = (session.state as any)?.datos_capturados?.['_v3:agent_module'] as string | undefined
+      // FUENTE CONFIABLE (fix 2026-06-14): `agent_sessions.agent_id` se fija al crear la sesión
+      // y NUNCA se pisa. El marcador `_v3:agent_module` en datos_capturados es frágil — se escribe
+      // en runner §3b pero el saveState final del turno (con output.datosCapturados, que no lo
+      // incluye) lo borra. Síntoma real: sesión varixcenter con marcador None -> el timer caía al
+      // default somnio-v3 -> "Para poder despachar tu producto" a un paciente de Varix. Por eso
+      // routeamos por agent_id como fuente primaria para los módulos cuyo agent_id == módulo.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sessionAgentId = (session as any)?.agent_id as string | undefined
       if (sessionAgentModule === 'somnio-recompra') {
+        // recompra: contact-level routing, agent_id puede diferir del módulo -> marcador manda.
         agentModule = 'somnio-recompra'
-      } else if (sessionAgentModule === 'varixcenter') {
-        // Hotfix 2026-06-12: sin este branch la retoma de una sesión varixcenter caía
-        // al default somnio-v3 (templates de otro negocio al paciente). El runner ya
-        // escribe `_v3:agent_module='varixcenter'` (v3-production-runner.ts:143).
-        // Sitio de registro #7 del clone checklist (LEARNINGS agent-varixcenter).
+      } else if (sessionAgentModule === 'varixcenter' || sessionAgentId === 'varixcenter') {
         agentModule = 'varixcenter'
-      } else if (sessionAgentModule === 'godentist-fb-ig') {
-        // Fix 2026-06-12 (aprobado por el usuario): mismo bug latente que varixcenter —
-        // las retomas de sesiones FB/IG despachaban al módulo godentist original
-        // (catálogo WhatsApp) en vez del sibling con su propio catálogo lead-capture.
-        // El check va ANTES del fallback por conversational_agent_id para no ser shadowed.
+      } else if (sessionAgentModule === 'godentist-fb-ig' || sessionAgentId === 'godentist-fb-ig') {
         agentModule = 'godentist-fb-ig'
-      } else if (agentConfig?.conversational_agent_id === 'godentist') {
+      } else if (agentConfig?.conversational_agent_id === 'godentist' || sessionAgentId === 'godentist') {
         agentModule = 'godentist'
       }
 

@@ -51,7 +51,9 @@ export interface SlotDecision {
    * The RAG sub-query to pass to runRagSubLoop when coverage === 'low'.
    * null when coverage === 'covered' (no RAG needed).
    *
-   * T-2: low primary → rawMessage; low secondary → secondaryQuery ?? rawMessage.
+   * T-2 (v4-dual-intent-query-split D-03): low primary → primaryQuery ?? rawMessage
+   * when a secondary exists, else rawMessage (single-intent byte-identical, Regla 6);
+   * low secondary → secondaryQuery ?? rawMessage.
    */
   ragQuery: string | null
 }

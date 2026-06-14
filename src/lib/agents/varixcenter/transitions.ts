@@ -180,6 +180,24 @@ export const TRANSITIONS: TransitionEntry[] = [
     description: '7: initial + datos + datosCriticos + fechaElegida -> mostrar_disponibilidad',
   },
 
+  // 8a: precio_tratamiento / info_tratamiento en initial -> silence, L2 CONDICIONAL.
+  //     Con tipo_venas CONOCIDO el response-track envía info_<tipo> + COMP "¿Deseas agendar
+  //     tu cita de valoración?" (CTA inline) → NO se arma L2 (evita el invitar_agendar
+  //     redundante — petición usuario 2026-06-13 "si esta se envia ya no enviamos la L").
+  //     Sin tipo → se envía precio_valoracion (pregunta "¿grandes o vasitos?") y SÍ se arma
+  //     L2 para invitar luego. Va ANTES del infoSilenceRows genérico (first-match wins).
+  ...(['precio_tratamiento', 'info_tratamiento'] as const).map((intent): TransitionEntry => ({
+    phase: 'initial',
+    on: intent,
+    action: 'silence' as TipoAccion,
+    resolve: (state): TransitionOutput => state.datos.tipo_venas
+      ? { reason: `${intent} con tipo_venas conocido -> info_<tipo> + CTA inline, sin L2` }
+      : {
+          timerSignal: { type: 'start', level: 'L2', reason: `${intent} sin tipo -> precio_valoracion, invitar despues` },
+          reason: `${intent} sin tipo_venas -> precio_valoracion + L2`,
+        },
+  })),
+
   // 8: info intents en initial -> silence + L2 (response track responde)
   ...infoSilenceRows('initial', 'L2', 'en initial, invitar despues'),
 

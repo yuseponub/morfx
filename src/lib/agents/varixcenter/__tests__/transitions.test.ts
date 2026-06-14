@@ -127,10 +127,20 @@ describe('transitions — initial phase', () => {
     expect(r?.output.timerSignal?.level).toBe('L1')
   })
 
-  it('info intent (precio_tratamiento) -> silence + L2', () => {
+  it('info intent (precio_tratamiento) sin tipo_venas -> silence + L2', () => {
     const r = resolveTransition('initial', 'precio_tratamiento', makeState(), GATES_NONE)
     expect(r?.action).toBe('silence')
     expect(r?.output.timerSignal?.level).toBe('L2')
+  })
+
+  it('precio_tratamiento/info_tratamiento CON tipo_venas -> silence SIN L2 (CTA inline en info_<tipo>, tuning 2026-06-13)', () => {
+    const rPrecio = resolveTransition('initial', 'precio_tratamiento', makeState({ datos: { tipo_venas: 'vasitos' } }), GATES_NONE)
+    expect(rPrecio?.action).toBe('silence')
+    expect(rPrecio?.output.timerSignal).toBeUndefined()
+
+    const rInfo = resolveTransition('initial', 'info_tratamiento', makeState({ datos: { tipo_venas: 'grandes' } }), GATES_NONE)
+    expect(rInfo?.action).toBe('silence')
+    expect(rInfo?.output.timerSignal).toBeUndefined()
   })
 
   it('sintomas_descripcion -> silence + L2 (template no_diagnostico)', () => {

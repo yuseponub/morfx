@@ -157,7 +157,7 @@ describe('resolveResponseTrack — Anti-Pitfall 1 TEMPLATE_LOOKUP_AGENT_ID', () 
 // ============================================================================
 
 describe('resolveResponseTrack — triage por tipo_venas', () => {
-  it('precio_tratamiento sin tipo_venas -> template triage', async () => {
+  it('precio_tratamiento sin tipo_venas -> precio_valoracion (triage eliminado, distill 2026-06-13)', async () => {
     const state = makeState({ turnCount: 2, intentsVistos: ['saludo'] })
     let capturedIntents: string[] | undefined
     getTemplatesForIntentsMock.mockImplementation(async (_agentId: string, intents: string[]) => {
@@ -171,7 +171,8 @@ describe('resolveResponseTrack — triage por tipo_venas', () => {
       workspaceId: 'test-workspace-uuid',
     })
 
-    expect(capturedIntents).toContain('triage')
+    expect(capturedIntents).toContain('precio_valoracion')
+    expect(capturedIntents).not.toContain('triage')
   })
 
   it('precio_tratamiento + tipo_venas=vasitos -> info_vasitos', async () => {

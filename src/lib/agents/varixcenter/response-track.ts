@@ -67,21 +67,25 @@ const TIPO_VENAS_TEMPLATE_MAP: Record<string, { core: string; comp: string }> = 
   ambas: { core: 'info_ambas', comp: 'info_ambas_comp' },
 }
 
-/** Intents informacionales de tratamiento que disparan el triage por tipo_venas. */
-const TRIAGE_INTENTS: ReadonlySet<string> = new Set([
+/** Intents informacionales de tratamiento que se resuelven por tipo_venas. */
+const TREATMENT_INTENTS: ReadonlySet<string> = new Set([
   'precio_tratamiento',
   'info_tratamiento',
 ])
 
 /**
- * Resuelve un intent de tratamiento/precio a los templates según tipo_venas (§9).
- * - tipo_venas conocido -> [info_<tipo>, info_<tipo>_comp]
- * - tipo_venas null -> ['triage'] (response track pregunta grandes/vasitos + ciudad)
+ * Resuelve un intent de tratamiento/precio a los templates según tipo_venas.
+ * Distill 2026-06-13 (decisión usuario Q1 "Unificar"): el template `triage` se ELIMINÓ.
+ * Cuando el tipo de venas es desconocido, el precio/CTA + la pregunta "¿grandes o vasitos?"
+ * los provee `precio_valoracion` (CORE $100.000 + COMP escaneo + OPC "¿grandes o vasitos?").
+ * La ubicación ya va en el saludo (Bucaramanga), así que no se vuelve a preguntar ciudad.
+ * - tipo_venas conocido -> [info_<tipo>, info_<tipo>_comp] (detalle del tratamiento, sin precio)
+ * - tipo_venas null -> ['precio_valoracion'] (precio canónico + OPC pregunta el tipo)
  */
-function resolveTriageTemplates(tipoVenas: string | null): string[] {
-  if (!tipoVenas) return ['triage']
+function resolveTreatmentTemplates(tipoVenas: string | null): string[] {
+  if (!tipoVenas) return ['precio_valoracion']
   const mapped = TIPO_VENAS_TEMPLATE_MAP[tipoVenas]
-  if (!mapped) return ['triage']
+  if (!mapped) return ['precio_valoracion']
   return [mapped.core, mapped.comp]
 }
 
@@ -323,9 +327,9 @@ function pushInfoIntent(intent: string | undefined, state: AgentState, target: s
   if (!intent) return
   if (!INFORMATIONAL_INTENTS.has(intent)) return
 
-  // Triage por tipo_venas (§9)
-  if (TRIAGE_INTENTS.has(intent)) {
-    for (const t of resolveTriageTemplates(state.datos.tipo_venas)) {
+  // Intents de tratamiento -> templates por tipo_venas (triage eliminado, distill 2026-06-13)
+  if (TREATMENT_INTENTS.has(intent)) {
+    for (const t of resolveTreatmentTemplates(state.datos.tipo_venas)) {
       if (!target.includes(t)) target.push(t)
     }
     return

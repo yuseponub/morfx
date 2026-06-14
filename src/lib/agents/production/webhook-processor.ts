@@ -990,6 +990,10 @@ export async function processMessageWithAgent(
         message: engineOutput.error.message,
         retryable: engineOutput.error.retryable ?? true,
       } : undefined,
+      // v4-handoff-soft-signal (D-03 + D-04): propagate soft handoff signal fields.
+      // Only set when v4 runner emits them; undefined for all other agents (Regla 6).
+      handoffSuggested: engineOutput.handoffSuggested,
+      handoffSignal: engineOutput.handoffSignal,
     } as SomnioEngineResult
   } catch (engineError) {
     const errorMessage = engineError instanceof Error ? engineError.message : 'Unknown engine error'
@@ -1077,7 +1081,12 @@ export async function processMessageWithAgent(
 
   // 11. Check agent still enabled BEFORE considering the result final
   //    (handles toggle-off during processing)
-  if (result.success && result.newMode === 'handoff') {
+  //
+  // v4-handoff-soft-signal: TWO gated branches.
+  // HARD path — existing agents (v3/godentist/recompra/pw-confirmation/varixcenter).
+  // These agents never set handoffSuggested → this branch fires unchanged for them
+  // (!undefined === true → Regla 6 intact).
+  if (result.success && result.newMode === 'handoff' && !result.handoffSuggested) {
     const stillEnabled = await isAgentEnabledForConversation(
       conversationId,
       workspaceId,
@@ -1099,6 +1108,16 @@ export async function processMessageWithAgent(
         )
       }
     }
+  }
+
+  // v4-handoff-soft-signal: SOFT path — somnio-sales-v4 (D-04).
+  // Inbox note insert happens in Plan 02. This skeleton prevents executeHandoff
+  // from firing on v4 handoff outcomes. The inbox note will be added here in Plan 02.
+  if (result.success && result.newMode === 'handoff' && result.handoffSuggested) {
+    logger.info(
+      { conversationId, handoffSignal: result.handoffSignal },
+      'v4 soft handoff signal — executeHandoff suppressed (inbox note pending Plan 02)'
+    )
   }
 
   // 12. Mark inbound messages as processed by agent

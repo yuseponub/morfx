@@ -83,6 +83,18 @@ export interface SomnioEngineResult {
     message: string
     retryable: boolean
   }
+  /**
+   * standalone v4-handoff-soft-signal (D-03 + D-04).
+   * Propagated from EngineOutput when v4 signals a soft handoff.
+   * Existing agents (v3/godentist/recompra/pw-confirmation/varixcenter) never set this.
+   */
+  handoffSuggested?: boolean
+  /** Structured handoff signal (D-03 payload). Set when handoffSuggested=true. */
+  handoffSignal?: {
+    reason: string
+    gate: 'guard_r0_r1' | 'vision' | 'no_kb' | 'low_confidence' | 'binary_backstop' | 'escalation_trigger' | 'nunca_decir'
+    topic?: string
+  }
 }
 
 // ============================================================================

@@ -374,12 +374,11 @@ export class V4ProductionRunner {
       }
 
       // Handoff.
-      if (output.newMode === 'handoff') {
-        await adapters.storage.handoff(sessionId, resolvedVersion)
-        if (adapters.storage.clearPendingTemplates) {
-          await adapters.storage.clearPendingTemplates(sessionId)
-        }
-      }
+      // v4-handoff-soft-signal (D-04): storage.handoff() + clearPendingTemplates() REMOVIDOS.
+      // En soft mode, la sesión SIGUE ACTIVA (storage.handoff apagaba la sesión vía
+      // sessionManager.handoffSession → status='handed_off'). El modo SÍ se actualiza a 'handoff'
+      // arriba vía updateMode (línea 350-352) — señaliza que la sesión está en consideración de
+      // handoff sin apagarla irreversiblemente. El handoff agent futuro tomará la decisión dura.
 
       // Orders — D-06 big-bang: el bloque del orders-adapter createOrder fue ELIMINADO. El pedido
       // ya se ejecutó DENTRO del sub-loop GROUNDED (runCrmGate); el runner solo LEE output.crmResult.
@@ -600,6 +599,22 @@ export class V4ProductionRunner {
     // newMode también se suprime en el edge Path A 0-sends (wasInterruptedWithZeroSends, D-18).
     const suppressTurnEffects = outputDiscarded || result.wasInterruptedWithZeroSends
 
+    // v4-handoff-soft-signal (D-03 + D-04): derive the D-03 gate from the handoff reason string.
+    // Called only when output.newMode === 'handoff' && !suppressTurnEffects.
+    type HandoffGate = NonNullable<EngineOutput['handoffSignal']>['gate']
+    const deriveHandoffGate = (reason: string | undefined): HandoffGate => {
+      if (!reason) return 'no_kb'
+      if (reason.startsWith('low_response_confidence')) return 'low_confidence'
+      if (reason.startsWith('binary_backstop_')) return 'binary_backstop'
+      if (reason.startsWith('escalation_trigger_match:')) return 'escalation_trigger'
+      if (reason.startsWith('nunca_decir_violation:')) return 'nunca_decir'
+      if (reason.startsWith('imagen ') || reason.startsWith('imagen_')) return 'vision'
+      if (reason.startsWith('no_relevant_hit') || reason === 'no_relevant_hit') return 'no_kb'
+      // Guard R0/R1 reasons contain strings like "asesor", "queja", "cancelar" etc.
+      // They don't match any content-gap prefix → guard_r0_r1.
+      return 'guard_r0_r1'
+    }
+
     return {
       success: output.success,
       messages: outputDiscarded ? [] : output.messages,
@@ -616,6 +631,25 @@ export class V4ProductionRunner {
         code: 'V4_AGENT_ERROR',                      // UNCHANGED — Pitfall 4 / Regla 6
         message: buildCleanErrorMessage(output),     // D-01: motivo real, limpio, SIN stack
       },
+      // v4-handoff-soft-signal (D-03 + D-04): soft handoff signal for v4.
+      // suppressTurnEffects covers the outputDiscarded + wasInterruptedWithZeroSends edges
+      // where newMode is already suppressed — soft signal must also be absent in those cases.
+      ...(output.newMode === 'handoff' && !suppressTurnEffects
+        ? {
+            handoffSuggested: true,
+            handoffSignal: {
+              reason: output.decisionInfo?.reason ?? 'unknown',
+              gate: deriveHandoffGate(output.decisionInfo?.reason),
+              // topic is intentionally undefined at the runner level: the runner does NOT
+              // have the per-slot KB sourceTopic in scope (subLoopReason is a coarse
+              // classifier 'low_confidence'|'razonamiento_libre'|null, NOT a KB topic).
+              // The granular per-gate handoff_suggested events emitted in Task 3 Part D
+              // carry the real topic via outcome.sourceTopic. This runner-level signal is
+              // the secondary/summary signal used only for the inbox note (D-05).
+              topic: undefined,
+            },
+          }
+        : {}),
     }
   }
 }

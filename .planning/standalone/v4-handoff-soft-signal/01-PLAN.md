@@ -279,16 +279,20 @@ return {
         handoffSignal: {
           reason: output.decisionInfo?.reason ?? 'unknown',
           gate: deriveHandoffGate(output.decisionInfo?.reason),
-          // topic comes from subLoopReason when the gate is a sub-loop gate.
-          // For comprehension gates (guard R0/R1, vision), subLoopReason is null.
-          topic: (output as any).subLoopReason ?? undefined,
+          // topic is intentionally undefined at the runner level: the runner does NOT
+          // have the per-slot KB sourceTopic in scope (subLoopReason is a coarse
+          // classifier 'low_confidence'|'razonamiento_libre'|null, NOT a KB topic).
+          // The granular per-gate handoff_suggested events emitted in Task 3 Part D
+          // carry the real topic via outcome.sourceTopic. This runner-level signal is
+          // the secondary/summary signal used only for the inbox note (D-05).
+          topic: undefined,
         },
       }
     : {}),
 }
 ```
 
-IMPORTANT: `output` is typed as `V4AgentOutput`. Verify that `V4AgentOutput` has a `subLoopReason` field. If it does, use it directly (no cast). If not, the cast `(output as any).subLoopReason` is acceptable since the field exists in the runtime object.
+NOTE: do NOT read `subLoopReason` for `topic` — the runner-level signal leaves `topic: undefined` (see comment above). The real per-slot topic is emitted by Task 3 Part D via `outcome.sourceTopic`.
   </action>
   <verify>
     <automated>cd /mnt/c/Users/Usuario/Proyectos/morfx-new && npx tsc --noEmit 2>&1 | head -20</automated>

@@ -392,13 +392,16 @@ npx vitest run src/lib/agents/interruption-system-v2/__tests__/
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Mode transition in soft mode:** When v4 signals soft handoff, should `output.newMode` still be `'handoff'` (and thus `updateMode(sessionId, version, 'handoff')` fires at `commitTurn:350`)? Recommendation: yes, let the mode update — it signals "this session is in handoff consideration" without hard-locking the session. The handoff agent will make the final call. But verify that `prevMode === 'handoff'` doesn't short-circuit any sales track logic in future turns.
+   - **RESOLVED (Plan 01 Task 2 Part A):** KEEP the `updateMode` call (mode transitions to `'handoff'`); REMOVE only `storage.handoff()` + `clearPendingTemplates()`. Session stays active; mode signals handoff consideration.
 
 2. **The `setConversationAgentOverride` suppression:** `executeHandoff` also calls `setConversationAgentOverride(conversationId, 'conversational', false)` which writes to `conversation_agent_overrides`. In soft mode, we skip this. Verify no other code path reads this override as a prerequisite for future v4 turns.
+   - **RESOLVED (Plan 01 Task 4):** suppressing `executeHandoff` in the soft branch suppresses the override write too — correct in soft mode (bot keeps serving). read_first in Task 4 forces verification that nothing else depends on the override for future v4 turns.
 
 3. **R0/R1 ack message (D-08 sub-decision):** For explicit "quiero hablar con un asesor" requests, should we send a minimal ack? Lean yes — total silence on an explicit request feels wrong UX-wise. Suggest: insert a `rag:handoff_ack` synthetic message via `ragMessages` BEFORE the `handoffSlots.push` when the gate is `'guard_r0_r1'`. This avoids needing a template in the catalog. Plan should decide.
+   - **RESOLVED (Plan 01 Task 3 Part A):** inject a synthetic `rag:handoff_ack` ProcessedMessage `"Entendido, un asesor te contactará en breve."` ONLY for guard R0/R1 (explicit human ask); content gaps (no_kb / low_confidence / binary_backstop / escalation_trigger / nunca_decir) stay silent + signal + inbox note. Fallback to silence if the R0/R1 return shape doesn't accept `templates`.
 
 ---
 

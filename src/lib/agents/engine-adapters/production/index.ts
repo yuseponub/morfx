@@ -45,8 +45,13 @@ interface CreateProductionAdaptersParams {
 export function createProductionAdapters(params: CreateProductionAdaptersParams): EngineAdapters {
   const sessionManager = params.sessionManager ?? new SessionManager()
 
-  // Route timer adapter based on agent version
-  const usesV3Timer = params.agentId === 'somnio-sales-v3' || params.agentId === 'godentist'
+  // Route timer adapter based on agent version.
+  // Los agentes clonados del motor v3 emiten TimerSignal y necesitan el
+  // V3ProductionTimerAdapter (con emitSignals). Sin estar en esta lista reciben el
+  // ProductionTimerAdapter v1 (sin emitSignals) y el runner DESCARTA los timerSignals
+  // en silencio -> los L1-L6 nunca se disparan (bug varixcenter 2026-06-13).
+  const V3_TIMER_AGENTS = new Set(['somnio-sales-v3', 'godentist', 'varixcenter'])
+  const usesV3Timer = V3_TIMER_AGENTS.has(params.agentId ?? '')
   const timer = usesV3Timer
     ? new V3ProductionTimerAdapter(
         params.workspaceId,

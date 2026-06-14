@@ -15,6 +15,7 @@ import type { TimerSignal as SandboxTimerSignal } from '@/lib/sandbox/types'
 import type { TimerSignal as V3TimerSignal } from '@/lib/agents/somnio-v3/types'
 import { V3_TIMER_DURATIONS } from '../../somnio-v3/constants'
 import { GD_TIMER_DURATIONS } from '../../godentist/constants'
+import { GD_TIMER_DURATIONS as GD_FBIG_TIMER_DURATIONS } from '../../godentist-fb-ig/constants'
 import { VARIX_TIMER_DURATIONS } from '../../varixcenter/constants'
 import { createModuleLogger } from '@/lib/audit/logger'
 
@@ -24,6 +25,9 @@ const logger = createModuleLogger('v3-production-timer')
 const TIMER_TABLES: Record<string, Record<string, Record<number, number>>> = {
   'somnio-sales-v3': V3_TIMER_DURATIONS,
   'godentist': GD_TIMER_DURATIONS,
+  // godentist-fb-ig: tabla PROPIA del sibling (decoupled del godentist original), mismo
+  // shape preset-keyed. Sin esto sus timers tampoco emitian (mismo bug que varixcenter).
+  'godentist-fb-ig': GD_FBIG_TIMER_DURATIONS,
   // varixcenter: la tabla propia es flat {level:seg} (diseño §6); se envuelve en el
   // preset 'real' (default del workspace). Presets distintos caen a 'real' (sin rapido/test).
   'varixcenter': { real: VARIX_TIMER_DURATIONS },

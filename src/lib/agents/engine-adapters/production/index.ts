@@ -50,7 +50,7 @@ export function createProductionAdapters(params: CreateProductionAdaptersParams)
   // V3ProductionTimerAdapter (con emitSignals). Sin estar en esta lista reciben el
   // ProductionTimerAdapter v1 (sin emitSignals) y el runner DESCARTA los timerSignals
   // en silencio -> los L1-L6 nunca se disparan (bug varixcenter 2026-06-13).
-  const V3_TIMER_AGENTS = new Set(['somnio-sales-v3', 'godentist', 'varixcenter'])
+  const V3_TIMER_AGENTS = new Set(['somnio-sales-v3', 'godentist', 'varixcenter', 'godentist-fb-ig'])
   const usesV3Timer = V3_TIMER_AGENTS.has(params.agentId ?? '')
   const timer = usesV3Timer
     ? new V3ProductionTimerAdapter(

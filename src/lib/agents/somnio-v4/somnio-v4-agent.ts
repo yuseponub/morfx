@@ -528,22 +528,15 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         messagesSent: 0,
       }
       const serialized = commitTurn(mergedState, ledgerR1)
-      // D-08: For explicit human asks (guard R0/R1), inject a minimal ack ProcessedMessage.
-      // In soft mode, no handoff_humano is sent (executeHandoff is suppressed in webhook-processor).
-      // Total silence on an explicit "quiero hablar con un asesor" request is poor UX, so we
-      // send a minimal acknowledgment. For content-gap handoffs (no_kb / low_confidence /
-      // binary_backstop / escalation_trigger / nunca_decir) silence + signal is the correct behavior.
-      const handoffAckMessage: ProcessedMessage = {
-        templateId: 'rag:handoff_ack',
-        content: 'Entendido, un asesor te contactará en breve.',
-        contentType: 'texto',
-        delayMs: 0,
-        priority: 'CORE',
-      }
+      // D-08 (revisado UAT 2026-06-14): handoff SILENCIOSO también para pedidos
+      // explícitos de humano (guard R0/R1). Se eliminó el ack "un asesor te contactará"
+      // por decisión del usuario — soft mode no debe prometer humano sin que nadie lo
+      // haya decidido. El operador ve la sugerencia vía la nota inbox `⚠ HANDOFF SUGERIDO`
+      // + el evento observability `handoff_suggested`; el cliente queda en silencio.
       return {
         success: true,
         messages: [],
-        templates: [handoffAckMessage], // D-08: minimal ack for explicit human ask
+        templates: [], // D-08 (UAT): silencio total — sin ack al cliente
         newMode: 'handoff',
         requiresHuman: true, // D-60 también para R1 escape intents (semantically a handoff)
         intentsVistos: serialized.intentsVistos,
@@ -1066,6 +1059,12 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       newMode: newModeR3,
       // R1-A / D-07: partial handoff sends the resolved slot AND flags handoff.
       requiresHuman: partialHandoff ? true : undefined,
+      // v4-handoff-soft-signal (gap UAT 2026-06-14): razón REAL del handoff de contenido
+      // para la nota inbox + gate. decisionInfo.reason aquí es el string genérico del
+      // sales-track; los handoffSlots[].reason llevan el motivo verdadero del sub-loop.
+      handoffReasonDetail: partialHandoff
+        ? handoffSlots.map((h) => h.reason).filter(Boolean).join('; ')
+        : undefined,
       intentsVistos: serialized.intentsVistos,
       templatesEnviados: serialized.templatesEnviados,
       datosCapturados: serialized.datosCapturados,

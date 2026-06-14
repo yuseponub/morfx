@@ -635,20 +635,30 @@ export class V4ProductionRunner {
       // suppressTurnEffects covers the outputDiscarded + wasInterruptedWithZeroSends edges
       // where newMode is already suppressed — soft signal must also be absent in those cases.
       ...(output.newMode === 'handoff' && !suppressTurnEffects
-        ? {
-            handoffSuggested: true,
-            handoffSignal: {
-              reason: output.decisionInfo?.reason ?? 'unknown',
-              gate: deriveHandoffGate(output.decisionInfo?.reason),
+        ? (() => {
+            // v4-handoff-soft-signal (gap UAT 2026-06-14): preferir la razón REAL del
+            // handoff de contenido (handoffReasonDetail = handoffSlots reasons) sobre
+            // decisionInfo.reason, que en un partial-handoff es el string genérico del
+            // sales-track ("No transition - response track handles informational").
+            // Para handoffs de comprehension (R0/R1, visión) handoffReasonDetail es
+            // undefined → cae a decisionInfo.reason, que ahí YA es correcto.
+            const realReason =
+              output.handoffReasonDetail ?? output.decisionInfo?.reason ?? 'unknown'
+            return {
+              handoffSuggested: true,
+              handoffSignal: {
+                reason: realReason,
+                gate: deriveHandoffGate(realReason),
               // topic is intentionally undefined at the runner level: the runner does NOT
               // have the per-slot KB sourceTopic in scope (subLoopReason is a coarse
               // classifier 'low_confidence'|'razonamiento_libre'|null, NOT a KB topic).
               // The granular per-gate handoff_suggested events emitted in Task 3 Part D
               // carry the real topic via outcome.sourceTopic. This runner-level signal is
               // the secondary/summary signal used only for the inbox note (D-05).
-              topic: undefined,
-            },
-          }
+                topic: undefined,
+              },
+            }
+          })()
         : {}),
     }
   }

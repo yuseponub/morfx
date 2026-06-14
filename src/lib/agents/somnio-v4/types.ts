@@ -246,6 +246,18 @@ export interface V4AgentOutput {
    */
   requiresHuman?: boolean
 
+  /**
+   * v4-handoff-soft-signal (gap UAT 2026-06-14): razón REAL del handoff de contenido
+   * (sub-loop / partial handoff) — los `outcome.reason` de los handoffSlots
+   * (ej: `escalation_trigger_match: ...`, `low_response_confidence`, `no_relevant_hit`).
+   * Distinto de `decisionInfo.reason`, que en un partial-handoff se queda con el string
+   * genérico del sales-track ("No transition - response track handles informational").
+   * El runner lo prefiere sobre decisionInfo.reason para construir handoffSignal (nota
+   * inbox D-05 + gate D-03). Undefined en handoffs de comprehension (R0/R1, visión),
+   * donde decisionInfo.reason YA es la razón correcta.
+   */
+  handoffReasonDetail?: string
+
   /** State updates for persistence */
   intentsVistos: string[]
   templatesEnviados: string[]

@@ -28,6 +28,7 @@ REGLA DE CONTEXTO: Si el cliente envia un mensaje corto afirmativo ("si", "dale"
 - Si el bot mostro un resumen/confirmacion de cita y el cliente dice "si" → intent = confirmar
 - Si el bot mostro horarios y el cliente elige uno → intent = seleccion_horario
 - Si el bot pregunto por una fecha y el cliente responde → intent = datos (con fecha_preferida extraida)
+- Si el bot pregunto "¿Tienes varices grandes o vasitos?" (o similar) y el cliente responde nombrando un tipo de venas ("vasitos", "arañitas", "venitas", "grandes", "varices", "las dos", "ambas", "de todo") → intent = info_tratamiento Y extrae tipo_venas segun el mapeo. NUNCA lo clasifiques como "datos" ni "otro": el cliente esta respondiendo la pregunta del bot para que le expliquemos su tratamiento.
 - Si no hay pregunta clara en los mensajes del bot → intent = acknowledgment`
     : ''
 
@@ -163,5 +164,15 @@ Clasificacion:
   secondary = ninguno
   confidence = 90
   reasoning = "Mensaje default de la pauta publicitaria (apertura generica de interes). Se trata como saludo para responder con la bienvenida + invitacion a agendar, no como quiero_agendar."
+
+Ejemplo 5 — respuesta al "¿grandes o vasitos?" (REGLA DE CONTEXTO):
+Contexto: el ultimo mensaje del bot fue "¿Tienes varices grandes o vasitos?"
+Mensaje cliente: "vasitos"
+Clasificacion:
+  primary = info_tratamiento
+  secondary = ninguno
+  confidence = 90
+  extracted_fields.tipo_venas = "vasitos"
+  reasoning = "El cliente responde el tipo de venas que pregunto el bot -> info_tratamiento para explicarle su tratamiento (NO datos ni otro)."
 ${dataSection}${botContextSection}`
 }

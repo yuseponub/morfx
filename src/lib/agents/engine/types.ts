@@ -159,6 +159,21 @@ export interface EngineOutput {
   response?: string
   /** Whether a SILENCIOSO classification was detected (sandbox: drives silence retake timer) */
   silenceDetected?: boolean
+  /**
+   * standalone v4-handoff-soft-signal (D-03 + D-04).
+   * Set by v4-production-runner.ts when the v4 agent signals a soft handoff.
+   * Existing agents never set this → executeHandoff fires normally for them (Regla 6).
+   */
+  handoffSuggested?: boolean
+  /**
+   * Structured handoff signal (D-03 payload minus sessionId/conversationId/turnId
+   * which are already in scope at the call site).
+   */
+  handoffSignal?: {
+    reason: string
+    gate: 'guard_r0_r1' | 'vision' | 'no_kb' | 'low_confidence' | 'binary_backstop' | 'escalation_trigger' | 'nunca_decir'
+    topic?: string
+  }
   /** Error details if processing failed */
   error?: {
     code: string

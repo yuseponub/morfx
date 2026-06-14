@@ -188,25 +188,30 @@ EJEMPLOS DE APLICACIÓN (estos son ANCLAS, no patrones a copiar):
 Cuando secondary != "ninguno", aplica la MISMA calibracion template-fit al secondary:
 - secondary_confidence = "la respuesta automatica del secondary CUBRE esta sub-pregunta?" (0..1, mismas bandas que intent_confidence).
 - secondary_query = la parte del mensaje que corresponde al secondary, reformulada como pregunta auto-contenida.
+- primary_query = la parte del mensaje que corresponde al PRIMARY, reformulada como pregunta auto-contenida. null cuando secondary === "ninguno".
 - Si secondary == "ninguno": secondary_confidence=null, secondary_confidence_reasoning=null, secondary_query=null.
 
 REGLA DURA anti-swap: el confidence/query del PRIMARY describe la 1a intencion; el del SECONDARY la 2a. NO los intercambies.
 
-ANCLAS MULTI-INTENT (muestran AMBOS confidences con coberturas OPUESTAS):
+ANCLAS MULTI-INTENT (muestran AMBOS confidences, sub-queries Y coberturas OPUESTAS):
 - "cuanto vale y lo puedo tomar si tengo apnea?"
   -> primary=precio CUBRE (intent_confidence=0.92),
+     primary_query="cuanto cuesta el producto?",
      secondary=contraindicaciones NO CUBRE (secondary_confidence=0.25),
      secondary_query="puedo tomar el producto si tengo apnea del sueno?"
 - "ok pero la entrega cuando?"
   -> primary=acknowledgment (intent_confidence=0.45),
+     primary_query="ok",
      secondary=tiempo_entrega CUBRE (secondary_confidence=0.88),
      secondary_query="cuando llega el pedido?"
 - "hola, puedo tomarlo si tomo sertralina?"
   -> primary=saludo CUBRE (intent_confidence=0.95),
+     primary_query="hola",
      secondary=contraindicaciones NO CUBRE (secondary_confidence=0.25),
      secondary_query="puedo tomar el producto si tomo sertralina?"
 - "cuanto cuesta y de que esta hecho?"
   -> primary=precio CUBRE (intent_confidence=0.92),
+     primary_query="cuanto cuesta el producto?",
      secondary=contenido CUBRE (secondary_confidence=0.85),
      secondary_query="de que esta hecho el producto?"
 `
@@ -270,7 +275,7 @@ REGLAS DE INTENT:
 - primary: el intent principal del mensaje
 - secondary: solo si hay DOS intenciones claras (ej: "Hola, cuanto cuesta?" = saludo + precio)
 - secondary = "ninguno" si solo hay un intent
-- Si secondary != "ninguno", SIEMPRE poblar secondary_confidence + secondary_query; si secondary == "ninguno", ponerlos en null.
+- Si secondary != "ninguno", SIEMPRE poblar secondary_confidence + secondary_query + primary_query; si secondary == "ninguno", ponerlos en null (primary_query = null cuando un solo intent — se usa el mensaje completo).
 - seleccion_pack: cuando el cliente elige un pack especifico CON INTENCION DE COMPRA ("quiero el de 2", "dame el triple", "me llevo 2 frascos"). NUNCA usar para preguntas de precio
 - confirmar: cuando ACEPTA un resumen/pedido previamente mostrado ("si confirmo", "dale", "proceder")
 - quiero_comprar: cuando expresa intencion de compra sin elegir pack especifico ("lo quiero", "quiero comprar")

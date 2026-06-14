@@ -73,6 +73,13 @@ export const MessageAnalysisSchema = z.object({
       'Ej: "cuanto vale y lo puedo tomar si tengo apnea?" -> secondary_query="puedo tomar el ' +
       'producto si tengo apnea del sueno?"'
     ),
+    primary_query: z.string().nullable().describe(
+      'Sub-query segmentada del PRIMER intent — la parte del mensaje que corresponde al ' +
+      'primary, reformulada como pregunta auto-contenida. null cuando secondary === "ninguno" ' +
+      '(se usa el mensaje completo). ' +
+      'Ej: "lo puedo tomar si tomo alcohol? cuanto demora en llegar a bucaramanga" -> ' +
+      'primary_query="puedo tomar el producto si consumo alcohol?"'
+    ),
   }),
 
   extracted_fields: z.object({

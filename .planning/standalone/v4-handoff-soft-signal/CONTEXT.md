@@ -21,7 +21,7 @@ Este standalone hace 3 cosas, todas en la superficie "qué hace/escribe v4 ante 
 - Re-entrada / anti-oscilación (¿el bot vuelve tras apagarse?) — se decide cuando se construya el agente.
 - Persistencia estructurada de la razón en `agent_sessions` + badge UI (Opción C) — diferido; por ahora solo nota en inbox + observability.
 
-**Regla 6:** v4 sigue DORMANT; cero cambio para v3/godentist/recompra/pw-confirmation/varixcenter. El handoff duro queda detrás de un flag para poder volver al comportamiento anterior.
+**Regla 6:** v4 sigue DORMANT; cero cambio para v3/godentist/recompra/pw-confirmation/varixcenter. El cambio vive en el branch v4 del runner / el output del agente v4. **SIN flag** — soft es el nuevo default de v4 (decisión usuario 2026-06-13); para volver atrás = revertir el deploy (v4 dormant lo hace seguro).
 </domain>
 
 <decisions>
@@ -57,11 +57,9 @@ Este standalone hace 3 cosas, todas en la superficie "qué hace/escribe v4 ante 
   ```
 - **Dónde vive (V1):** evento de observability `handoff_suggested` (ya emitimos `handoff_low_confidence_fallback` + `subloop_completed` con la razón — se consolida/renombra al contrato). El handoff agent futuro lo consumirá desde ahí. Persistencia estructurada en sesión = Opción C diferida.
 
-### D-04 — v4 deja de hacer handoff DURO (gateado por flag) — call-site `v4-production-runner.ts:376-382`
-- **Decisión:** el bloque `if (output.newMode === 'handoff') { storage.handoff(...) ; clearPendingTemplates(...) }` (`v4-production-runner.ts:376-382`) queda detrás de un flag `platform_config.somnio_v4_soft_handoff`.
-  - Flag ON (modo nuevo): NO llama `storage.handoff` (no apaga); emite `handoff_suggested` + (D-05) nota inbox; el bot continúa.
-  - Flag OFF (legacy): comportamiento actual (handoff duro). Default a discutir en plan (recomendación: ON para v4 porque está DORMANT — sin tráfico real, sin riesgo; el operador lo controla).
-- **Razón / Regla 6:** flag permite volver al comportamiento anterior; v4 dormant → ON no afecta clientes.
+### D-04 — v4 deja de hacer handoff DURO (soft = nuevo default, SIN flag) — call-site `v4-production-runner.ts:376-382`
+- **Decisión:** reemplazar el bloque `if (output.newMode === 'handoff') { storage.handoff(...) ; clearPendingTemplates(...) }` (`v4-production-runner.ts:376-382`). En vez de apagar la sesión, v4 emite `handoff_suggested` (D-03) + nota en inbox (D-05) y el bot CONTINÚA. **SIN flag** — soft es el nuevo comportamiento de v4 (decisión usuario 2026-06-13).
+- **Razón / Regla 6:** v4 está DORMANT → no hay comportamiento de producción que proteger; un flag con camino doble sería deuda innecesaria. Para volver atrás = revertir el deploy. El call-site es el runner v4 (`v4-production-runner.ts`), así que el cambio NO toca v3/godentist/recompra/pw-confirmation/varixcenter.
 
 ### D-05 — Razón de handoff en el inbox como SUGERENCIA (por ahora)
 - **Decisión:** cuando se emite `handoff_suggested`, insertar una nota en la conversación tipo `⚠ HANDOFF SUGERIDO — motivo: <reason>` (`direction:'outbound'`, insert directo, NO se envía al cliente — mismo mecanismo que `webhook-handler.ts:546-554`). Texto deja claro que es **sugerencia**, NO "bot apagado".
@@ -72,13 +70,16 @@ Este standalone hace 3 cosas, todas en la superficie "qué hace/escribe v4 ante 
 - **Razón:** verificado en vivo (últimas 10h): todos los zombies salen en `ckpt_0` antes de hacer trabajo + el ganador completa (`turn_completed=true`). Es cosmético, no un error de agente. NO se suprime el mecanismo ni la telemetría.
 
 ### D-07 — Regla 6 / aditivo
-- **Decisión:** cero archivos de v3/godentist/recompra/pw-confirmation/varixcenter. v4 DORMANT. El handoff duro recuperable vía flag OFF.
+- **Decisión:** cero archivos de v3/godentist/recompra/pw-confirmation/varixcenter. v4 DORMANT. Cambio solo en el runner v4 + output del agente v4. Rollback = revertir deploy (sin flag, D-04).
 
-### Claude's Discretion / Open Questions (resolver en discuss/plan)
-- **Comportamiento INTERINO del bot en un punto de handoff cuando NO apaga** (flag ON, agente futuro aún no existe): ¿el bot responde algo genérico, queda en silencio, o sigue normal? Caso crítico: **no-KB** (hoy manda `handoff_humano` template + pausa) — ¿qué hace ahora? Decisión clave del plan.
-- **Default del flag** `somnio_v4_soft_handoff` (recomendación: ON para v4 dormant).
+### D-08 — Comportamiento del bot en un punto de handoff (soft mode) — RESUELTO
+- **Decisión:** en soft mode, ante un punto de determinación de handoff, v4 **NO pausa** la sesión y **NO envía** el template `handoff_humano`. Envía SOLO los slots que SÍ puede cubrir (los `covered` del slot plan); para el slot/intent no-cubrible queda en **silencio**. La determinación se convierte en `handoff_suggested` (señal en observability + nota inbox D-05) → el operador la ve y puede tomar la conversación manualmente hasta que exista el handoff agent.
+- **Sub-decisión a nivel plan (Claude's discretion):** para pedidos EXPLÍCITOS de humano (guard R0/R1: asesor/queja), evaluar si conviene un acknowledgment mínimo ("un asesor te contactará") en vez de silencio total. Para huecos de contenido (low_confidence / no_kb / binary_backstop / escalation_trigger / nunca_decir) el silencio + señal es lo correcto (el bot no tiene una respuesta honesta).
+- **Razón:** el `handoff_humano` actual contradice "soft" (promete humano sin que nadie lo haya decidido). v4 DORMANT → impacto de UX interino nulo hoy; cuando v4 se active, el handoff agent ya estará decidiendo el connect real.
+
+### Claude's Discretion / Open Questions menores (resolver en plan)
 - **Consolidación de eventos**: ¿renombrar `handoff_low_confidence_fallback` → `handoff_suggested`, o emitir uno nuevo y mantener el viejo? (compat con sandbox debug-panel).
-- ¿Persistir un flag `handoff_suggested` light en la sesión para que el agente futuro/UI lo lea sin escanear observability? (puente hacia Opción C).
+- ¿Persistir un flag `handoff_suggested` light en la sesión para que el agente futuro/UI lo lea sin escanear observability? (puente hacia Opción C — probablemente diferir).
 </decisions>
 
 <canonical_refs>
@@ -121,10 +122,10 @@ Nace de la investigación en vivo 2026-06-13 (sesión que arregló `v4-dual-inte
 ### Reusable / patrón
 - La señal blanda reutiliza el `reason` que cada gate YA emite — no hay que inventar razones nuevas.
 - El insert de nota en inbox clona el mecanismo existente `webhook-handler.ts:546-554` (insert directo, no envío).
-- Flag vía `platform_config` (patrón de `v4-gate-confidence-fixes` D-03 — `RESPONSE_CONFIDENCE_THRESHOLD` tunable).
+- SIN flag (D-04): soft es el nuevo default de v4; rollback = revertir deploy (v4 dormant).
 
 ### Integration points
-- Cadena: gate de handoff (agent/sub-loop) → output `newMode='handoff'`/`reason` → runner `:376` (gateado por flag) → emite señal + nota inbox / o handoff duro legacy.
+- Cadena: gate de handoff (agent/sub-loop) → output `newMode='handoff'`/`reason` → runner `:376` (reemplazado por soft) → emite señal + nota inbox; el bot NO se pausa y NO manda `handoff_humano` (D-08).
 - Sin migración de DB en V1 (señal vive en observability; nota en `messages` ya existe). Persistencia en sesión = diferida (Opción C).
 
 ### Constraint (Regla 6)

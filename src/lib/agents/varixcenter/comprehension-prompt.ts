@@ -75,7 +75,7 @@ REGLA tipo_venas: solo asignar cuando el paciente describe el TIPO de venas que 
 REGLAS DE INTENT (24 intents):
 
 INFORMACIONALES (12):
-- saludo: "Hola", "Buenos dias", "Buenas tardes". Saludos sin pregunta adicional.
+- saludo: "Hola", "Buenos dias", "Buenas tardes". Saludos sin pregunta adicional. TAMBIEN incluye el mensaje default de la pauta publicitaria (ver REGLA MENSAJE DEFAULT abajo).
 - precio_tratamiento: "¿Cuanto cuesta el tratamiento?", "¿Precio?", "¿Que valor tienen las sesiones?". Pregunta por el costo del tratamiento de varices/vasitos.
 - precio_valoracion: "¿Cuanto vale la consulta?", "¿La valoracion tiene costo?", "¿Es gratis la cita?"
 - info_tratamiento: "¿Duele?", "¿Cuantas sesiones?", "¿Vuelven a salir?", "¿Como es el procedimiento?"
@@ -112,6 +112,7 @@ REGLAS ADICIONALES DE INTENT:
 - secondary = "ninguno" si solo hay un intent
 - REGLA CONTEXTO POST-SALUDO (AMENDA D-12): El saludo del bot termina con "¿Deseas agendar tu valoracion?". Por lo tanto, si el cliente responde con un AFIRMATIVO ("si", "claro", "me interesa", "dale", "listo", "obvio", "por supuesto") inmediatamente despues del saludo, el intent = quiero_agendar (NO confirmar, NO acknowledgment).
 - REGLA CONTEXTO BOT: Si el bot pregunto algo y el cliente responde con "si"/"dale"/"claro", el intent depende de lo que pregunto el bot (ver seccion de contexto del bot arriba).
+- REGLA MENSAJE DEFAULT DE PUBLICIDAD (CRITICO): El anuncio de VarixCenter pre-llena un mensaje por defecto que el cliente envia automaticamente al hacer clic; ese texto NO es una intencion real de agendamiento, es texto de la pauta. Cuando el cliente ABRE la conversacion (sin datos capturados previos y sin pregunta abierta del bot) con ese texto default o una variante de apertura generica que solo expresa interes en la valoracion/tratamiento -- ej: "Hola! Me interesa una valoracion", "Hola, me interesa una valoracion", "Me interesa una valoracion", "Hola, quiero informacion", "Buenas, informacion de la valoracion" -- el intent = saludo (NO quiero_agendar, NO precio_valoracion). El bot responde con la bienvenida + "¿Deseas agendar tu valoracion?" y deja que el cliente confirme. Solo cuando el cliente responda un afirmativo DESPUES de ese saludo (regla post-saludo D-12) el intent pasa a quiero_agendar. Si el mensaje de apertura ademas trae una pregunta concreta (precio, ubicacion, horario, sintoma), clasifica esa pregunta real como primary y usa saludo como secondary.
 
 REGLAS DE CLASIFICACION:
 - category: clasifica el CONTENIDO del mensaje
@@ -153,5 +154,14 @@ Clasificacion:
   secondary = ninguno
   confidence = 93
   extracted_fields.tipo_venas = "vasitos"
+
+Ejemplo 4 — mensaje default de la pauta (REGLA MENSAJE DEFAULT):
+Contexto: primer mensaje del cliente, sin datos capturados, sin pregunta del bot.
+Mensaje cliente: "Hola! Me interesa una valoracion."
+Clasificacion:
+  primary = saludo
+  secondary = ninguno
+  confidence = 90
+  reasoning = "Mensaje default de la pauta publicitaria (apertura generica de interes). Se trata como saludo para responder con la bienvenida + invitacion a agendar, no como quiero_agendar."
 ${dataSection}${botContextSection}`
 }

@@ -17,7 +17,7 @@
 
 import { getCollector } from '@/lib/observability'
 
-/** 6 labels typed-union (D-10). Pasar un string arbitrario es error de compilacion. */
+/** 8 labels typed-union (D-10 + D-01/D-02). Pasar un string arbitrario es error de compilacion. */
 export type FallbackEventLabel =
   /** { callSite, provider:'anthropic', model, errorKind:'saturation'|'timeout'|'probe_failed'|'circuit_open', errorCode?, latencyMs? } */
   | 'fallback_triggered'
@@ -31,6 +31,10 @@ export type FallbackEventLabel =
   | 'probe_failed'
   /** { callSite, gemini_error, anthropic_error } — doble fallo (Pitfall #8) */
   | 'fallback_failed'
+  /** D-01/D-04 — créditos de Gemini agotados (bot vivo con Haiku). { callSite, provider:'gemini', errorCode } */
+  | 'llm_credits_depleted'
+  /** D-02 — evento RUIDOSO: union-types cubierto por Haiku (no enmascarar en silencio). { callSite, errorCode } */
+  | 'gemini_schema_capacity_fallback'
 
 export function emitFallbackEvent(
   label: FallbackEventLabel,

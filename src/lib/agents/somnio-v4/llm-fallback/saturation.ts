@@ -46,3 +46,47 @@ export function isGeminiSaturation(err: unknown): boolean {
 export function isTimeoutError(err: unknown): boolean {
   return isAbortError(err)
 }
+
+// ─── D-01/D-09 — créditos de Gemini agotados ───────────────────────────────
+// Match por message PRIMERO (robusto al re-wrap de comprehension que destruye la
+// clase APICallError pero preserva el message — RESEARCH Q2 / Pitfall #5).
+// OQ-1: el statusCode real en prod (429/400) NO está confirmado → NO se matchea
+// por statusCode solo; el message es la fuente de verdad.
+// RESOURCE_EXHAUSTED a secas YA está en SATURATION_MSG (saturación de capacidad);
+// aquí solo la variante con quota/credits para no conflacionar (RESEARCH Q2).
+// NOTA: NO extender SATURATION_MSG — necesitamos predicados específicos para
+// emitir el evento llm_credits_depleted y tratar el doble-fallo distinto (RECHAZADO
+// por RESEARCH Q2).
+const BILLING_MSG =
+  /prepayment credits are depleted|billing|insufficient.*credit|RESOURCE_EXHAUSTED[^]*quota|quota[^]*RESOURCE_EXHAUSTED/i
+
+// ─── D-02/D-09 — límite de union-types de Gemini ────────────────────────────
+// NO incluir `union/allOf` suelto: demasiado genérico, riesgo de falso-positivo
+// con parse errors genuinos (Pitfall #4 — NoObjectGeneratedError sigue re-lanzando).
+const SCHEMA_CAP_MSG =
+  /too many parameters with union types|too many states for serving|union type/i
+
+/** D-01/D-09 — créditos de Gemini agotados → fallback a Haiku + correo + evento.
+ *  Match por message (sobrevive el re-wrap de comprehension) y responseBody si es APICallError.
+ *  NoObjectGeneratedError NO matchea (Pitfall #4). */
+export function isGeminiBillingError(err: unknown): boolean {
+  const e = unwrap(err)
+  if (APICallError.isInstance(e)) {
+    if (typeof e.message === 'string' && BILLING_MSG.test(e.message)) return true
+    if (typeof e.responseBody === 'string' && BILLING_MSG.test(e.responseBody)) return true
+  }
+  const msg = err instanceof Error ? err.message : String(err)
+  return BILLING_MSG.test(msg)
+}
+
+/** D-02/D-09 — error union-types (límite real de structured-output de Gemini) → fallback
+ *  a Haiku (schema saneado) + evento RUIDOSO. NoObjectGeneratedError NO matchea (Pitfall #4). */
+export function isGeminiSchemaCapacity(err: unknown): boolean {
+  const e = unwrap(err)
+  if (APICallError.isInstance(e)) {
+    if (typeof e.message === 'string' && SCHEMA_CAP_MSG.test(e.message)) return true
+    if (typeof e.responseBody === 'string' && SCHEMA_CAP_MSG.test(e.responseBody)) return true
+  }
+  const msg = err instanceof Error ? err.message : String(err)
+  return SCHEMA_CAP_MSG.test(msg)
+}

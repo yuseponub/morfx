@@ -10,13 +10,21 @@
  * metadatos (callSite, errorCode, latencyMs).
  */
 
-import { isGeminiSaturation, isTimeoutError } from './saturation'
+import { isGeminiSaturation, isTimeoutError, isGeminiBillingError, isGeminiSchemaCapacity } from './saturation'
 import { emitFallbackEvent } from './observability'
 import { effectiveState, openBreaker, closeBreaker } from './breaker'
 import { FALLBACK_MODEL, TIMEOUT_MS, type CallSite } from './config'
+import { getCollector } from '@/lib/observability'
 
 export type { CallSite }
 export { __resetBreakers } from './breaker'
+
+/**
+ * D-06 — Sentinel que sobrevive el re-wrap de comprehension (que preserva el message).
+ * Plan 04 usa `.includes(PROVIDERS_DOWN_SENTINEL)` en el agente para detectar doble-fallo
+ * y hacer early-return con handoffSuggested:true (soft handoff, no V4_AGENT_ERROR duro).
+ */
+export const PROVIDERS_DOWN_SENTINEL = 'llm_providers_down:'
 
 export async function callWithGeminiFallback<T>(args: {
   callSite: CallSite
@@ -48,7 +56,20 @@ export async function callWithGeminiFallback<T>(args: {
         gemini_error: 'circuit_open',
         anthropic_error: anthropicErr instanceof Error ? anthropicErr.name : String(anthropicErr),
       })
-      throw anthropicErr
+      // D-06/D-07b — doble fallo: correo CRÍTICO fail-soft + sentinel para Plan 04.
+      const workspaceId = getCollector()?.workspaceId
+      void (async () => {
+        const { sendBothProvidersDownAlert } = await import('@/lib/agents/_shared/alerts')
+        await sendBothProvidersDownAlert({
+          workspaceId,
+          callSite,
+          geminiError: 'circuit_open',
+          anthropicError: anthropicErr instanceof Error ? anthropicErr.name : String(anthropicErr),
+        })
+      })()
+      // El sentinel DEBE iniciar el message para que Plan 04 lo detecte con .includes()
+      // aunque comprehension.ts lo re-envuelva en un new Error (preserva el message).
+      throw new Error(`${PROVIDERS_DOWN_SENTINEL} callSite=${callSite} gemini=circuit_open anthropic=${anthropicErr instanceof Error ? anthropicErr.name : String(anthropicErr)}`)
     }
   }
 
@@ -67,13 +88,13 @@ export async function callWithGeminiFallback<T>(args: {
   } catch (err) {
     const isSaturation = isGeminiSaturation(err)
     const isTimeout = isTimeoutError(err)
-    if (!isSaturation && !isTimeout) {
-      // Pitfall #4 — parse/schema/NoObjectGenerated → re-throw, NO fallback.
-      throw err
-    }
+    const isBilling = isGeminiBillingError(err)
+    const isSchemaCap = isGeminiSchemaCapacity(err)
+    // Pitfall #4 — parse/schema/NoObjectGenerated → re-throw, NO fallback.
+    if (!isSaturation && !isTimeout && !isBilling && !isSchemaCap) throw err
     const gemini_latency_ms = performance.now() - t0
     const errorCode = err instanceof Error ? err.name : String(err)
-    const errorKind = isProbe ? 'probe_failed' : isTimeout ? 'timeout' : 'saturation'
+    const errorKind = isProbe ? 'probe_failed' : isTimeout ? 'timeout' : isBilling ? 'billing' : isSchemaCap ? 'schema_capacity' : 'saturation'
 
     if (isProbe) {
       openBreaker(callSite) // re-abre, resetea cooldown
@@ -86,6 +107,21 @@ export async function callWithGeminiFallback<T>(args: {
       callSite, provider: 'anthropic', model: FALLBACK_MODEL, errorKind, errorCode, latencyMs: gemini_latency_ms,
     })
 
+    // D-01 — créditos agotados: evento + correo NORMAL fail-soft (bot VIVO con Haiku).
+    const workspaceId = getCollector()?.workspaceId
+    if (isBilling) {
+      emitFallbackEvent('llm_credits_depleted', { callSite, provider: 'gemini', errorCode })
+      // fail-soft fire-and-forget — NUNCA await, NUNCA puede romper el turno de Haiku.
+      void (async () => {
+        const { sendLLMCreditsDepletedAlert } = await import('@/lib/agents/_shared/alerts')
+        await sendLLMCreditsDepletedAlert({ workspaceId, provider: 'gemini', callSite })
+      })()
+    }
+    // D-02 — evento RUIDOSO (no enmascarar en silencio): union-types cubierto por Haiku.
+    if (isSchemaCap) {
+      emitFallbackEvent('gemini_schema_capacity_fallback', { callSite, errorCode })
+    }
+
     // 3. Fallback a Anthropic. Doble fallo (Pitfall #8) → emite fallback_failed + propaga.
     try {
       return await callAnthropic()
@@ -95,7 +131,19 @@ export async function callWithGeminiFallback<T>(args: {
         gemini_error: errorCode,
         anthropic_error: anthropicErr instanceof Error ? anthropicErr.name : String(anthropicErr),
       })
-      throw anthropicErr
+      // D-06/D-07b — doble fallo: correo CRÍTICO fail-soft + sentinel para Plan 04.
+      void (async () => {
+        const { sendBothProvidersDownAlert } = await import('@/lib/agents/_shared/alerts')
+        await sendBothProvidersDownAlert({
+          workspaceId,
+          callSite,
+          geminiError: errorCode,
+          anthropicError: anthropicErr instanceof Error ? anthropicErr.name : String(anthropicErr),
+        })
+      })()
+      // El sentinel DEBE iniciar el message para que Plan 04 lo detecte con .includes()
+      // aunque comprehension.ts lo re-envuelva en un new Error (preserva el message).
+      throw new Error(`${PROVIDERS_DOWN_SENTINEL} callSite=${callSite} gemini=${errorCode} anthropic=${anthropicErr instanceof Error ? anthropicErr.name : String(anthropicErr)}`)
     }
   }
 }

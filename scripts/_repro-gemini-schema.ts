@@ -63,9 +63,14 @@ async function main() {
     } catch (err) {
       const msg = (err as Error)?.message ?? String(err)
       const isUnion = /too many parameters with union types|union type|anyOf/i.test(msg)
+      const isCredits = /prepayment credits are depleted|billing|insufficient.*credit|RESOURCE_EXHAUSTED[^]*quota/i.test(msg)
       if (isUnion) {
         unionErr++
         console.log(`  [${i}/${RUNS}] ❌ RECHAZADO (union types): ${msg.slice(0, 160)}`)
+      } else if (isCredits) {
+        otherErr++
+        console.log(`  [${i}/${RUNS}] 💳 KEY SIN SALDO — la key de Gemini no tiene créditos. Recargá y reintentá.`)
+        console.log(`     (Este repro NO prueba el límite del schema mientras la key esté sin saldo — D-08.)`)
       } else {
         otherErr++
         console.log(`  [${i}/${RUNS}] ⚠️  Otro error: ${msg.slice(0, 200)}`)

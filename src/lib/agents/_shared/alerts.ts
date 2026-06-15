@@ -19,6 +19,7 @@
 import { Resend } from 'resend'
 import { createModuleLogger } from '@/lib/audit/logger'
 import { getPlatformConfig } from '@/lib/domain/platform-config'
+import { getWorkspaceName } from '@/lib/domain/workspace-settings'
 
 const logger = createModuleLogger('crm-bot-alerts')
 
@@ -160,6 +161,154 @@ export async function maybeSendApproachingLimitAlert(
     logger.info({ ctx }, 'approaching-limit alert sent')
   } catch (err) {
     logger.error({ err, ctx }, 'approaching-limit alert send failed (fail-silent)')
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Private helper — workspace name resolution (Regla 3: domain accessor only)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a workspace display name by id, using the domain layer (Regla 3).
+ * Fail-soft: any lookup failure falls back to workspaceId or 'unknown'.
+ * A name-resolution failure MUST NOT prevent the alert from being sent.
+ */
+async function resolveWorkspaceName(workspaceId: string | undefined): Promise<string> {
+  if (!workspaceId) return 'unknown'
+  try {
+    const name = await getWorkspaceName(workspaceId)
+    return name ?? workspaceId
+  } catch {
+    return workspaceId // fail-soft
+  }
+}
+
+// ---------------------------------------------------------------------------
+// LLM Credits Depleted Alert — NORMAL severity (D-07a)
+// ---------------------------------------------------------------------------
+
+export interface LLMCreditsAlertCtx {
+  workspaceId: string | undefined
+  provider: 'gemini'
+  callSite: string
+}
+
+/**
+ * Notify the operator that Gemini prepayment credits are depleted.
+ * Severity: NORMAL — the bot is still ALIVE (Haiku took over).
+ *
+ * D-03/D-06/D-07 — fail-soft: turn already saved by Haiku must never be
+ * affected (Pitfall #5 RESEARCH). Caller uses `void`.
+ *
+ * Dedup: GLOBAL per-provider key `llm_credits:gemini` (not per-workspace)
+ * so one outage → one email regardless of how many turns hit it (D-03, T-fb-03).
+ */
+export async function sendLLMCreditsDepletedAlert(ctx: LLMCreditsAlertCtx): Promise<void> {
+  const key = 'llm_credits:gemini'
+  const last = lastSent.get(key) ?? 0
+  if (Date.now() - last < DEDUPE_MS) return
+  lastSent.set(key, Date.now())
+
+  const client = getResendClient()
+  if (!client) {
+    logger.warn({ ctx }, 'RESEND_API_KEY unset; LLM credits alert dropped')
+    return
+  }
+
+  const wsName = await resolveWorkspaceName(ctx.workspaceId)
+  const wsShort = (ctx.workspaceId ?? 'unknown').slice(0, 8)
+
+  try {
+    await client.emails.send({
+      from: await getFromAddress(),
+      to: RECIPIENT,
+      subject: `[v4 LLM] Gemini sin créditos — bot VIVO con Haiku — ws ${wsShort}`,
+      text: [
+        `Gemini (proveedor principal del bot v4) se quedó sin créditos de prepago.`,
+        `El bot sigue VIVO: el turno actual fue atendido por Haiku (Anthropic).`,
+        '',
+        `Workspace: ${wsName} (${ctx.workspaceId ?? 'unknown'})`,
+        `Call-site: ${ctx.callSite}`,
+        '',
+        `Acción: recargar créditos de Gemini en la consola de Google Cloud.`,
+        `Una vez recargados, el bot vuelve a usar Gemini sin necesidad de redeploy.`,
+        '',
+        `Próximo aviso en 15 min (dedup in-memory, clave global '${key}').`,
+      ].join('\n'),
+    })
+    logger.info({ ctx }, 'LLM credits depleted alert sent')
+  } catch (err) {
+    logger.error({ err, ctx }, 'LLM credits alert send failed (fail-silent)')
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Both Providers Down Alert — CRITICAL severity (D-07b)
+// ---------------------------------------------------------------------------
+
+export interface BothProvidersDownCtx {
+  workspaceId: string | undefined
+  callSite: string
+  geminiError: string
+  anthropicError: string
+}
+
+/**
+ * Notify the operator that BOTH LLM providers (Gemini + Haiku) are down.
+ * Severity: CRITICAL — the bot CANNOT respond. Handoff to a human is suggested.
+ *
+ * D-03/D-06/D-07 — fail-soft: this is best-effort notification; the handoff
+ * signal was already emitted before calling this (Pitfall #5 RESEARCH).
+ * Caller uses `void`.
+ *
+ * Dedup: GLOBAL key `both_down` (separate from `llm_credits:gemini` so this
+ * critical alert can fire even if a credits alert fired within the same 15-min
+ * window — T-fb-03).
+ *
+ * T-fb-01: geminiError / anthropicError MUST be err.name only (no user content,
+ * no API key fragments). Caller is responsible for passing err.name.
+ */
+export async function sendBothProvidersDownAlert(ctx: BothProvidersDownCtx): Promise<void> {
+  const key = 'both_down'
+  const last = lastSent.get(key) ?? 0
+  if (Date.now() - last < DEDUPE_MS) return
+  lastSent.set(key, Date.now())
+
+  const client = getResendClient()
+  if (!client) {
+    logger.warn({ ctx }, 'RESEND_API_KEY unset; both-providers-down alert dropped')
+    return
+  }
+
+  const wsName = await resolveWorkspaceName(ctx.workspaceId)
+  const wsShort = (ctx.workspaceId ?? 'unknown').slice(0, 8)
+
+  try {
+    await client.emails.send({
+      from: await getFromAddress(),
+      to: RECIPIENT,
+      subject: `🔴 CRÍTICO [v4 LLM] AMBOS proveedores caídos — bot NO responde — ws ${wsShort}`,
+      text: [
+        `ALERTA CRÍTICA: Gemini Y Haiku (Anthropic) fallaron en el mismo turno.`,
+        `El bot v4 NO puede responder. Se ha sugerido handoff a un agente humano.`,
+        '',
+        `Workspace: ${wsName} (${ctx.workspaceId ?? 'unknown'})`,
+        `Call-site: ${ctx.callSite}`,
+        '',
+        `Error Gemini: ${ctx.geminiError}`,
+        `Error Anthropic: ${ctx.anthropicError}`,
+        '',
+        `Acciones inmediatas:`,
+        `  1. Revisar créditos de Gemini en la consola de Google Cloud.`,
+        `  2. Revisar estado de la API de Anthropic (status.anthropic.com).`,
+        `  3. El cliente afectado requiere atención humana manual.`,
+        '',
+        `Próximo aviso en 15 min (dedup in-memory, clave global '${key}').`,
+      ].join('\n'),
+    })
+    logger.info({ ctx }, 'both-providers-down alert sent')
+  } catch (err) {
+    logger.error({ err, ctx }, 'both-providers-down alert send failed (fail-silent)')
   }
 }
 

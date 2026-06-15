@@ -24,6 +24,25 @@ export type SettingsResult<T> =
   | { ok: false; error: string }
 
 /**
+ * Returns the workspace display name for a given workspaceId.
+ * Used by operator-alert functions (alerts.ts) so emails include workspace
+ * context (D-03 — workspace name + id must appear in alert body).
+ *
+ * Fail-soft: returns null on any error — callers fall back to the id alone.
+ * Auth/role enforcement: uses admin client, workspace_id is the only filter.
+ */
+export async function getWorkspaceName(workspaceId: string): Promise<string | null> {
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('workspaces')
+    .select('name')
+    .eq('id', workspaceId)
+    .single()
+  if (error || !data) return null
+  return (data as { name?: string | null }).name ?? null
+}
+
+/**
  * Merges a partial `conversation_metrics` settings object into
  * `workspaces.settings` JSONB for the given workspace, without clobbering
  * other sibling keys (e.g. `hidden_modules`, `whatsapp_*`).

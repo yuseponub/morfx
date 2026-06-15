@@ -52,6 +52,10 @@ import { runCrmGate } from './crm-gate'
 import type { LoopOutcome } from './sub-loop/output-schema'
 import { captureUnknownCase } from './unknown-cases/capture'
 import { SOMNIO_V4_AGENT_ID, SOMNIO_WORKSPACE_ID } from './config'
+// v4-llm-fallback-resilience (Plan 04, D-06): sentinel que sobrevive el re-wrap
+// de comprehension.ts; detectado con .includes() porque la re-envoltura embebe
+// el mensaje original como substring (RESEARCH Q6 / Pitfall #7).
+import { PROVIDERS_DOWN_SENTINEL } from './llm-fallback'
 import { getCollector } from '@/lib/observability'
 // Standalone v4-observability-completeness (Plan 02):
 // engine_error en el error path (D-01) + restart_iteration en el spine (D-02/D-03).
@@ -1127,6 +1131,12 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
     const errStack = error instanceof Error && error.stack ? error.stack.split('\n').slice(0, 5).join(' | ') : undefined
     console.error('[SomnioV4] Error processing message:', errMsg, errStack ?? '')
 
+    // v4-llm-fallback-resilience (Plan 04, D-06): detectar sentinel de doble-fallo
+    // LLM. Usar .includes() (NO .startsWith()) porque comprehension.ts re-envuelve
+    // el error en `new Error('[Comprehension-v4 generateText] Error: llm_providers_down:…')`
+    // — el sentinel sobrevive como substring (RESEARCH Q6 / Pitfall #7).
+    const isProvidersDown = errMsg.includes(PROVIDERS_DOWN_SENTINEL)
+
     // Standalone v4-observability-completeness (Plan 02, D-01): cierra el agujero
     // negro del turno 1b561aaf. Emite el motivo REAL + stack truncado (5 frames) +
     // EL STAGE donde reventó + restart_iteration a observabilidad. PII-safe: el
@@ -1135,6 +1145,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
     // Los early-returns de interrupción (errorMessage 'interrupted_at_ckpt_*')
     // retornan ANTES del catch → NO pasan por aquí → NO emiten engine_error
     // (Pitfall 2: son Path A restarts normales, no errores).
+    // D-05: NO suprimir este emit incluso en doble-fallo — máxima visibilidad cruda.
     recordV4Event('engine_error', {
       stage: currentStage,
       errorMessage: bodyTruncate(errMsg, 200),
@@ -1150,6 +1161,14 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       // Plan 02 (D-01): el stage donde reventó viaja en el output para que el runner
       // (Plan 04) construya un mensaje limpio al chat del operador (SIN stack).
       errorStage: currentStage,
+      // v4-llm-fallback-resilience (D-06): doble-fallo LLM → marca handoff suave para
+      // que un humano atienda. Se mantiene success:false (D-05 — [ERROR AGENTE] debe
+      // seguir apareciendo). Las dos notas de inbox coexisten (CONTEXT.md D-05 reconciliación).
+      ...(isProvidersDown ? {
+        requiresHuman: true,
+        newMode: 'handoff' as const,
+        handoffReasonDetail: 'ambos proveedores LLM caídos (Gemini + Haiku)',
+      } : {}),
       intentsVistos: input.intentsVistos,
       templatesEnviados: input.templatesEnviados,
       datosCapturados: input.datosCapturados,

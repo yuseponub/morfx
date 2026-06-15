@@ -8,7 +8,7 @@
 
 import { describe, it, expect, afterEach } from 'vitest'
 import { APICallError, RetryError, NoObjectGeneratedError } from 'ai'
-import { isGeminiSaturation, isTimeoutError } from '../saturation'
+import { isGeminiSaturation, isTimeoutError, isGeminiBillingError, isGeminiSchemaCapacity } from '../saturation'
 import { __resetBreakers } from '../breaker'
 
 // Pitfall #3 — reset del module-singleton aunque saturation.ts no toque el breaker.
@@ -141,5 +141,125 @@ describe('isTimeoutError — abort/timeout → true', () => {
 
   it('error genérico → false', () => {
     expect(isTimeoutError(new Error('x'))).toBe(false)
+  })
+})
+
+// ─── D-01/D-09 — isGeminiBillingError ────────────────────────────────────────
+
+describe('isGeminiBillingError — créditos agotados → true', () => {
+  it('APICallError con message "Your prepayment credits are depleted" → true', () => {
+    expect(isGeminiBillingError(apiError({ message: 'Your prepayment credits are depleted' }))).toBe(true)
+  })
+
+  it('Pitfall #5 — error re-envuelto por comprehension con credits en message → true', () => {
+    expect(
+      isGeminiBillingError(
+        new Error('[Comprehension-v4 generateText] Error: Your prepayment credits are depleted | finishReason=error'),
+      ),
+    ).toBe(true)
+  })
+
+  it('APICallError con responseBody conteniendo RESOURCE_EXHAUSTED + quota → true', () => {
+    expect(
+      isGeminiBillingError(
+        apiError({ responseBody: '{"error":{"message":"RESOURCE_EXHAUSTED quota exceeded for project"}}' }),
+      ),
+    ).toBe(true)
+  })
+
+  it('APICallError statusCode 503 sin mensaje de billing → false (eso es saturación)', () => {
+    expect(isGeminiBillingError(apiError({ statusCode: 503 }))).toBe(false)
+  })
+})
+
+describe('isGeminiBillingError — NO matchea parse/schema (Pitfall #4)', () => {
+  it('NoObjectGeneratedError → false (no enmascarar bugs de schema como créditos)', () => {
+    const err = new NoObjectGeneratedError({
+      message: 'No object generated: response did not match schema',
+      text: '{ broken json',
+      response: { id: 'r', timestamp: new Date(), modelId: 'gemini-2.5-flash' },
+      usage: { inputTokens: 1, outputTokens: 0, totalTokens: 1 },
+      finishReason: 'stop',
+    })
+    expect(isGeminiBillingError(err)).toBe(false)
+  })
+})
+
+// ─── D-02/D-09 — isGeminiSchemaCapacity ──────────────────────────────────────
+
+describe('isGeminiSchemaCapacity — error union-types → true', () => {
+  it('APICallError con message "too many parameters with union types" → true', () => {
+    expect(
+      isGeminiSchemaCapacity(
+        apiError({ message: 'Schemas contains too many parameters with union types (17 parameters...)' }),
+      ),
+    ).toBe(true)
+  })
+
+  it('Pitfall #5 — error re-envuelto con "too many states for serving" → true', () => {
+    expect(
+      isGeminiSchemaCapacity(
+        new Error('The specified schema produces a constraint that has too many states for serving'),
+      ),
+    ).toBe(true)
+  })
+
+  it('APICallError con message "bare anyOf parse failure" → false (Pitfall #4 — demasiado genérico)', () => {
+    expect(isGeminiSchemaCapacity(apiError({ message: 'some anyOf parse failure' }))).toBe(false)
+  })
+})
+
+describe('isGeminiSchemaCapacity — NO matchea parse/schema (Pitfall #4)', () => {
+  it('NoObjectGeneratedError → false (no enmascarar bugs de schema como union-types)', () => {
+    const err = new NoObjectGeneratedError({
+      message: 'No object generated: response did not match schema',
+      text: '{ broken json',
+      response: { id: 'r', timestamp: new Date(), modelId: 'gemini-2.5-flash' },
+      usage: { inputTokens: 1, outputTokens: 0, totalTokens: 1 },
+      finishReason: 'stop',
+    })
+    expect(isGeminiSchemaCapacity(err)).toBe(false)
+  })
+})
+
+// ─── Pitfall #4 consolidado: ambos predicados nuevos + regresión de isGeminiSaturation ──
+
+describe('Pitfall #4 — NoObjectGeneratedError no matchea ningún predicado de fallback', () => {
+  const parseErr = new NoObjectGeneratedError({
+    message: 'No object generated: response did not match schema',
+    text: '{ broken json',
+    response: { id: 'r', timestamp: new Date(), modelId: 'gemini-2.5-flash' },
+    usage: { inputTokens: 1, outputTokens: 0, totalTokens: 1 },
+    finishReason: 'stop',
+  })
+
+  it('isGeminiBillingError(NoObjectGeneratedError) → false', () => {
+    expect(isGeminiBillingError(parseErr)).toBe(false)
+  })
+
+  it('isGeminiSchemaCapacity(NoObjectGeneratedError) → false', () => {
+    expect(isGeminiSchemaCapacity(parseErr)).toBe(false)
+  })
+
+  it('isGeminiSaturation(NoObjectGeneratedError) → false (no-regression)', () => {
+    expect(isGeminiSaturation(parseErr)).toBe(false)
+  })
+})
+
+// ─── No-overlap regresión: billing/schema-cap strings NO matchean isGeminiSaturation ─
+
+describe('isGeminiSaturation — no matchea strings de billing/schema-cap (no-overlap)', () => {
+  it('"prepayment credits are depleted" en message → false para isGeminiSaturation', () => {
+    expect(
+      isGeminiSaturation(apiError({ statusCode: 400, message: 'Your prepayment credits are depleted' })),
+    ).toBe(false)
+  })
+
+  it('"too many parameters with union types" → false para isGeminiSaturation', () => {
+    expect(
+      isGeminiSaturation(
+        apiError({ statusCode: 400, message: 'Schemas contains too many parameters with union types' }),
+      ),
+    ).toBe(false)
   })
 })

@@ -634,8 +634,19 @@ export class V4ProductionRunner {
       // v4-handoff-soft-signal (D-03 + D-04): soft handoff signal for v4.
       // suppressTurnEffects covers the outputDiscarded + wasInterruptedWithZeroSends edges
       // where newMode is already suppressed — soft signal must also be absent in those cases.
-      ...(output.newMode === 'handoff' && !suppressTurnEffects
+      //
+      // v4-llm-fallback-resilience (D-06): belt-and-suspenders guard for the double-fail
+      // path. On double-fail the agent RETURNS success:false (does NOT throw), so the core
+      // completes with kind:'completed', wasInterruptedWithZeroSends=false,
+      // outputDiscarded=undefined → suppressTurnEffects=false → the primary branch
+      // (output.newMode === 'handoff' && !suppressTurnEffects) ALREADY fires for this output.
+      // isProvidersDownHandoff is defense-in-depth: if a future change forces
+      // suppressTurnEffects=true on error paths, the double-fail handoff signal still emits.
+      ...((output.newMode === 'handoff' && !suppressTurnEffects) ||
+        (output.requiresHuman === true &&
+          output.handoffReasonDetail === 'ambos proveedores LLM caídos (Gemini + Haiku)')
         ? (() => {
+            // isProvidersDownHandoff = second branch of the OR above (double-fail path).
             // v4-handoff-soft-signal (gap UAT 2026-06-14): preferir la razón REAL del
             // handoff de contenido (handoffReasonDetail = handoffSlots reasons) sobre
             // decisionInfo.reason, que en un partial-handoff es el string genérico del
@@ -648,6 +659,9 @@ export class V4ProductionRunner {
               handoffSuggested: true,
               handoffSignal: {
                 reason: realReason,
+                // Double-fail uses gate via deriveHandoffGate (maps to 'no_kb' as closest
+                // existing gate: no response available from any provider). NOT a new gate
+                // value — no union widening (Regla 6 / types.ts).
                 gate: deriveHandoffGate(realReason),
               // topic is intentionally undefined at the runner level: the runner does NOT
               // have the per-slot KB sourceTopic in scope (subLoopReason is a coarse

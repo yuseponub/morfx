@@ -1135,6 +1135,33 @@ export async function processMessageWithAgent(
     }
   }
 
+  // v4-llm-fallback-resilience (D-06): doble-fallo LLM → nota handoff que COEXISTE con
+  // [ERROR AGENTE] (D-05). El [ERROR AGENTE] lo inserta webhook-handler en el path
+  // success:false; aquí agregamos la nota de handoff suave para que el operador sepa
+  // que debe atender. CHECKER FINDING: processMessageWithAgent devuelve SomnioEngineResult
+  // con handoffSuggested+handoffSignal mapeados ~line 995; la nota soft del path success
+  // (arriba) corre antes del return; el [ERROR AGENTE] dispara separadamente en
+  // webhook-handler.ts:546 sobre el returned !success — coexisten por construcción.
+  if (!result.success && result.handoffSuggested && result.newMode === 'handoff') {
+    try {
+      const handoffReason = result.handoffSignal?.reason ?? 'ambos proveedores LLM caídos'
+      await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        workspace_id: workspaceId,
+        direction: 'outbound',
+        type: 'text',
+        content: { body: `⚠ HANDOFF SUGERIDO — motivo: ${handoffReason}` },
+        timestamp: new Date().toISOString(),
+      })
+      logger.info(
+        { conversationId, handoffSignal: result.handoffSignal },
+        'v4 double-fail handoff — inbox note inserted (coexists with [ERROR AGENTE])'
+      )
+    } catch (noteError) {
+      logger.warn({ error: noteError, conversationId }, 'Failed to insert double-fail handoff note')
+    }
+  }
+
   // 12. Mark inbound messages as processed by agent
   try {
     await supabase
